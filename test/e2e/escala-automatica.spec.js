@@ -23,7 +23,7 @@ test.describe('Escala automática', () => {
     expect((await lerEscala(page)).linhas.length).toBeGreaterThan(20);
   });
 
-  test('cada alteração refaz a escala na hora: o avião em manutenção sai, e o Desfazer o traz de volta', async ({ page }) => {
+  test('cada alteração refaz a escala na hora: o avião em manutenção sai e, religado, volta', async ({ page }) => {
     await abrirComExemplo(page);
     await irPara(page, 'esc');
     const antes = await lerEscala(page);
@@ -35,7 +35,11 @@ test.describe('Escala automática', () => {
     await irPara(page, 'esc');
     expect((await lerEscala(page)).linhas.some(l => l.includes(matricula))).toBe(false);
 
-    await page.locator('#btn-undo').click();
+    // Sem botão Desfazer: para voltar atrás, basta alterar de novo
+    await expect(page.locator('#btn-undo')).toHaveCount(0);
+    await irPara(page, 'rec');
+    await page.locator(`#eqs input[data-id="${matricula}"]`).check();
+    await irPara(page, 'esc');
     expect(await lerEscala(page)).toEqual(antes);
   });
 

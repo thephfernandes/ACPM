@@ -72,8 +72,11 @@ header.topo {
   column-gap: 12px;
   row-gap: 4px;
 }
-.topo-marca { grid-area: marca; margin: 0; font: 700 21px 'Barlow Semi Condensed', sans-serif; letter-spacing: .2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.topo-marca span { font-size: 13px; color: var(--ye); letter-spacing: .08em; margin-left: 4px; }
+/* Marca: a águia do ACPM, "Escala de Voo" e a sigla, centralizados na mesma linha */
+.topo-marca { grid-area: marca; margin: 0; min-width: 0; display: flex; align-items: center; gap: 8px; font: 700 21px/1.2 'Barlow Semi Condensed', sans-serif; letter-spacing: .2px; }
+.topo-logo { flex: none; width: auto; height: 24px; }
+.topo-titulo { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.topo-sigla { flex: none; font-size: 13px; color: var(--ye); letter-spacing: .08em; }
 .topo-data {
   grid-area: data; display: flex; align-items: center; gap: 2px;
   background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.16); border-radius: 8px; padding: 2px;
@@ -81,10 +84,12 @@ header.topo {
 .topo-ico { width: 32px; height: 32px; border: 0; background: transparent; color: var(--hdT); border-radius: 6px; cursor: pointer; display: grid; place-items: center; }
 .topo-ico:hover:not(:disabled) { background: rgba(255,255,255,.1); }
 .topo-ico:disabled { opacity: .35; cursor: default; }
+/* Largura fixa (cabe a data mais longa, com o ano e "amanhã"): as setas não mudam de lugar quando a data muda */
 .topo-data-campo {
-  position: relative; display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 6px;
-  font: 600 15.5px 'Barlow Semi Condensed', sans-serif; white-space: nowrap; cursor: pointer;
+  position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 6px; width: 256px;
+  padding: 4px 10px; border-radius: 6px; font: 600 15.5px 'Barlow Semi Condensed', sans-serif; white-space: nowrap; cursor: pointer;
 }
+#dt-rotulo { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .topo-data-campo:hover { background: rgba(255,255,255,.1); }
 .topo-data-rel { font: 700 12px 'Barlow', sans-serif; background: var(--ye); color: #12263A; border-radius: 10px; padding: 1px 8px; }
 /* O campo de data cobre o rótulo: um clique abre o calendário do navegador */
@@ -107,8 +112,6 @@ header.topo {
 .hd-sel option { background: var(--hd); color: var(--hdT); }
 .hd-btn:hover:not(:disabled) { background: rgba(255,255,255,.1); }
 .hd-btn:disabled, .hd-sel:disabled { opacity: 0.65; cursor: not-allowed; }
-/* Desfazer só aparece quando há o que desfazer */
-#btn-undo:disabled { display: none; }
 .badge-cnt {
   background: rgba(255,255,255,.18);
   color: var(--hdT);
@@ -141,6 +144,13 @@ header.topo {
 }
 .menu-itens button:hover, .menu-itens button:focus-visible { background: var(--info-bg); }
 #btn-sair { color: var(--er); }
+/* Tema: interruptor com o sol (claro) e a lua (escuro); o lado em uso fica destacado */
+.menu-itens button.tema { display: flex; align-items: center; gap: 8px; color: var(--mu); }
+.tema-trilho { position: relative; width: 34px; height: 20px; border-radius: 10px; background: var(--ln2); transition: background .15s; flex: none; }
+.tema-botao { position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.25); transition: left .15s; }
+#btn-theme[aria-checked="true"] .tema-trilho { background: var(--ac); }
+#btn-theme[aria-checked="true"] .tema-botao { left: 16px; }
+#btn-theme[aria-checked="false"] .ico:first-child, #btn-theme[aria-checked="true"] .ico:last-child { color: var(--ink); }
 
 /* Abas: sem número, na ordem de uso; a ativa sublinhada em amarelo; selos de atenção */
 nav#nav { grid-area: abas; display: flex; align-items: center; gap: 2px; margin: 0 -8px; overflow-x: auto; scrollbar-width: none; }
@@ -167,7 +177,8 @@ body[data-perfil="secretaria"] #btn-share-link { display: none !important; }
   header.topo { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "marca ferramentas" "data data" "abas abas"; padding: 8px 12px 0; }
   .hd-sel { max-width: 110px; }
   .topo-marca { font-size: 18px; }
-  .topo-marca span { display: none; }
+  .topo-logo { height: 20px; }
+  .topo-sigla { display: none; }
   .topo-data { justify-content: space-between; }
   .hd-txt, .hd-usuario, .hd-seta { display: none; }
   .hd-conta { padding: 3px; }

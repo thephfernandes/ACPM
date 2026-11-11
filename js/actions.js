@@ -1,11 +1,9 @@
-// Ações que alteram o estado: perfil de acesso, data da escala, desfazer, histórico de alterações, geração da
-// escala e BI.
-import { DEFAULT_LIM } from './config.js';
+// Ações que alteram o estado: perfil de acesso, data da escala, histórico de alterações, geração da escala e BI.
 import { isoMenosDias, fimDoMes, rotuloDaData, hojeISO } from './format.js';
 import { runAllocationEngine } from './engine.js';
 import { ApiClient } from './storage.js';
 import { S, RES, AUDIT_LOG, BI_HISTORY, DATA, setS, setRES, setAuditLog, setBIHistory, setData, isGestor } from './state.js';
-import { $, showToast } from './dom.js';
+import { $ } from './dom.js';
 import { rBI } from './views/bi.js';
 import { renderAuditPanel, rOut } from './views/escala.js';
 import { rDem } from './views/demanda.js';
@@ -13,8 +11,6 @@ import { rIns, rInsDia, rAlu } from './views/cadastros.js';
 import { rRec, rRevisao } from './views/recursos.js';
 import { podeEditarAgenda, rAgenda } from './views/agenda.js';
 import { atualizarSelosDaEscala, atualizarSeloDaAgenda, lerPedidosDaData } from './views/selos.js';
-
-const historyStack = [];
 
 // Abre uma data na tela (a data da escala e a data base do BI)
 export function abrirData(data) {
@@ -55,20 +51,6 @@ export function setRole(role, lockShared = false) {
   // Agenda: quem pode registrar pedidos (operadores e secretaria; no modo local, fora do perfil Gestor)
   document.body.dataset.agenda = podeEditarAgenda() ? 'edita' : 'consulta';
   atualizarSeloDaAgenda();
-}
-
-export function limparDesfazer() {
-  historyStack.length = 0;
-  const btnUndo = $('#btn-undo');
-  if (btnUndo) btnUndo.disabled = true;
-}
-
-export function pushHistory() {
-  if (isGestor()) return;
-  historyStack.push(JSON.stringify(S));
-  if (historyStack.length > 30) historyStack.shift();
-  const btnUndo = $('#btn-undo');
-  if (btnUndo) btnUndo.disabled = false;
 }
 
 // A escala acompanha os dados: cada alteração do operador refaz a escala da data (o motor leva milissegundos) e
@@ -149,7 +131,6 @@ export async function carregarData(data) {
   setRES(escala || escalaCalculada());
   escalaSoCalculada = !escala;
   setAuditLog(historico);
-  limparDesfazer();
   $('#escala-atualizada').hidden = true;
   rRec(); rIns(); rAlu(); rDem(); renderAuditPanel(); rOut(); rAgenda();
   atualizarSelosDaEscala();
@@ -175,17 +156,6 @@ export async function carregarBI() {
   setBIHistory(bi);
   syncBIHistoryForCurrentDate();
   rBI();
-}
-
-export function undoLastAction() {
-  if (isGestor() || !historyStack.length) return;
-  setS(JSON.parse(historyStack.pop()));
-  S.lim = { ...DEFAULT_LIM };
-  save();
-  $('#btn-undo').disabled = historyStack.length === 0;
-  logChange('mod', 'Ação desfeita pelo botão Desfazer');
-  rRec(); rIns(); rAlu(); rDem();
-  showToast('Última alteração desfeita.');
 }
 
 // O BI em memória acompanha a escala da tela (que pode ainda estar sendo gravada)

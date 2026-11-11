@@ -10,7 +10,6 @@ test.describe('Perfis de acesso', () => {
     await page.locator('#role-sel').selectOption('gestor');
     await expect(page.locator('body')).toHaveAttribute('data-role', 'gestor');
     await expect(page.locator('#out [data-act="rm-fly"]').first()).toBeHidden();
-    await expect(page.locator('#btn-undo')).toBeHidden();
     await expect(page.locator('#dt')).toBeDisabled();
     await expect(page.locator('#out .st-sel').first()).toBeDisabled();
     await irPara(page, 'ins');

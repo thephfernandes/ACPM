@@ -8,6 +8,25 @@ test.describe('Aplicação', () => {
     await expect(page.locator('#s-esc')).toBeVisible();
     await expect(page.locator('#nav button[data-t="esc"]')).toHaveClass(/\bon\b/);
     await expect(page.locator('#s-rec')).toBeHidden();
+    // Sem botão Desfazer: para voltar atrás, basta alterar de novo
+    await expect(page.locator('#btn-undo')).toHaveCount(0);
+  });
+
+  test('o logo do ACPM no topo e como ícone da página; logo, "Escala de Voo" e "ACPM" alinhados', async ({ page }) => {
+    await abrir(page);
+    const icone = page.locator('link[rel="icon"]');
+    await expect(icone).toHaveAttribute('href', 'img/favicon-32.png');
+    expect((await page.request.get(await icone.evaluate(l => l.href))).ok()).toBe(true);
+    await expect(page.locator('link[rel="apple-touch-icon"]')).toHaveAttribute('href', 'img/apple-touch-icon.png');
+    const logo = page.locator('.topo-marca img.topo-logo');
+    await expect(logo).toBeVisible();
+    await expect(logo).toHaveAttribute('alt', '');
+    expect(await logo.evaluate(img => img.complete && img.naturalWidth > 0)).toBe(true);
+    const centros = await page.evaluate(() => ['.topo-logo', '.topo-titulo', '.topo-sigla'].map(s => {
+      const r = document.querySelector(s).getBoundingClientRect();
+      return r.top + r.height / 2;
+    }));
+    expect(Math.max(...centros) - Math.min(...centros)).toBeLessThanOrEqual(1);
   });
 
   test('a data em uso fica no topo, em todas as abas; os botões ‹ e › trocam o dia', async ({ page }) => {
@@ -25,6 +44,20 @@ test.describe('Aplicação', () => {
     await page.locator('#dt-ant').click();
     await expect(page.locator('#dt')).toHaveValue('2026-11-10');
     await expect(page.locator('#dt-rel')).toHaveText('hoje');
+  });
+
+  test('o controle da data tem tamanho fixo: as setas não saem do lugar quando o texto muda', async ({ page }) => {
+    await abrir(page);
+    const caixas = () => page.evaluate(() => ['.topo-data', '#dt-ant', '#dt-prox'].map(s => {
+      const r = document.querySelector(s).getBoundingClientRect();
+      return [Math.round(r.x), Math.round(r.width)];
+    }));
+    const inicial = await caixas();
+    for (const data of ['2026-11-12', '2026-11-10', '2026-11-14', '2026-11-16', '2027-01-04', '2026-12-31']) {
+      await page.locator('#dt').fill(data);
+      await expect(page.locator('#dt')).toHaveValue(data);
+      expect(await caixas(), data).toEqual(inicial);
+    }
   });
 
   test('navega pelas abas; sem os botões "Próximo" de um passo a passo', async ({ page }) => {
@@ -62,8 +95,17 @@ test.describe('Aplicação', () => {
     await abrir(page);
     const html = page.locator('html');
     await abrirMenuDaConta(page);
-    await page.locator('#btn-theme').click();
+    const tema = page.locator('#btn-theme');
+    // Um interruptor com ícones (sol e lua), sem o texto "Tema claro ou escuro"
+    await expect(tema).toHaveAttribute('role', 'menuitemcheckbox');
+    await expect(tema).toHaveAttribute('aria-label', 'Tema escuro');
+    await expect(tema).toHaveAttribute('aria-checked', 'false');
+    await expect(tema).toHaveText('');
+    await expect(tema.locator('use')).toHaveCount(2);
+    await tema.click();
     await expect(html).toHaveAttribute('data-theme', 'dark');
+    await expect(tema).toHaveAttribute('aria-checked', 'true');
+    await expect(page.locator('#menu-conta')).toBeVisible();
     await page.reload();
     await expect(html).toHaveAttribute('data-theme', 'dark');
     await abrirMenuDaConta(page);
@@ -89,7 +131,8 @@ test.describe('Aplicação', () => {
     // Nada das regras e dos nomes antigos
     const texto = await manual.innerText();
     for (const antigo of ['A01', 'A09', 'Gerar escala', 'Preencher exemplo', 'Link Blindado', 'Importar Solicitações da Agenda',
-      'Vai voar?', 'Início pref', 'Exportar CSV', 'Emitir PDF', 'Turno rápido', 'Cada cartão', 'campo Data', 'Equipamento', 'Bloquear']) {
+      'Vai voar?', 'Início pref', 'Exportar CSV', 'Emitir PDF', 'Turno rápido', 'Cada cartão', 'campo Data', 'Equipamento', 'Bloquear',
+      'Sessões', 'sessão', 'Desfazer']) {
       expect(texto, antigo).not.toContain(antigo);
     }
     await expect(manual.locator('h3')).toHaveText(['Primeiros passos: a rotina do operador', 'Perfis de acesso', 'As abas',
@@ -97,7 +140,7 @@ test.describe('Aplicação', () => {
     // As abas na ordem do app, sem números, com os nomes novos dos botões e das vistas
     await expect(manual.locator('#manual-abas h4')).toHaveText(['Escala', 'Demanda', 'Agenda', 'Recursos', 'Instrutores', 'Alunos', 'Rodízio', 'BI']);
     for (const novo of ['menu da conta', 'Pôr um aluno na demanda', 'Disponibilidade do dia', 'Editar habilitações', 'Não escalar com',
-      'Ainda não importado', 'Atualizada às', 'Ver todos', 'Desfazer', 'Compartilhar']) {
+      'Ainda não importado', 'Atualizada às', 'Ver todos', 'Compartilhar']) {
       expect(texto, novo).toContain(novo);
     }
 

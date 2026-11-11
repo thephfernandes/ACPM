@@ -5,6 +5,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Escala de Voo — ACPM</title>
+<link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32.png">
+<link rel="apple-touch-icon" href="img/apple-touch-icon.png">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Semi+Condensed:wght@500;600;700&display=swap">
 <link rel="stylesheet" href="css/app.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/4.2.1/jspdf.umd.min.js" integrity="sha512-plOdviVmws4Y3JAvbnpfKb2hVxKM1lCwsi3vmElYRj+tiDLffZ4FVUj5a8vyKJ9pIgl8JCAHEJ4D1iUKBecswg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
@@ -19,7 +21,6 @@
   <symbol id="i-manual" viewBox="0 0 24 24"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 19V5"/></symbol>
   <symbol id="i-compartilhar" viewBox="0 0 24 24"><path d="M10 14a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 10a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></symbol>
   <symbol id="i-tema" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor"/></symbol>
-  <symbol id="i-desfazer" viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-3"/></symbol>
   <symbol id="i-calendario" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></symbol>
   <symbol id="i-aviao" viewBox="0 0 24 24"><path d="M12 2.5c.8 0 1.5.7 1.5 1.5v5.5l7 4v2l-7-2v4.2l2 1.6V21L12 20l-3.5 1v-1.7l2-1.6v-4.2l-7 2v-2l7-4V4c0-.8.7-1.5 1.5-1.5z"/></symbol>
   <symbol id="i-instrutor" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></symbol>
@@ -31,11 +32,13 @@
   <symbol id="i-baixo" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></symbol>
   <symbol id="i-cima" viewBox="0 0 24 24"><path d="M6 15l6-6 6 6"/></symbol>
   <symbol id="i-topo" viewBox="0 0 24 24"><path d="M5 4h14"/><path d="M7 14l5-5 5 5"/><path d="M12 9v11"/></symbol>
+  <symbol id="i-sol" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+  <symbol id="i-lua" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></symbol>
   <symbol id="i-aviso" viewBox="0 0 24 24"><path d="M12 3l10 18H2z"/><path d="M12 10v5M12 18h.01"/></symbol>
 </svg>
 
 <header class="topo">
-  <h1 class="topo-marca">Escala de Voo <span>ACPM</span></h1>
+  <h1 class="topo-marca"><img class="topo-logo" src="img/acpm-aguia.png" alt="" width="64" height="24"><span class="topo-titulo">Escala de Voo</span><span class="topo-sigla">ACPM</span></h1>
   <!-- A data em uso: o contexto de todas as abas -->
   <div class="topo-data" role="group" aria-label="Data da escala">
     <button class="topo-ico" type="button" id="dt-ant" aria-label="Dia anterior" title="Dia anterior"><svg class="ico"><use href="#i-esquerda"/></svg></button>
@@ -52,7 +55,6 @@
       <option value="operador">Operador</option>
       <option value="gestor">Gestor</option>
     </select>
-    <button class="hd-btn edit-only" id="btn-undo" disabled title="Desfazer a última alteração"><svg class="ico"><use href="#i-desfazer"/></svg><span class="hd-txt">Desfazer</span></button>
     <button class="hd-btn" id="btn-open-log" title="Alterações desta data"><svg class="ico"><use href="#i-historico"/></svg><span class="hd-txt">Histórico</span><span class="badge-cnt" id="log-cnt">0</span></button>
     <button class="hd-btn" id="btn-manual" title="Como usar a escala e as regras que ela segue"><svg class="ico"><use href="#i-manual"/></svg><span class="hd-txt">Manual</span></button>
     <!-- Menu da conta: Minha conta, Usuários (administrador), tema e Sair -->
@@ -65,7 +67,7 @@
       <div class="menu-itens" id="menu-conta" role="menu" hidden>
         <button type="button" role="menuitem" id="btn-conta" hidden>Minha conta</button>
         <button type="button" role="menuitem" id="btn-usuarios" hidden>Usuários</button>
-        <button type="button" role="menuitem" id="btn-theme">Tema claro ou escuro</button>
+        <button type="button" role="menuitemcheckbox" id="btn-theme" class="tema" aria-label="Tema escuro" aria-checked="false"><svg class="ico" aria-hidden="true"><use href="#i-sol"/></svg><span class="tema-trilho" aria-hidden="true"><span class="tema-botao"></span></span><svg class="ico" aria-hidden="true"><use href="#i-lua"/></svg></button>
         <button type="button" role="menuitem" id="btn-sair" hidden>Sair</button>
       </div>
     </div>
@@ -241,7 +243,6 @@
             <th>2ª preferência</th>
             <th>Disponibilidade</th>
             <th>Duração</th>
-            <th>Sessões</th>
             <th>Prioridade</th>
           </tr>
         </thead>
@@ -350,7 +351,7 @@
         <li><b>Confira a data no topo.</b> O sistema abre na aba Escala, na data de amanhã. Use as setas ‹ › ao lado da data, ou clique nela para escolher no calendário. Tudo o que você vê e altera, em qualquer aba, vale para essa data. Uma data nova começa como cópia da anterior: a demanda, os aviões, as janelas e os horários dos instrutores. As horas dos aviões e as filas do rodízio já chegam atualizadas com os voos da data anterior.</li>
         <li><b>Recursos:</b> desligue os aviões e simuladores indisponíveis (em manutenção) e as janelas de horário que não vão operar. Confira as horas de cada avião desde a última revisão de 50 horas.</li>
         <li><b>Instrutores:</b> em <i>Disponibilidade do dia</i>, desligue quem não vem e confira as janelas de cada um.</li>
-        <li><b>Demanda:</b> clique em <i>Importar pedidos da agenda</i> (o botão diz quantos pedidos da secretaria ainda não estão na demanda) e ajuste o que precisar: missão, avião ou sala, horários preferidos, disponibilidade, duração, sessões e prioridade. Para um aluno que não está na lista, use <i>Pôr um aluno na demanda</i>.</li>
+        <li><b>Demanda:</b> clique em <i>Importar pedidos da agenda</i> (o botão diz quantos pedidos da secretaria ainda não estão na demanda) e ajuste o que precisar: missão, avião ou sala, horários preferidos, disponibilidade, duração e prioridade. Para um aluno que não está na lista, use <i>Pôr um aluno na demanda</i>.</li>
         <li><b>Escala:</b> ela já está pronta. Confira as missões que não entraram (caixa vermelha, com o motivo) e os avisos (caixa amarela), ajuste o que for preciso e baixe o <i>CSV</i> (para o lançamento no portal) e o <i>PDF</i>.</li>
         <li><b>Durante o dia:</b> atualize o status de cada voo (Confirmado, Em Voo, Pendente ou Cancelado). Voo cancelado não conta nas horas do avião, no rodízio nem no BI.</li>
       </ol>
@@ -367,8 +368,8 @@
         <li><b>Gestor:</b> consulta tudo (escala, BI, histórico, PDF e CSV), sem alterar nada.</li>
         <li><b>Secretaria:</b> registra os pedidos de voo na Agenda (o app abre para ela nessa aba) e consulta a Escala; as outras abas ela não vê.</li>
       </ul>
-      <p>Cada pessoa entra com a própria conta. No menu da conta (o seu nome, no canto direito do topo) ficam <i>Minha conta</i>, <i>Usuários</i> (só para o Administrador), o tema claro ou escuro e <i>Sair</i>. Em <i>Minha conta</i> dá para trocar a senha (com pelo menos 12 caracteres) e o e-mail: o sistema manda um link para o e-mail atual e outro para o novo, e a troca vale depois que os dois forem abertos.</p>
-      <p><i>Histórico</i> (no topo) mostra as alterações da data, com quem fez e a hora, numa gaveta ao lado, sem sair da aba; algumas podem ser revertidas por ali. <i>Desfazer</i> (no topo; aparece depois de uma alteração) volta a última alteração feita neste navegador. <i>Compartilhar</i> (na barra da Escala) copia o link da escala da data; quem abre o link entra com a própria conta.</p>
+      <p>Cada pessoa entra com a própria conta. No menu da conta (o seu nome, no canto direito do topo) ficam <i>Minha conta</i>, <i>Usuários</i> (só para o Administrador), o interruptor do tema claro ou escuro e <i>Sair</i>. Em <i>Minha conta</i> dá para trocar a senha (com pelo menos 12 caracteres) e o e-mail: o sistema manda um link para o e-mail atual e outro para o novo, e a troca vale depois que os dois forem abertos.</p>
+      <p><i>Histórico</i> (no topo) mostra as alterações da data, com quem fez e a hora, numa gaveta ao lado, sem sair da aba; algumas podem ser revertidas por ali. <i>Compartilhar</i> (na barra da Escala) copia o link da escala da data; quem abre o link entra com a própria conta.</p>
     </div>
 
     <div class="pn" id="manual-abas">
@@ -388,7 +389,7 @@
         <li><b>Missão</b> e <b>Avião / sala</b> (só aparecem os permitidos para a missão; deixe o mouse sobre a missão para ver as habilitações que ela exige);</li>
         <li><b>1ª e 2ª preferência:</b> os horários preferidos; sem vaga neles, o sistema usa o próximo horário livre;</li>
         <li><b>Disponibilidade:</b> quando o aluno pode voar (qualquer horário, manhã, tarde, noite ou um horário só);</li>
-        <li><b>Duração</b> e <b>Sessões:</b> por exemplo, 3 horas em 2 sessões viram uma sessão de 2 h e outra de 1 h;</li>
+        <li><b>Duração:</b> as horas da missão, num voo só (para dividir em dois voos no dia, use <i>+ missão</i>);</li>
         <li><b>Prioridade:</b> de 1 a 5; quem tem 5 é atendido primeiro.</li>
       </ul>
       <p><i>Só quem voa</i> (ligado) esconde quem não voa na data. <i>+ missão</i> (aparece ao passar o mouse no nome) acrescenta outra missão ao mesmo aluno no dia, por exemplo Ground de manhã e voo à tarde. <i>Importar pedidos da agenda</i> traz os pedidos da data: só acrescenta, nunca apaga nem repete. <i>Pôr um aluno na demanda</i> inclui um aluno que ainda não voa na data. <i>Limpar demanda</i> fica no menu <i>Mais</i> e pede confirmação.</p>
@@ -440,7 +441,7 @@
         <li><b>Horário:</b> os voos diurnos terminam até as 17:30; o voo noturno começa na janela das 17:30.</li>
         <li><b>Ground antes do voo:</b> se o aluno tem Ground e voo do mesmo tema no dia, o voo só começa depois do Ground.</li>
       </ul>
-      <p>Entre os instrutores possíveis, a escolha segue esta ordem: um instrutor diferente do da sessão anterior do aluno (o aluno roda entre instrutores); o rodízio da categoria; quem tem menos habilitações (os mais versáteis ficam livres para as missões que só eles fazem); e quem tem menos horas no dia. Sempre que possível, cada instrutor fica no mesmo avião o dia todo, e o aluno troca de avião entre uma sessão e outra.</p>
+      <p>Entre os instrutores possíveis, a escolha segue esta ordem: um instrutor diferente daquele do voo anterior do aluno no dia (o aluno roda entre instrutores); o rodízio da categoria; quem tem menos habilitações (os mais versáteis ficam livres para as missões que só eles fazem); e quem tem menos horas no dia. Sempre que possível, cada instrutor fica no mesmo avião o dia todo, e o aluno troca de avião entre um voo e outro.</p>
       <p><b>Grounds</b> duram 1h30, numa sala só, e são dados em turma: alunos do mesmo Ground no mesmo horário ficam com o mesmo instrutor (o disponível com menos habilitações), e as horas contam uma vez só para ele.</p>
       <div class="tw">
         <table id="manual-missoes">
@@ -473,7 +474,7 @@
         <dt>Mudei uma coisa e outros voos também mudaram. Por quê?</dt>
         <dd>A escala é refeita inteira a cada alteração, seguindo as prioridades, e uma mudança pode abrir ou ocupar vagas de outros voos. Com o dia já em andamento, prefira mudar o status do voo (por exemplo, para Cancelado): o status não muda a distribuição dos outros voos.</dd>
         <dt>Fiz uma alteração sem querer. Como volto?</dt>
-        <dd>Use <i>Desfazer</i>, no topo (volta a última alteração feita neste navegador), ou reverta pelo <i>Histórico</i>.</dd>
+        <dd>Altere de novo, no próprio campo: a escala é refeita na hora. Algumas alterações também podem ser revertidas pelo <i>Histórico</i>.</dd>
         <dt>Como dar preferência a um aluno?</dt>
         <dd>Na Demanda, aumente a prioridade dele (5 é a mais alta).</dd>
         <dt>O aluno tem Ground e voo no mesmo dia. O que acontece?</dt>

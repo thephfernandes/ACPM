@@ -27,10 +27,6 @@ export const singleDemandRowHTML = (stu, d, mid = 0) => {
     ? `<select data-f="nb" disabled title="Ground School tem duração fixa de 01h30" aria-label="Duração de ${esc(stu.nm)}"><option value="1.5" selected>1h30</option></select>`
     : `<select data-f="nb" aria-label="Duração de ${esc(stu.nm)}">${opts(Array.from({ length: 11 }, (_, i) => [i + 1, (i + 1) + ' h']), d.nb)}</select>`;
 
-  const ssOpts = isGnd
-    ? `<select data-f="ss" disabled aria-label="Sessões de ${esc(stu.nm)}"><option value="1" selected>1</option></select>`
-    : `<select data-f="ss" aria-label="Sessões de ${esc(stu.nm)}">${opts([[1, '1'], [2, '2'], [3, '3']].filter(o => o[0] <= d.nb), Math.min(d.ss || 1, d.nb))}</select>`;
-
   return `<tr data-k="d" data-id="${stu.id}" data-mid="${mid}" data-nm="${esc(stu.nm.toLowerCase())}" data-mis="${esc(d.mis)}" class="${trCls}">
     <td>${firstCell}</td>
     <td><label class="alvo"><input type="checkbox" class="sw" data-f="fly"${d.fly ? ' checked' : ''} aria-label="${esc(stu.nm)} vai voar"></label></td>
@@ -40,7 +36,6 @@ export const singleDemandRowHTML = (stu, d, mid = 0) => {
     <td><select data-f="p2" aria-label="2ª preferência${de}">${wopt(d.p2, 1)}</select></td>
     <td><select data-f="jan" aria-label="Disponibilidade${de}">${opts(DISPONIBILIDADES, d.jan || '')}</select></td>
     <td>${nbOpts}</td>
-    <td>${ssOpts}</td>
     <td><select data-f="pr" aria-label="Prioridade${de}">${opts([1, 2, 3, 4, 5].map(n => [n, n]), d.pr)}</select></td>
   </tr>`;
 };
@@ -70,7 +65,7 @@ export const cnt = () => {
 
 export const rDem = () => {
   if (!S.stu.length) {
-    $('#dem').innerHTML = `<tr class="empty-dem"><td colspan="10" class="h" style="padding:16px">Nenhum aluno cadastrado. Cadastre os alunos na aba Alunos.</td></tr>`;
+    $('#dem').innerHTML = `<tr class="empty-dem"><td colspan="9" class="h" style="padding:16px">Nenhum aluno cadastrado. Cadastre os alunos na aba Alunos.</td></tr>`;
     cnt();
     renderAuditPanel();
     return;

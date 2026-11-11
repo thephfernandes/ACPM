@@ -37,6 +37,12 @@ describe('Regras de missão', () => {
     assert.deepEqual(pedido, { mis: 'Ground C172', eq: 'Sala Ground', p1: 0, p2: 1, nb: 1.5, ss: 1 });
   });
 
+  it('uma sessão por missão: pedidos antigos com 2 ou 3 sessões passam a ter uma só (para dividir, "+ missão")', () => {
+    const pedido = { mis: 'Navegação', eq: 'C152', p1: 1, p2: 2, nb: 3, ss: 2 };
+    normalizeMissionFields(pedido);
+    assert.deepEqual(pedido, { mis: 'Navegação', eq: 'C152', p1: 1, p2: 2, nb: 3, ss: 1 });
+  });
+
   it('normaliza pedidos de voo: equipamento permitido e horas inteiras', () => {
     const pedido = { mis: 'Multi', eq: 'C152', p1: 1, p2: 2, nb: 1.5, ss: 1 };
     normalizeMissionFields(pedido);

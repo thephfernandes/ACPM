@@ -119,13 +119,17 @@ test.describe('Volta dos links de confirmação da troca de e-mail', () => {
   });
 });
 
+// Itens do menu da conta pelo nome (o tema é um interruptor só com ícones: o nome vem do aria-label)
+const itensDoMenu = page => page.locator('#menu-conta [role^="menuitem"]:visible')
+  .evaluateAll(itens => itens.map(i => i.getAttribute('aria-label') || i.textContent.trim()));
+
 test.describe('Menu da conta', () => {
   test('reúne Minha conta, o tema e Sair; Esc fecha o menu', async ({ page, context }) => {
     await instalarSupabaseFalso(context, documentosAtuais(estadoSintetico(), AMANHA));
     await entrar(page, CONTAS.operador);
     await expect(page.locator('#menu-conta')).toBeHidden();
     await abrirMenuDaConta(page);
-    await expect(page.locator('#menu-conta [role="menuitem"]:visible')).toHaveText(['Minha conta', 'Tema claro ou escuro', 'Sair']);
+    expect(await itensDoMenu(page)).toEqual(['Minha conta', 'Tema escuro', 'Sair']);
     await page.keyboard.press('Escape');
     await expect(page.locator('#menu-conta')).toBeHidden();
     await abrirMenuDaConta(page);
@@ -137,7 +141,7 @@ test.describe('Menu da conta', () => {
     await instalarSupabaseFalso(context, documentosAtuais(estadoSintetico(), AMANHA));
     await entrar(page, CONTAS.administrador);
     await abrirMenuDaConta(page);
-    await expect(page.locator('#menu-conta [role="menuitem"]:visible')).toHaveText(['Minha conta', 'Usuários', 'Tema claro ou escuro', 'Sair']);
+    expect(await itensDoMenu(page)).toEqual(['Minha conta', 'Usuários', 'Tema escuro', 'Sair']);
     await page.locator('#btn-usuarios').click();
     await expect(page.locator('#usuarios')).toBeVisible();
     await expect(page.locator('#lista-contas tbody tr')).toHaveCount(5);

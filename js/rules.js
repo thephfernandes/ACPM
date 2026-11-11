@@ -47,13 +47,15 @@ export function migrateLegacyMissionName(mis) {
 
 export function normalizeMissionFields(target) {
   target.mis = migrateLegacyMissionName(target.mis);
+  // Uma sessão por missão: a coluna Sessões saiu da Demanda (para dividir o voo no dia, "+ missão"). O campo
+  // continua nos dados, sempre 1, e o motor recebe cada missão como um voo só
+  target.ss = 1;
   if (Object.hasOwn(target, 'jan') && !janelasDaDisponibilidade(target.jan)) delete target.jan;
   const mRule = missionRule(target.mis) || MIS['Voo Local'];
   if (!mRule.eq.includes(target.eq)) target.eq = mRule.defEq;
   if (mRule.isGround) {
     target.eq = GROUND_EQ_TYPE;
     target.nb = GROUND_DURATION_H;
-    target.ss = 1;
     if (target.p1 === NI) target.p1 = 0;
     if (target.p2 === NI) target.p2 = 1;
   } else if (+target.nb === GROUND_DURATION_H || !Number.isInteger(+target.nb)) {

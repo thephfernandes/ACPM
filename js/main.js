@@ -8,7 +8,7 @@
  *   js/storage.js   Camada de dados (migrações, link compartilhado) sobre js/backends/ (local ou Supabase)
  *   js/sessao.js    Login e perfil de acesso no modo compartilhado (Supabase)
  *   js/state.js     Estado compartilhado entre os módulos
- *   js/actions.js   Perfil de acesso, desfazer, histórico e escala
+ *   js/actions.js   Perfil de acesso, data, histórico e escala
  *   js/dom.js       Utilitários de DOM
  *   js/views/       Renderização das abas (recursos, cadastros, demanda, escala, BI e navegação)
  *   js/export.js    Exportação CSV e PDF
@@ -26,7 +26,7 @@ import { renderAuditPanel, rOut } from './views/escala.js';
 import { singleDemandRowHTML, cnt, rDem, applyDemandFilters } from './views/demanda.js';
 import { rIns, rAlu, applyInstructorFilters, preencherFiltroDeHabilitacoes, mostrarVistaDosInstrutores, abrirPainelDoInstrutor, fecharPainelDoInstrutor, atualizarLinhaDoCadastro, atualizarLinhaDoAluno } from './views/cadastros.js';
 import { rRec } from './views/recursos.js';
-import { setRole, pushHistory, save, logChange, undoLastAction, refazerEscala, escalaCalculada, marcarEscalaSoCalculada, gravarEscalaCalculada, abrirData, historicoParaPainel, carregarData, carregarBI } from './actions.js';
+import { setRole, save, logChange, refazerEscala, escalaCalculada, marcarEscalaSoCalculada, gravarEscalaCalculada, abrirData, historicoParaPainel, carregarData, carregarBI } from './actions.js';
 import { exp, pdf } from './export.js';
 import { projetoSupabase } from './config-supabase.js';
 import { CATEGORIAS_DO_RODIZIO, ajustarFilas } from './rodizio.js';
@@ -113,7 +113,6 @@ const armed = (id, txt, fn) => {
 // Exportar é usar a escala: a escala só calculada fica gravada (quem só consulta não grava)
 $('#exp').onclick = () => { gravarEscalaCalculada(); return exp(); };
 $('#pdf').onclick = () => { gravarEscalaCalculada(); return pdf(); };
-$('#btn-undo').onclick = undoLastAction;
 
 $('#role-sel').onchange = e => {
   if (ApiClient.readOnly) {
@@ -202,7 +201,7 @@ function ligarMenu(botao, menu, { fecharAoEscolher = true } = {}) {
     const abrir = menu.hidden;
     menu.hidden = !abrir;
     botao.setAttribute('aria-expanded', String(abrir));
-    const primeiro = abrir && menu.querySelector('[role="menuitem"]:not([hidden])');
+    const primeiro = abrir && menu.querySelector('[role^="menuitem"]:not([hidden])');
     if (primeiro) primeiro.focus();
   };
   if (fecharAoEscolher) menu.addEventListener('click', e => { if (e.target.closest('[role="menuitem"]')) fechar(); });
@@ -227,7 +226,6 @@ function incluirAluno() {
   if (!s) { showToast('Aluno não encontrado. Cadastre-o na aba Alunos.'); return; }
   campo.value = '';
   if (s.fly) { showToast(`${s.nm} já está na demanda.`); return; }
-  pushHistory();
   s.fly = true;
   save();
   logChange('inc', `${s.nm} incluído na demanda`, { kind: 'setFly', stuId: s.id, mid: 0, val: false, label: '↶ Reverter' });
@@ -251,17 +249,22 @@ $('#flt-dem-mis').insertAdjacentHTML('beforeend', Object.keys(MIS).map(m => `<op
 $('#flt-ins-hab').onchange = applyInstructorFilters;
 $('#flt-esc-eq').onchange = () => rOut();
 
-$('#btn-theme').onclick = () => {
-  const root = document.documentElement;
-  const cur = root.getAttribute('data-theme');
-  const next = cur === 'dark' ? 'light' : 'dark';
-  root.setAttribute('data-theme', next);
-  try { localStorage.setItem(ApiClient.KEY_THEME, next); } catch (e) {}
+// Tema: um interruptor (sol e lua) no menu da conta. Sem escolha gravada, vale o tema do sistema
+const temaEscuro = () => {
+  const escolhido = document.documentElement.getAttribute('data-theme');
+  return escolhido ? escolhido === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
 };
+const mostrarTema = () => $('#btn-theme').setAttribute('aria-checked', String(temaEscuro()));
+$('#btn-theme').onclick = () => {
+  const proximo = temaEscuro() ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', proximo);
+  try { localStorage.setItem(ApiClient.KEY_THEME, proximo); } catch (e) {}
+  mostrarTema();
+};
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', mostrarTema);
 
 armed('#clr', 'Confirmar limpeza', () => {
   if (isGestor()) return;
-  pushHistory();
   S.stu.forEach(d => { Object.assign(d, blank()); d.extra = []; });
   save(); rDem();
   logChange('exc', 'Demanda limpa');
@@ -431,7 +434,6 @@ async function importarDaAgenda() {
     showToast(`Nenhum pedido novo na agenda para ${DATA.slice(8, 10)}/${DATA.slice(5, 7)}.`);
     return;
   }
-  pushHistory();
   const resumo = importarSolicitacoes(S, pendentes);
   pendentes.filter(s => S.stu.some(x => x.id === s.aluno)).forEach(s => {
     logChange('inc', `Agenda: ${s.aluno_nome} incluído (${s.missao} · ${rotuloDaDisponibilidade(disponibilidadeDaSolicitacao(s))})`);
@@ -507,7 +509,6 @@ document.addEventListener('click', e => {
   if (a === 'add-mis') {
     const s = stuBy(id);
     if (!s) return;
-    pushHistory();
     if (!Array.isArray(s.extra)) s.extra = [];
     const newEx = {
       mid: S.nid++,
@@ -531,7 +532,6 @@ document.addEventListener('click', e => {
   if (a === 'del-mis') {
     const s = stuBy(id);
     if (!s || !Array.isArray(s.extra)) return;
-    pushHistory();
     s.extra = s.extra.filter(ex => ex.mid !== mid);
     save();
     rDem();
@@ -543,7 +543,6 @@ document.addEventListener('click', e => {
     const s = stuBy(id);
     const target = getMissionTarget(id, mid);
     if (!s || !target || !target.fly) return;
-    pushHistory();
     target.fly = false;
     save();
     logChange('exc', `Tirado da escala: ${s.nm} (${target.mis} · ${target.eq})`, {
@@ -560,7 +559,6 @@ document.addEventListener('click', e => {
     const entry = AUDIT_LOG.find(x => x.id === logId);
     if (!entry || !entry.revert) return;
     const rev = entry.revert;
-    pushHistory();
 
     if (rev.kind === 'setFly') {
       const st = stuBy(rev.stuId);
@@ -587,7 +585,6 @@ document.addEventListener('click', e => {
 
   // Rodízio: ajusta a posição de um instrutor na fila da categoria (na data aberta)
   if (a === 'fila-subir' || a === 'fila-descer' || a === 'fila-inicio') {
-    pushHistory();
     const cat = b.dataset.cat, insId = +b.dataset.id;
     S.filas = ajustarFilas(S.filas, S.ins);
     const fila = S.filas[cat].filter(x => x !== insId);
@@ -605,7 +602,6 @@ document.addEventListener('click', e => {
   // Revisão de 50 horas feita: as horas do avião desde a última revisão voltam a zero (pede confirmação)
   if (a === 'revisao') {
     if (isGestor() || !confirmado(b, 'Confirmar revisão')) return;
-    pushHistory();
     S.horas[b.dataset.id] = 0;
     logChange('mod', `${b.dataset.id}: revisão de 50 horas feita (horas zeradas)`);
     save(); rRec();
@@ -619,20 +615,17 @@ document.addEventListener('click', e => {
 
   // O instrutor novo aparece no cadastro, com o nome selecionado para digitar
   if (a === 'addi') {
-    pushHistory();
     const newIns = { id: S.nid++, nm: 'Novo instrutor', on: true, hab: habilitacoesDoNivel(1), kg: 0, aw: WIN.map((_, i) => i < 8) };
     S.ins.push(newIns);
     mostrarVistaDosInstrutores('cadastro');
     save(); rIns(); rAlu(); focusLast('#inst .nm');
     logChange('inc', `Instrutor adicionado: ${newIns.nm}`);
   } else if (a === 'adds') {
-    pushHistory();
     const newStu = { id: S.nid++, nm: 'Novo aluno', kg: 0, bl: [], extra: [], ...blank() };
     S.stu.push(newStu);
     save(); rAlu(); rDem(); focusLast('#alu .nm');
     logChange('inc', `Aluno cadastrado: ${newStu.nm}`);
   } else if (a === 'unbl') {
-    pushHistory();
     const s = stuBy(id);
     const blkIns = insBy(+b.dataset.b);
     s.bl = s.bl.filter(v => v !== +b.dataset.b);
@@ -647,7 +640,6 @@ document.addEventListener('click', e => {
       return;
     }
     activeTimers.delete(b);
-    pushHistory();
     if (a === 'deli') {
       const target = insBy(id);
       if (+$('#painel-instrutor').dataset.id === id) fecharPainelDoInstrutor();
@@ -694,7 +686,6 @@ document.addEventListener('change', e => {
   }
 
   if (a) {
-    pushHistory();
     if (a === 'win') {
       const idx = +t.dataset.i;
       S.win[idx] = t.checked;
@@ -719,7 +710,6 @@ document.addEventListener('change', e => {
 
   const c = t.closest('[data-k]');
   if (!c || !f) return;
-  pushHistory();
   const k = c.dataset.k, id = +c.dataset.id;
   const mid = c.dataset.mid !== undefined ? +c.dataset.mid : 0;
 
@@ -793,7 +783,6 @@ document.addEventListener('change', e => {
           if (mRule.isGround) {
             target.eq = GROUND_EQ_TYPE;
             target.nb = GROUND_DURATION_H;
-            target.ss = 1;
             if (target.p1 === NI) { target.p1 = 0; target.p2 = 1; }
           } else {
             if (+target.nb === GROUND_DURATION_H || !Number.isInteger(+target.nb)) target.nb = 1;
@@ -805,9 +794,6 @@ document.addEventListener('change', e => {
               target.p2 = 2;
             }
           }
-        }
-        if (f === 'nb' && !isGroundMission(target.mis)) {
-          target.ss = Math.min(target.ss || 1, target.nb);
         }
         logChange('mod', `Pedido ${s.nm}: ${target.mis} · ${target.eq} · ${fmtDurLabel(target.nb)}`);
       }
@@ -825,6 +811,7 @@ document.addEventListener('change', e => {
     const savedTheme = localStorage.getItem(ApiClient.KEY_THEME);
     if (savedTheme) document.documentElement.setAttribute('data-theme', savedTheme);
   } catch (e) {}
+  mostrarTema();
 
   const amanha = amanhaISO();
   abrirData(amanha);

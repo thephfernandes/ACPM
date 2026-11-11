@@ -187,6 +187,7 @@ Decisions: the audit comes first and Pedro and Gabriel approve the redesign; two
     8. [x] Instrutores: a day-availability grid and a registry table with an edit panel.
     9. [x] Small items: Agenda shows whether each request is already in the Demanda; Alunos as a table; compact Rodízio; BI in one column on the phone; the Secretaria sees only Agenda and Escala.
     10. [x] Accessibility and wording: labels for screen readers, 44 px touch targets on the phone, the Manual with the new names.
+- [x] **Adjustments from the preview review** (2026-11-11, in PR 2): the Demanda loses "Sessões" (one session per mission; to split a flight, "+ missão"; old requests with 2 or 3 sessions become one), no Undo button (change the field back; some changes also revert from the Histórico), the date control keeps a fixed width, the theme is a sun/moon switch, and the ACPM eagle is the favicon and the header logo, aligned with "Escala de Voo" and "ACPM".
 
 ### Phase 7: Later (nice to have)
 - [ ] Track instructor and student qualifications and currency: last flight, medical/CMA expiry, student course phase. The engine then checks these instead of relying on manual levels.
