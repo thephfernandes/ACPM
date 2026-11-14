@@ -30,6 +30,14 @@ export function fecharAviso(tipo) {
   $('#aviso-sync').hidden = true;
 }
 
+// Aviso sobre o link que abriu o app (a volta da confirmação da troca de e-mail, um link antigo), com o botão "OK"
+export function avisarDoLink(texto, tipo) {
+  $('#aviso-link-texto').textContent = texto;
+  $('#aviso-link').className = `aviso-link ${tipo}`;
+  $('#aviso-link').hidden = false;
+  $('#btn-fechar-aviso-link').onclick = () => { $('#aviso-link').hidden = true; };
+}
+
 export const focusLast = sel => {
   const e = [...document.querySelectorAll(sel)].pop();
   if (e) { e.scrollIntoView({ block: 'center' }); e.focus(); e.select(); }

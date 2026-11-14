@@ -106,11 +106,12 @@ test.describe('Modo compartilhado: gravação, conflitos e link da escala', () =
     await gestor.close();
   });
 
-  test('link antigo com os dados na URL (share=) é ignorado depois do login', async ({ page, context }) => {
+  test('link antigo com os dados na URL (share=) é ignorado depois do login, com o aviso', async ({ page, context }) => {
     await instalarSupabaseFalso(context, comDados());
     const payload = { d: AMANHA, fly: [[1000, 'Aluno do Link', 70, [], 1, 'Voo Local', 'C152', 1, 2, 1, 1, 3, []]] };
     const share = encodeURIComponent(Buffer.from(JSON.stringify(payload), 'utf8').toString('base64'));
     await entrar(page, CONTAS.operador, `${URL_APP}&share=${share}`);
+    await expect(page.locator('#aviso-link-texto')).toHaveText(/^Este link antigo levava a escala no próprio endereço e não vale mais/);
     await expect(page.locator('body')).toHaveAttribute('data-role', 'operador');
     await expect(page.locator('body')).not.toHaveAttribute('data-shared', 'true');
     await irPara(page, 'alu');

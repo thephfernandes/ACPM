@@ -4,7 +4,7 @@ import { ApiClient } from './storage.js';
 import { criarBackendSupabase } from './backends/supabase.js';
 import { backendLocal } from './backends/local.js';
 import { setRole } from './actions.js';
-import { $, mostrarAviso, avisoAberto, fecharAviso } from './dom.js';
+import { $, mostrarAviso, avisoAberto, fecharAviso, avisarDoLink } from './dom.js';
 import { amanhaISO, esc } from './format.js';
 import { ROTULOS, operaEscala, gerenciaContas, soPainel } from './perfis.js';
 import { retornoDoLink } from './retorno-do-link.js';
@@ -69,13 +69,6 @@ const AVISOS_DO_LINK = {
   'falta-outro': 'Link confirmado. Para concluir a troca de e-mail, abra também o link enviado para o outro endereço.',
   invalido: 'Este link de confirmação expirou ou já foi usado. Se a troca de e-mail não foi concluída, peça de novo em Minha conta.'
 };
-
-function avisarDoLink(texto, tipo) {
-  $('#aviso-link-texto').textContent = texto;
-  $('#aviso-link').className = `aviso-link ${tipo}`;
-  $('#aviso-link').hidden = false;
-  $('#btn-fechar-aviso-link').onclick = () => { $('#aviso-link').hidden = true; };
-}
 
 // Iniciais do primeiro e do último nome (ou a primeira letra do e-mail)
 const iniciais = nome => {

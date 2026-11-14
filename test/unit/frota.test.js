@@ -7,7 +7,7 @@ import { ESQUEMA, migrarCadastro } from '../../js/migracoes.js';
 import { separar, juntar } from '../../js/dias.js';
 import { ApiClient } from '../../js/storage.js';
 import { runAllocationEngine } from '../../js/engine.js';
-import { simularNavegador, navegarPara } from '../helpers/navegador.js';
+import { simularNavegador } from '../helpers/navegador.js';
 import { aluno, cenario, instrutor } from '../helpers/montar.js';
 
 beforeEach(() => {
@@ -81,18 +81,6 @@ describe('Frota: formato 11 dos dados', () => {
     assert.deepEqual(estado.horas, { 'PR-NEW': 12 });
   });
 
-  it('o link compartilhado leva a frota', () => {
-    const estado = ApiClient.normalizeAndMigrateState({
-      ...cenario({ ins: [instrutor(1, 9)], stu: [aluno(1000)] }),
-      frota: [{ reg: 'PR-NEW', tipo: 'C152' }, { reg: 'PR-ACR', tipo: 'C152', soParafuso: true }],
-      av: { 'PR-NEW': true, 'PR-ACR': false }
-    });
-    navegarPara(ApiClient.encodeShareableURL(estado, '2026-11-11'));
-    const destino = ApiClient.createFreshState();
-    ApiClient.applySharedURLIfPresent(destino);
-    assert.deepEqual(destino.frota, estado.frota);
-    assert.deepEqual(destino.av, { 'PR-NEW': true, 'PR-ACR': false });
-  });
 });
 
 describe('Frota: o motor usa a frota dos dados', () => {

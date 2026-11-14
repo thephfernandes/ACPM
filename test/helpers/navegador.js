@@ -16,7 +16,3 @@ export function simularNavegador(href = 'https://gdruumond.github.io/ACPM/') {
   globalThis.window = { location: { href: url.href, search: url.search } };
 }
 
-export function navegarPara(href) {
-  const url = new URL(href);
-  globalThis.window.location = { href: url.href, search: url.search };
-}

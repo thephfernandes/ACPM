@@ -1,5 +1,5 @@
 // Dados pessoais de alunos e instrutores (fase 9): CPF, CANAC, nascimento, celular e e-mail, num painel ao lado da
-// tabela. Ficam fora do cadastro e do link do Gestor; o histórico registra só os campos que mudaram. No modo
+// tabela. Ficam fora do cadastro; o histórico registra só os campos que mudaram. No modo
 // compartilhado, operadores, administradores e a secretaria veem e editam; o gestor não vê.
 import { test, expect, abrir, irPara, prepararContexto, vigiarErros, abrirMenuDaConta, AMANHA } from './fixtures.js';
 import { instalarSupabaseFalso, documentosAtuais, CONTAS } from './supabase-falso.js';
@@ -80,7 +80,7 @@ test.describe('Dados pessoais (neste navegador)', () => {
     await expect(page.locator('#inst tr[data-id="2"] .c-canac')).toHaveText('654321');
   });
 
-  test('ficam fora do cadastro e do link do Gestor; no perfil Gestor não aparecem', async ({ page }) => {
+  test('ficam fora do cadastro; no perfil Gestor não aparecem', async ({ page }) => {
     await abrir(page, { estado: estado() });
     await abrirDadosDoAluno(page, 1000);
     await campo(page, 'CPF').fill('52998224725');
@@ -90,13 +90,6 @@ test.describe('Dados pessoais (neste navegador)', () => {
     const guardado = await page.evaluate(() => Object.keys(localStorage).filter(k => k !== 'acpm4_dados_pessoais').map(k => localStorage.getItem(k)).join('|'));
     expect(guardado).not.toContain('52998224725');
     expect(guardado).not.toContain('123456');
-
-    await irPara(page, 'esc');
-    await page.locator('#btn-share-link').click();
-    const link = await page.evaluate(() => navigator.clipboard.readText());
-    const conteudo = Buffer.from(decodeURIComponent(new URL(link).searchParams.get('share')), 'base64').toString('utf8');
-    expect(conteudo).not.toContain('52998224725');
-    expect(conteudo).not.toContain('123456');
 
     await page.locator('#role-sel').selectOption('gestor');
     await irPara(page, 'alu');

@@ -1,39 +1,22 @@
-// Camada de acesso a dados: estado inicial, migrações de schema, persistência por um backend
-// (localStorage ou Supabase) e o link compartilhável que abre a escala no perfil Gestor.
-import { WIN, NI, DEFAULT_LIM, FLIGHT_STATUSES, AIRCRAFT_EQ_TYPES } from './config.js';
+// Camada de acesso a dados: estado inicial, migrações de schema e persistência por um backend (localStorage ou
+// Supabase).
+import { WIN, DEFAULT_LIM } from './config.js';
 import { FROTA_INICIAL, normalizarFrota } from './frota.js';
 import { pad, LIMITE_DO_NOME } from './format.js';
-import { blank, normalizeMissionFields, disponibilidadeValida } from './rules.js';
-import { HORARIOS_INICIAIS, normalizarHorarios, preferenciaValida } from './horarios.js';
+import { normalizeMissionFields } from './rules.js';
+import { HORARIOS_INICIAIS, normalizarHorarios } from './horarios.js';
 import { backendLocal, CHAVES_LOCAIS, CHAVE_LEGADA } from './backends/local.js';
 import { separar, juntar, diaPadrao, diaParaCopiar, converterLegado, biDosDias } from './dias.js';
 import { ESQUEMA, migrarCadastro, migrarDia, precisaMigrar, renomearSimulador } from './migracoes.js';
 import { habilitacoesDoNivel, normalizarHabilitacoes } from './habilitacoes.js';
-import { ajustarFilas, CATEGORIAS_DO_RODIZIO } from './rodizio.js';
+import { ajustarFilas } from './rodizio.js';
 import { normalizarDetalhes, normalizarStatus } from './status.js';
 import { normalizarEscalaGravada } from './escala-gravada.js';
 import { normalizarHangar } from './hangar.js';
 import { LIMITES_DA_LEI, normalizarLimites, comHorasExternas } from './limites.js';
 import { normalizarFixos, normalizarAprovacao } from './fixos.js';
 import { normalizarCriterios } from './criterios.js';
-import { normalizarCursos, normalizarCursoDoAluno, codigoValido } from './cursos.js';
-
-// Validação do link compartilhado: o conteúdo vem da URL, então só entram os tipos e as faixas que a interface produz
-const LIMITE = { instrutores: 200, alunos: 500, extras: 10, bloqueios: 50, matriculas: 100, nome: 80 };
-const inteiro = (v, min, max, padrao) => (Number.isInteger(v) && v >= min && v <= max ? v : padrao);
-const numero = (v, min, max, padrao) => (typeof v === 'number' && v >= min && v <= max ? v : padrao);
-const texto = (v, max = LIMITE.nome) => (typeof v === 'string' ? v.slice(0, max) : '');
-const lista = (v, max) => (Array.isArray(v) ? v.slice(0, max) : []);
-const id = v => inteiro(v, 1, Number.MAX_SAFE_INTEGER, null);
-const pedido = (mis, eq, p1, p2, nb, ss, pr, jan, etapa) => ({
-  mis: texto(mis), eq: texto(eq),
-  // Preferências em minutos (links anteriores ao formato 12 trazem o número da janela, convertido ao normalizar)
-  p1: preferenciaValida(p1), p2: preferenciaValida(p2),
-  nb: numero(nb, 1, 11, 1), ss: inteiro(ss, 1, 3, 1), pr: inteiro(pr, 1, 5, 3),
-  ...(disponibilidadeValida(jan) ? { jan } : {}),
-  // A missão do curso (fase 14; os links anteriores não a trazem)
-  ...(typeof etapa === 'string' && codigoValido(etapa) ? { etapa } : {})
-});
+import { normalizarCursos, normalizarCursoDoAluno } from './cursos.js';
 
 export const ApiClient = {
   KEY_STATE: CHAVES_LOCAIS.estado,
@@ -348,138 +331,5 @@ export const ApiClient = {
     if (!await this.backend.gravar('cadastro', novo)) throw new Error('A atualização dos dados não terminou (cadastro).');
     this.cadastroGravado = JSON.stringify(novo);
     return true;
-  },
-
-  encodeShareableURL(state, dateStr) {
-    const compact = {
-      d: dateStr,
-      w: state.win.map(v => v ? 1 : 0),
-      fr: (state.frota || []).map(f => [f.reg, f.tipo, f.soParafuso ? 1 : 0]),
-      hr: state.horarios || null,
-      avOff: Object.keys(state.av).filter(k => !state.av[k]),
-      ins: state.ins.map(x => [x.id, x.nm, x.on ? 1 : 0, x.hab, x.kg, x.aw.map(a => a ? 1 : 0)]),
-      st: state.fStatus || {},
-      // Detalhes do status: a categoria do motivo e o novo horário (o texto livre do motivo não vai no link)
-      ob: Object.fromEntries(Object.entries(state.fObs || {}).map(([fKey, d]) => [fKey, d.motivo ? { m: d.motivo } : { n: d.novoInicio }])),
-      // Revisão de 50 horas e filas do rodízio: quem abre o link gera a mesma escala
-      h: state.horas || {},
-      f: state.filas || {},
-      hg: state.hangar || [],
-      // A escala aprovada: os voos fixos e quem aprovou
-      fx: state.fixos || {},
-      ap: state.aprovacao || null,
-      // Os critérios da compactação (quem abre o link gera a mesma escala)
-      cr: state.criterios || null,
-      // Limites da lei e as horas passadas de cada instrutor (quem abre o link gera a mesma escala)
-      li: state.limites || null,
-      hi: state.horasDosInstrutores || {},
-      fly: state.stu
-        .filter(s => s.fly || (s.extra && s.extra.some(ex => ex.fly)))
-        .map(s => [
-          s.id, s.nm, s.kg, s.bl,
-          s.fly ? 1 : 0, s.mis, s.eq, s.p1, s.p2, s.nb, s.ss, s.pr,
-          (s.extra || []).filter(ex => ex.fly).map(ex => [ex.mid, ex.mis, ex.eq, ex.p1, ex.p2, ex.nb, ex.ss, ex.pr, ex.jan || '', ex.etapa || '']),
-          s.jan || '', s.etapa || ''
-        ])
-    };
-    const b64 = btoa(unescape(encodeURIComponent(JSON.stringify(compact))));
-    const url = new URL(window.location.href);
-    url.searchParams.set('role', 'gestor');
-    url.searchParams.set('share', b64);
-    return url.toString();
-  },
-
-  applySharedURLIfPresent(state) {
-    try {
-      const params = new URLSearchParams(window.location.search);
-      const share = params.get('share');
-      if (!share) return null;
-      const decoded = JSON.parse(decodeURIComponent(escape(atob(share))));
-      if (!decoded || typeof decoded !== 'object') return null;
-      if (Array.isArray(decoded.w)) state.win = WIN.map((_, i) => Boolean(decoded.w[i]));
-      state.lim = { ...DEFAULT_LIM };
-      // A frota de quem compartilhou (links anteriores à fase 7 não a trazem: fica a frota inicial)
-      if (Array.isArray(decoded.fr)) {
-        state.frota = normalizarFrota(lista(decoded.fr, LIMITE.matriculas).filter(Array.isArray)
-          .map(([reg, tipo, parafuso]) => ({ reg, tipo, soParafuso: parafuso === 1 })));
-        state.av = Object.fromEntries(state.frota.map(f => [f.reg, true]));
-      }
-      // Os horários de decolagem de quem compartilhou (links anteriores à fase 7: os iniciais)
-      if (decoded.hr && typeof decoded.hr === 'object') state.horarios = normalizarHorarios(decoded.hr);
-      if (decoded.st && typeof decoded.st === 'object') {
-        state.fStatus = Object.fromEntries(Object.entries(decoded.st)
-          .filter(([fKey, st]) => /^\d+_\d+_\d+$/.test(fKey) && FLIGHT_STATUSES.includes(st)));
-      }
-      if (decoded.ob && typeof decoded.ob === 'object') {
-        state.fObs = normalizarDetalhes(Object.fromEntries(Object.entries(decoded.ob)
-          .filter(([, d]) => d && typeof d === 'object')
-          .map(([fKey, d]) => [fKey, { motivo: d.m, novoInicio: d.n }])), state.fStatus);
-      }
-      if (decoded.li && typeof decoded.li === 'object') state.limites = normalizarLimites(decoded.li);
-      if (decoded.fx && typeof decoded.fx === 'object') state.fixos = normalizarFixos(decoded.fx);
-      if (decoded.ap !== undefined) state.aprovacao = normalizarAprovacao(decoded.ap);
-      if (decoded.cr !== undefined) state.criterios = normalizarCriterios(decoded.cr);
-      if (decoded.hi && typeof decoded.hi === 'object') {
-        const numero = v => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : 0);
-        state.horasDosInstrutores = Object.fromEntries(Object.entries(decoded.hi)
-          .filter(([id, h]) => /^\d+$/.test(id) && h && typeof h === 'object')
-          .map(([id, h]) => [id, { mes: numero(h.mes), semestre: numero(h.semestre), ano: numero(h.ano),
-            fimAnterior: Number.isInteger(h.fimAnterior) && h.fimAnterior >= 0 && h.fimAnterior <= 1440 ? h.fimAnterior : null }]));
-      }
-      // A ordem do hangar de quem compartilhou (links anteriores à fase 10: a ordem da frota)
-      if (Array.isArray(decoded.hg)) state.hangar = normalizarHangar(decoded.hg.filter(r => typeof r === 'string'), normalizarFrota(state.frota));
-      if (decoded.h && typeof decoded.h === 'object') {
-        const avioes = normalizarFrota(state.frota).filter(f => AIRCRAFT_EQ_TYPES.includes(f.tipo)).map(f => f.reg);
-        state.horas = Object.fromEntries(Object.entries(decoded.h)
-          .filter(([r, horas]) => avioes.includes(r) && typeof horas === 'number' && horas >= 0 && horas <= 60));
-      }
-      if (decoded.f && typeof decoded.f === 'object') {
-        state.filas = Object.fromEntries(CATEGORIAS_DO_RODIZIO.map(({ id: cat }) => [cat, lista(decoded.f[cat], LIMITE.instrutores).map(id).filter(x => x !== null)]));
-      }
-      Object.keys(state.av).forEach(k => state.av[k] = true);
-      lista(decoded.avOff, LIMITE.matriculas).map(renomearSimulador).forEach(k => { if (Object.hasOwn(state.av, k)) state.av[k] = false; });
-
-      if (Array.isArray(decoded.ins)) {
-        // Habilitações: lista conhecida; links antigos trazem o nível A01–A09 no lugar
-        state.ins = lista(decoded.ins, LIMITE.instrutores).filter(Array.isArray).map(([insId, nm, on, hab, kg, aw]) => ({
-          id: id(insId), nm: texto(nm), on: Boolean(on),
-          hab: Array.isArray(hab) ? normalizarHabilitacoes(hab) : habilitacoesDoNivel(inteiro(hab, 1, 9, 1)),
-          kg: numero(kg, 0, 300, 0),
-          aw: Array.isArray(aw) ? WIN.map((_, i) => Boolean(aw[i])) : WIN.map(() => true)
-        })).filter(x => x.id !== null);
-      } else if (Array.isArray(decoded.inOff)) {
-        state.ins.forEach(x => x.on = !decoded.inOff.includes(x.id));
-      }
-
-      state.stu = [];
-
-      lista(decoded.fly, LIMITE.alunos).forEach(row => {
-        const stuId = Array.isArray(row) ? id(row[0]) : null;
-        if (stuId === null) return;
-        const [, nm, kg, bl] = row;
-        const cadastro = { nm: texto(nm), kg: numero(kg, 0, 300, 0), bl: lista(bl, LIMITE.bloqueios).map(id).filter(b => b !== null) };
-        let target = state.stu.find(s => s.id === stuId);
-        if (!target) {
-          target = { id: stuId, ...cadastro, extra: [], ...blank() };
-          state.stu.push(target);
-        }
-        if (row.length >= 12) {
-          const [, , , , flyFlag, mis, eq, p1, p2, nb, ss, pr, extraArr, jan, etapa] = row;
-          Object.assign(target, cadastro, {
-            fly: Boolean(flyFlag), ...pedido(mis, eq, p1, p2, nb, ss, pr, jan, etapa),
-            extra: lista(extraArr, LIMITE.extras).filter(Array.isArray)
-              .map(([mid, ...campos]) => ({ mid: id(mid), fly: true, ...pedido(...campos) }))
-              .filter(ex => ex.mid !== null)
-          });
-          target.extra.forEach(normalizeMissionFields);
-          normalizeMissionFields(target);
-        } else {
-          const [, , , , mis, eq, p1, p2, nb, ss, pr] = row;
-          Object.assign(target, cadastro, { fly: true, ...pedido(mis, eq, p1, p2, nb, ss, pr), extra: [] });
-          normalizeMissionFields(target);
-        }
-      });
-      return typeof decoded.d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(decoded.d) ? decoded.d : null;
-    } catch (e) { return null; }
   }
 };

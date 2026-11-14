@@ -21,7 +21,7 @@ import { isGroundMission, blank, rotuloDaDisponibilidade, normalizeMissionFields
 import { habilitacoesDoNivel, normalizarHabilitacoes, nomeDaHabilitacao, podeFazer } from './habilitacoes.js';
 import { ApiClient } from './storage.js';
 import { S, RES, AUDIT_LOG, DATA, setS, setRES, setAuditLog, setTLMode, isGestor, insBy, stuBy, getMissionTarget } from './state.js';
-import { $, showToast, focusLast, mostrarAviso, avisoAberto } from './dom.js';
+import { $, showToast, focusLast, mostrarAviso, avisoAberto, avisarDoLink } from './dom.js';
 import { show } from './views/tabs.js';
 import { rBI, alternarTodosDoBI } from './views/bi.js';
 import { renderAuditPanel, rOut, alternarTempo, abrirPopupDoMapa, fecharPopupDoMapa, popupDoMapaAberto, reposicionarPopupDoMapa } from './views/escala.js';
@@ -43,7 +43,7 @@ import { LIMITES_DA_LEI, normalizarLimites, comHorasExternas } from './limites.j
 import { rRec, rRevisao, rHangar, alternarGrupoDaFrota, NOMES_DAS_CATEGORIAS } from './views/recursos.js';
 import { normalizarHangar, moverNoHangar } from './hangar.js';
 import { opcoesDeCategoria, categoriaDoTipo } from './categorias.js';
-import { setRole, save, logChange, refazerEscala, escalaCalculada, marcarEscalaSoCalculada, gravarEscalaCalculada, abrirData, historicoParaPainel, carregarData, carregarBI } from './actions.js';
+import { setRole, save, logChange, escalaCalculada, marcarEscalaSoCalculada, gravarEscalaCalculada, abrirData, historicoParaPainel, carregarData, carregarBI } from './actions.js';
 import { exp, pdf } from './export.js';
 import { projetoSupabase } from './config-supabase.js';
 import { CATEGORIAS_DO_RODIZIO, ajustarFilas } from './rodizio.js';
@@ -206,14 +206,19 @@ function linkDaData(data) {
   return url.toString();
 }
 
+// Sem o servidor, a escala fica só neste navegador (o link que levava a escala inteira no endereço, com nomes, pesos e
+// horas, saiu na revisão de 14/11)
 $('#btn-share-link').onclick = async () => {
-  const compartilhado = modoCompartilhado();
-  const url = compartilhado ? linkDaData(DATA) : ApiClient.encodeShareableURL(S, DATA);
+  if (!modoCompartilhado()) {
+    showToast('Sem o servidor, a escala fica só neste navegador: o link da escala é do app publicado, com login.');
+    return;
+  }
+  const url = linkDaData(DATA);
   try {
     await navigator.clipboard.writeText(url);
-    showToast(compartilhado ? 'Link da escala copiado (quem abrir entra com a própria conta).' : 'Link de Gestor (somente leitura) copiado!', 'ok');
+    showToast('Link da escala copiado (quem abrir entra com a própria conta).', 'ok');
   } catch (e) {
-    prompt(compartilhado ? 'Copie o link da escala:' : 'Copie o link abaixo (abre bloqueado no perfil Gestor):', url);
+    prompt('Copie o link da escala:', url);
   }
 };
 
@@ -1208,6 +1213,13 @@ document.addEventListener('change', e => {
   abrirData(amanha);
 
   const params = new URLSearchParams(window.location.search);
+  // O link antigo da fase 2 levava a escala inteira no endereço (share=): não vale mais, e sai do endereço
+  if (params.has('share')) {
+    const url = new URL(window.location.href);
+    url.searchParams.delete('share');
+    window.history.replaceState(window.history.state, '', url);
+    avisarDoLink('Este link antigo levava a escala no próprio endereço e não vale mais. Peça um link novo a quem compartilhou.', 'erro');
+  }
   // A data do link (?data=); uma data que não existe abre amanhã, com o aviso
   const pedida = params.get('data');
   const data = dataIsoValida(pedida) ? pedida : amanha;
@@ -1238,17 +1250,8 @@ document.addEventListener('change', e => {
     return;
   }
 
-  // No modo compartilhado os dados vêm do servidor e o perfil vem da conta: share= e role= da URL não valem
-  const compartilhado = modoCompartilhado();
-  const hasShare = !compartilhado && params.has('share');
-  const sharedDate = compartilhado ? null : ApiClient.applySharedURLIfPresent(S);
-
-  // Se aberto via link compartilhado, força bloqueio estrito no perfil Gestor sem permitir troca para Operador
-  if (hasShare) {
-    setRole('gestor', true);
-  } else if (!compartilhado && params.get('role')) {
-    setRole(params.get('role'), false);
-  }
+  // No modo compartilhado o perfil vem da conta: role= da URL não vale
+  if (!modoCompartilhado() && params.get('role')) setRole(params.get('role'), false);
 
   rRec(); rIns(); rAlu(); rDem(); renderAuditPanel();
   document.body.dataset.agenda = podeEditarAgenda() ? 'edita' : 'consulta';
@@ -1261,14 +1264,7 @@ document.addEventListener('change', e => {
     abrirAgenda();
   }
 
-  if (sharedDate) {
-    abrirData(sharedDate);
-    refazerEscala();
-    show('esc');
-    showToast('Escala compartilhada carregada (Modo Gestor Somente Leitura).');
-  } else {
-    rOut();
-  }
+  rOut();
   atualizarSelosDaEscala();
   lerPedidosDaData();
   carregarBI();
