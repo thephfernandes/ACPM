@@ -250,6 +250,19 @@ One PR per phase, opened when Pedro says. Each phase starts from the upstream `m
 
 #### Phase 15: CAVOK and Plane It
 
+### Review of 2026-11-14 (branches `revisao-1` to `revisao-9`)
+A full review of the app (engine, data and security, usability and accessibility) turned into nine PRs, security and data first.
+
+1. [x] **Screen security** (branch `revisao-1`). Anyone with an operator account can write anything through the API, and some saved values reached the HTML raw: a tampered flight status ran script in the session of whoever opened the date, an Administrador included (reproduced in a test).
+   - **Saved data is checked on load.** Only listed statuses count; people and requests go back to the right types; the saved schedule is used only in the engine's format (`js/escala-gravada.js`, the 41 reference schedules pass whole), otherwise it is recalculated; a history "Reverter" only takes the revert the app writes (`js/reversoes.js`).
+   - **Everything is escaped**, attributes included (`esc` also escapes `'`), and status CSS classes come from a fixed map.
+   - **A Content-Security-Policy** in both pages: scripts only from the page and the exact jsPDF and supabase-js versions, connections only to the app's Supabase servers; `test/unit/csp.test.js` keeps it in step with the pages.
+   - **The reception TV**: `painel_do_dia` (migration `painel_status_validos`) sends only listed statuses (`Pousou` already accepted), listed reasons and times within the day, with text capped, and a huge number no longer breaks it. The TV page accepts only the TV account, with its session under its own key (`acpm-<project>-painel`), so nobody at the TV can open the app with another account; a TV logged in the old way stays connected.
+   - **What leaves the app**: the CSV, the PDF and the in-app Painel show only the cancellation reason's category; the Painel shortens names like the TV; a CSV cell that Excel would read as a formula gets a leading apostrophe.
+   - **Limits**: names up to 80 characters, history descriptions up to 500; `?data=` must be a real date (otherwise tomorrow opens, with a notice).
+   - **The local share link is gone**: it put names, weights and hours in the URL. Without the server "Compartilhar" explains that the schedule stays in this browser; an old `share=` link is not read and shows a notice.
+   - 7 database checks; applied to the preview.
+
 ### Phase 16: Later (nice to have)
 - [ ] Track instructor and student currency: last flight, medical/CMA expiry. The engine then checks these too (the course phase is Phase 14).
 - [ ] Integrate with the Google Calendar that students already use, publishing each student's missions.
