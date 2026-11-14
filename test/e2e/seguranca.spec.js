@@ -2,7 +2,7 @@
 // cadastro, no dia, na escala salva e no histórico pela API. Nada disso pode virar HTML ou script em nenhuma tela: o
 // app escapa tudo o que mostra (texto e atributos) e, ao abrir, só aceita os valores que ele mesmo produz.
 import { test, expect, irPara, prepararContexto, vigiarErros, AMANHA } from './fixtures.js';
-import { documentosAtuais } from './supabase-falso.js';
+import { documentosAtuais, instalarSupabaseFalso, CONTAS } from './supabase-falso.js';
 import { runAllocationEngine } from '../../js/engine.js';
 import { aluno, cenario, instrutor, missaoExtra, GROUND_C152 } from '../helpers/montar.js';
 import { rosterSintetico } from '../helpers/estado.js';
@@ -51,12 +51,14 @@ function documentos(mudar) {
   return mudar ? mudar(docs) : docs;
 }
 
+// O que a política de segurança de conteúdo bloquear fica registrado
+const vigiarPolitica = page => page.addInitScript(() => {
+  window.__csp = [];
+  document.addEventListener('securitypolicyviolation', e => window.__csp.push(`${e.violatedDirective} ${e.blockedURI}`));
+});
+
 async function abrirCom(page, docs, url = './') {
-  // O que a política de segurança de conteúdo bloquear fica registrado
-  await page.addInitScript(() => {
-    window.__csp = [];
-    document.addEventListener('securitypolicyviolation', e => window.__csp.push(`${e.violatedDirective} ${e.blockedURI}`));
-  });
+  await vigiarPolitica(page);
   await page.addInitScript(json => {
     if (localStorage.getItem('acpm4_cadastro')) return;
     for (const [chave, valor] of Object.entries(JSON.parse(json))) localStorage.setItem(chave, JSON.stringify(valor));
@@ -157,6 +159,33 @@ test.describe('Conteúdo gravado malicioso', () => {
     await abrirCom(page, documentos(adulterados), './painel.html');
     await expect(page.locator('.fids tbody tr:not(.fids-vazia)').first()).toBeVisible();
     await nada(page);
+  });
+
+  // O mesmo conteúdo vindo do servidor (modo compartilhado): no app do operador e na TV, cada um com a sua conta
+  test('no modo compartilhado: o conteúdo adulterado vindo do servidor, no app e na TV', async ({ browser }) => {
+    const docs = documentos(adulterados);
+    const contexto = await browser.newContext({ baseURL: test.info().project.use.baseURL, locale: 'pt-BR', timezoneId: 'America/Sao_Paulo' });
+    await prepararContexto(contexto);
+    await instalarSupabaseFalso(contexto, {
+      documentos: { cadastro: docs.acpm4_cadastro },
+      dias: { [AMANHA]: docs[`acpm4_dia_${AMANHA}`], '2026-11-10': docs['acpm4_dia_2026-11-10'] },
+      historico: docs.acpm4_historico
+    });
+    for (const [url, conta] of [['./?supabase=teste', CONTAS.operador], ['./painel.html?supabase=teste', CONTAS.painel]]) {
+      const page = await contexto.newPage();
+      const erros = vigiarErros(page);
+      await vigiarPolitica(page);
+      await page.goto(url);
+      await page.locator('#login-email').fill(conta.email);
+      await page.locator('#login-senha').fill(conta.senha);
+      await page.locator('#btn-entrar').click();
+      if (conta === CONTAS.operador) await percorrer(page);
+      else await expect(page.locator('.fids tbody tr:not(.fids-vazia):not(.fids-nada)').first()).toBeVisible();
+      await nada(page);
+      expect(erros).toEqual([]);
+      await page.close();
+    }
+    await contexto.close();
   });
 });
 

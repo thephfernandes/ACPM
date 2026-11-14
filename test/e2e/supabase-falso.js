@@ -63,10 +63,11 @@ function consultar(linhas, url) {
 
 // Um servidor pode atender vários contextos do navegador (ex.: operador e gestor vendo os mesmos dados)
 // agora: o relógio do servidor para o prazo da agenda (o mesmo instante do relógio fixo das páginas)
-export function criarSupabaseFalso({ documentos = {}, dias = {}, agora = new Date('2026-11-10T12:00:00-03:00') } = {}) {
+export function criarSupabaseFalso({ documentos = {}, dias = {}, historico: historicoInicial = [], agora = new Date('2026-11-10T12:00:00-03:00') } = {}) {
   const banco = new Map(Object.entries(documentos).map(([chave, conteudo]) => [chave, { conteudo, versao: 1 }]));
   const tabelaDias = new Map(Object.entries(dias).map(([data, conteudo]) => [data, { conteudo, versao: 1 }]));
-  const historico = [];
+  // As entradas do histórico já gravadas (no formato da tabela historico)
+  const historico = historicoInicial.map(h => ({ ...h }));
   const solicitacoes = [];
   // Dados pessoais ('aluno:1000' → campos, atualizado_em e atualizado_por): operadores e secretaria leem e gravam
   const dadosPessoais = new Map();
