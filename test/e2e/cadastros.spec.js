@@ -330,6 +330,20 @@ test.describe('Alunos', () => {
     await expect(page.locator('#alu')).toContainText('Nenhum aluno cadastrado');
   });
 
+  test('o nome tem até 80 caracteres, nos alunos e nos instrutores', async ({ page }) => {
+    await abrirSintetico(page);
+    const longo = 'Maria '.repeat(20);
+    for (const [aba, botao, lista] of [['alu', 'adds', '#alu'], ['ins', 'addi', '#inst']]) {
+      await irPara(page, aba);
+      await page.locator(`[data-act="${botao}"]`).click();
+      const nome = page.locator(`${lista} .cd`).last().locator('.nm');
+      await expect(nome).toHaveAttribute('maxlength', '80');
+      await nome.fill(longo);
+      await nome.blur();
+      await expect(page.locator(`${lista} .cd`).last().locator('.nm')).toHaveValue(longo.slice(0, 80).trim());
+    }
+  });
+
   test('busca alunos pelo nome', async ({ page }) => {
     await abrirSintetico(page);
     await irPara(page, 'alu');

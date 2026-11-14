@@ -227,10 +227,10 @@ export function renderAuditPanel() {
         const btnRevert = reversao
           ? `<button class="x edit-only" data-act="rev-log" data-logid="${esc(item.id)}">${esc(reversao.label)}</button>`
           : '';
-        const autor = item.autor ? ` <span class="sm">${esc(item.autor)}</span>` : '';
+        const autor = item.autor ? ` <span class="sm audit-autor">${esc(item.autor)}</span>` : '';
         const importado = item.importado ? ' <span class="sm">(importado)</span>' : '';
         return `<div class="audit-item">
-          <div><span class="sm">[${esc(item.ts)}]</span>${autor} <span class="audit-badge ${tipo}">${lbl}</span> <span>${esc(item.desc)}</span>${importado}</div>
+          <div><span class="sm">[${esc(item.ts)}]</span>${autor} <span class="audit-badge ${tipo}">${lbl}</span> <span class="audit-desc">${esc(item.desc)}</span>${importado}</div>
           ${btnRevert}
         </div>`;
       }).join('');

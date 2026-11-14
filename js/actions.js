@@ -1,5 +1,5 @@
 // Ações que alteram o estado: perfil de acesso, data da escala, histórico de alterações, geração da escala e BI.
-import { isoMenosDias, fimDoMes, rotuloDaData, hojeISO } from './format.js';
+import { isoMenosDias, fimDoMes, rotuloDaData, hojeISO, LIMITE_DO_NOME } from './format.js';
 import { runAllocationEngine } from './engine.js';
 import { ApiClient } from './storage.js';
 import { S, RES, AUDIT_LOG, BI_HISTORY, DATA, setS, setRES, setAuditLog, setBIHistory, setData, isGestor } from './state.js';
@@ -76,8 +76,13 @@ export function gravarEscalaCalculada() {
 
 // A entrada aparece na hora; o id (que permite reverter) chega quando o registro é gravado.
 // reverte: id da entrada que esta alteração desfaz (ela deixa de aparecer no painel)
-export function logChange(type, desc, revertAction = null, reverte = null) {
+// A descrição de uma entrada do histórico tem até 500 caracteres, ao gravar e ao abrir (revisão de 14/11)
+const LIMITE_DA_DESCRICAO = 500;
+const textoAte = (texto, limite) => (texto === null || texto === undefined ? texto : String(texto).slice(0, limite));
+
+export function logChange(type, texto, revertAction = null, reverte = null) {
   if (isGestor()) return;
+  const desc = textoAte(texto, LIMITE_DA_DESCRICAO);
   const entry = {
     id: null,
     ts: new Date().toTimeString().slice(0, 8),
@@ -109,10 +114,10 @@ export async function historicoParaPainel(data) {
     id: e.id,
     ts: horario(e.registrado_em, e.importado),
     type: e.tipo,
-    desc: e.descricao,
+    desc: textoAte(e.descricao, LIMITE_DA_DESCRICAO),
     revert: e.importado ? null : e.reverter,
     reverte: e.reverte,
-    autor: e.autor,
+    autor: textoAte(e.autor, LIMITE_DO_NOME),
     importado: e.importado
   }));
 }

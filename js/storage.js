@@ -2,7 +2,7 @@
 // (localStorage ou Supabase) e o link compartilhável que abre a escala no perfil Gestor.
 import { WIN, NI, DEFAULT_LIM, FLIGHT_STATUSES, AIRCRAFT_EQ_TYPES } from './config.js';
 import { FROTA_INICIAL, normalizarFrota } from './frota.js';
-import { pad } from './format.js';
+import { pad, LIMITE_DO_NOME } from './format.js';
 import { blank, normalizeMissionFields, disponibilidadeValida } from './rules.js';
 import { HORARIOS_INICIAIS, normalizarHorarios, preferenciaValida } from './horarios.js';
 import { backendLocal, CHAVES_LOCAIS, CHAVE_LEGADA } from './backends/local.js';
@@ -143,7 +143,7 @@ export const ApiClient = {
 
     // Pessoas nos tipos certos (revisão de 14/11): sem id inteiro, a pessoa sai; nome de até 80 caracteres; peso de 0 a
     // 300 kg; disponibilidade com uma janela por período; bloqueios só com ids
-    const nome = (v, padrao) => (typeof v === 'string' && v.trim() ? v.slice(0, 80) : padrao);
+    const nome = (v, padrao) => (typeof v === 'string' && v.trim() ? v.slice(0, LIMITE_DO_NOME) : padrao);
     const peso = v => (typeof v === 'number' && Number.isFinite(v) && v > 0 && v <= 300 ? v : 0);
     const comId = p => Boolean(p) && typeof p === 'object' && Number.isInteger(p.id) && p.id > 0;
     x.ins = x.ins.filter(comId);

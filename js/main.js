@@ -16,7 +16,7 @@
 import { WIN, NI, T, GROUND_EQ_TYPE, GROUND_REG, GROUND_DURATION_MIN, GROUND_DURATION_H, MIS, PRE } from './config.js';
 import { novoRecurso, matriculasDoTipo } from './frota.js';
 import { HORARIOS_PADRAO, DE_30_EM_30, horariosDaMissao, ajustarPreferencias, paraMinuto } from './horarios.js';
-import { hm, fmtH, fmtDurLabel, pad, amanhaISO, isoMenosDias } from './format.js';
+import { hm, fmtH, fmtDurLabel, pad, amanhaISO, isoMenosDias, nomeLimpo } from './format.js';
 import { isGroundMission, blank, rotuloDaDisponibilidade, normalizeMissionFields } from './rules.js';
 import { habilitacoesDoNivel, normalizarHabilitacoes, nomeDaHabilitacao, podeFazer } from './habilitacoes.js';
 import { ApiClient } from './storage.js';
@@ -1098,7 +1098,7 @@ document.addEventListener('change', e => {
       });
     } else if (f === 'nm') {
       const old = x.nm;
-      x.nm = t.value.trim() || x.nm;
+      x.nm = nomeLimpo(t.value, x.nm);
       logChange('mod', `Instrutor: ${old} → ${x.nm}`);
     } else if (f === 'kg') {
       x.kg = +t.value || 0;
@@ -1135,7 +1135,7 @@ document.addEventListener('change', e => {
     if (k === 's') {
       if (f === 'nm') {
         const old = s.nm;
-        s.nm = t.value.trim() || s.nm;
+        s.nm = nomeLimpo(t.value, s.nm);
         logChange('mod', `Aluno: ${old} → ${s.nm}`);
       } else if (f === 'kg') {
         s.kg = +t.value || 0;

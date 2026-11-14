@@ -1,6 +1,6 @@
 import { describe, it, mock } from 'node:test';
 import assert from 'node:assert/strict';
-import { hm, fmtH, fmtDurLabel, WLB, pad, esc, opts, amanhaISO, hojeISO, isoMenosDias, fimDoMes, rotuloDaData } from '../../js/format.js';
+import { hm, fmtH, fmtDurLabel, WLB, pad, esc, opts, amanhaISO, hojeISO, isoMenosDias, fimDoMes, rotuloDaData, nomeLimpo, LIMITE_DO_NOME } from '../../js/format.js';
 
 describe('Formatação', () => {
   it('minutos do dia em HH:MM', () => {
@@ -32,6 +32,13 @@ describe('Formatação', () => {
     assert.equal(esc("x' onmouseover='1"), 'x&#39; onmouseover=&#39;1', 'aspas simples também (atributos com aspas simples)');
     assert.equal(opts([['a"><b>', '<i>x</i>'], ['2', 'Dois']], '2'),
       '<option value="a&quot;&gt;&lt;b&gt;">&lt;i&gt;x&lt;/i&gt;</option><option value="2" selected>Dois</option>', 'opções escapadas');
+  });
+
+  it('o nome de uma pessoa: sem espaços a mais e com até 80 caracteres; vazio fica o anterior', () => {
+    assert.equal(LIMITE_DO_NOME, 80);
+    assert.equal(nomeLimpo('  Ana   Paula  ', 'Ana'), 'Ana Paula');
+    assert.equal(nomeLimpo('A'.repeat(100), 'Ana'), 'A'.repeat(80));
+    assert.equal(nomeLimpo('   ', 'Ana'), 'Ana');
   });
 
   it('datas AAAA-MM-DD: amanhã, dias antes e fim do mês (com virada de mês, ano e bissexto)', () => {

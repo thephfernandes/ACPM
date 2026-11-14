@@ -41,6 +41,10 @@ function documentos(mudar) {
     acpm4_historico: [{
       id: 1, data: AMANHA, registrado_em: '2026-11-10T14:00:00.000Z', autor: `Rayane ${X}`, tipo: 'mod',
       descricao: `Alterado ${X}`, reverter: null, reverte: null, importado: false
+    }, {
+      // Textos enormes gravados pela API: a tela mostra até 500 caracteres da descrição e 80 do autor
+      id: 3, data: AMANHA, registrado_em: '2026-11-10T14:05:00.000Z', autor: 'Autor '.repeat(100), tipo: 'mod',
+      descricao: 'Longo '.repeat(400), reverter: null, reverte: null, importado: false
     }]
   };
   return mudar ? mudar(docs) : docs;
@@ -94,6 +98,10 @@ test.describe('Conteúdo gravado malicioso', () => {
     await irPara(page, 'esc');
     await expect(page.locator('#out tbody')).toContainText(`Aluno ${X}`);
     await expect(page.locator('#selo-aprovada')).toContainText(`Operador ${X}`);
+    await page.locator('#btn-open-log').click();
+    const longa = page.locator('#audit-log-list .audit-item').filter({ hasText: 'Longo Longo' });
+    await expect(longa.locator('.audit-desc')).toHaveText('Longo '.repeat(400).slice(0, 500).trim());
+    await expect(longa.locator('.audit-autor')).toHaveText('Autor '.repeat(100).slice(0, 80).trim());
   });
 
   // Valores que só o app deveria produzir (status, números, chaves, matrículas, etiquetas) gravados fora do formato:
