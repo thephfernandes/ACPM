@@ -35,7 +35,7 @@ export function progressoDoAluno(stu) {
   if (!stu.curso || !programa()[stu.curso].length) return '';
   const { aprovadas, total } = progresso(programa(), situacao(), stu.id, stu.curso);
   const proxima = proximaMissao(programa(), situacao(), stu.id, stu.curso);
-  return `<small class="progresso">${aprovadas}/${total}${proxima ? ` · próxima ${esc(proxima.id)}` : ' · concluído'}</small>`;
+  return `<small class="progresso" data-dica="progresso">${aprovadas}/${total}${proxima ? ` · próxima ${esc(proxima.id)}` : ' · concluído'}</small>`;
 }
 
 // Na escala, com o status do aluno: o código da missão do curso e o resultado (o operador registra; os outros veem)
@@ -44,9 +44,9 @@ export function resultadoNaEscala(o) {
   const registrado = resultadoDoVoo(resultados().doDia, o.fKey);
   const atual = ['aprovado', 'reprovado'].includes(registrado) ? registrado : 'pendente';
   const stu = stuBy(o.stuId);
-  const codigo = `<span class="etapa" title="Missão do curso${stu && stu.curso ? ` ${esc(stu.curso)}` : ''}">${esc(o.etapa)}</span>`;
+  const codigo = `<span class="etapa" data-dica="missao-do-curso">${esc(o.etapa)}</span>`;
   if (isGestor() || !stu || !stu.curso) {
     return `<span class="resultado">${codigo}${atual !== 'pendente' ? ` <span class="res res-${atual}">${atual === 'aprovado' ? 'Aprovado' : 'Reprovado'}</span>` : ''}</span>`;
   }
-  return `<span class="resultado">${codigo} <select class="res-sel res-${atual}" data-resultado="${esc(o.fKey)}" aria-label="Resultado de ${esc(o.s)} em ${esc(o.etapa)}"${dadoIndisponivel('resultados') ? ' disabled' : ''}>${opts([['pendente', 'Resultado'], ['aprovado', 'Aprovado'], ['reprovado', 'Reprovado']], atual)}</select></span>`;
+  return `<span class="resultado">${codigo} <select class="res-sel res-${atual}" data-resultado="${esc(o.fKey)}" aria-label="Resultado de ${esc(o.s)} em ${esc(o.etapa)}" data-dica="resultado"${dadoIndisponivel('resultados') ? ' disabled' : ''}>${opts([['pendente', 'Resultado'], ['aprovado', 'Aprovado'], ['reprovado', 'Reprovado']], atual)}</select></span>`;
 }

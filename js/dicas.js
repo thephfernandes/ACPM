@@ -58,8 +58,10 @@ export function abrirDica(el, { toque = false } = {}) {
   porToque = toque;
   dica.replaceChildren();
   const titulo = document.createElement('strong');
-  titulo.textContent = termo.termo;
-  dica.append(titulo, ' ', termo.texto);
+  // data-dica-termo: o título com o caso deste elemento ("Voo fixo: Em Voo", "Reduzir 5 gal"), também só texto
+  titulo.textContent = el.dataset.dicaTermo || termo.termo;
+  // data-dica-caso: o caso deste elemento antes da explicação geral ("Abastecer até 22 gal…"), só texto
+  dica.append(titulo, ' ', ...(el.dataset.dicaCaso ? [el.dataset.dicaCaso, ' '] : []), termo.texto);
   dica.hidden = false;
   posicionarJunto(dica, el);
   if (el.classList.contains('dica-btn')) el.setAttribute('aria-expanded', 'true');
@@ -75,6 +77,10 @@ export function fecharDica() {
 }
 
 export const dicaAberta = () => Boolean(alvo);
+
+// O botão "?" ao lado de um rótulo (o id é um termo do glossário; o rótulo vai no nome acessível)
+export const botaoDeDica = (id, rotulo) =>
+  `<button type="button" class="dica-btn" data-dica="${id}" aria-label="O que é ${rotulo.replace(/[&<>"']/g, '')}?" aria-expanded="false"></button>`;
 
 export function iniciarDicas() {
   criarNos();

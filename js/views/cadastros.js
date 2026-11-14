@@ -6,6 +6,7 @@ import { HABILITACOES, nomeDaHabilitacao } from '../habilitacoes.js';
 import { esc, hm, opts, LIMITE_DO_NOME } from '../format.js';
 import { S, DATA, insBy, isGestor, voosQueVoam } from '../state.js';
 import { $ } from '../dom.js';
+import { botaoDeDica } from '../dicas.js';
 import { canacDe } from './dados-pessoais.js';
 import { normalizarLimites, LIMITES_DA_LEI, comHorasExternas } from '../limites.js';
 import { ApiClient } from '../storage.js';
@@ -107,7 +108,8 @@ export function linhaDoCadastro(x) {
 
 // A grade do dia depende da escala: é refeita junto com ela
 export function rInsDia() {
-  $('#inst-dia-cab').innerHTML = `<tr><th>Instrutor</th><th>Hoje</th>${WIN.map(w => `<th class="jan">${w}</th>`).join('')}<th>Voos</th><th title="Horas de voo no mês com a escala desta data (limites da Lei do Aeronauta)">Mês</th><th>Turno</th><th>Habilitações</th></tr>`;
+  // Os termos da grade com o "?" (revisão de 14/11)
+  $('#inst-dia-cab').innerHTML = `<tr><th>Instrutor</th><th>Hoje${botaoDeDica('vem-nesta-data', 'Hoje')}</th>${WIN.map(w => `<th class="jan">${w}</th>`).join('')}<th>Voos${botaoDeDica('voos-do-instrutor', 'Voos')}</th><th>Mês${botaoDeDica('horas-do-mes', 'Mês')}</th><th>Turno${botaoDeDica('turno', 'Turno')}</th><th>Habilitações</th></tr>`;
   if (!S.ins.length) {
     $('#inst-dia').innerHTML = `<tr><td colspan="${WIN.length + 6}" class="h">${SEM_INSTRUTORES}</td></tr>`;
     return;
@@ -179,8 +181,9 @@ function horasDoInstrutor(x) {
   const de = (valor, limite) => `${horasTexto(valor)} h${limite === null ? '' : ` de ${limite} h`}`;
   const externas = x.horasExternas || {};
   const mes = MESES[+DATA.slice(5, 7) - 1];
-  return `<fieldset class="horas-ins"><legend>Horas de voo (limites da lei)</legend>
+  return `<fieldset class="horas-ins"><legend>Horas de voo (limites da lei)${botaoDeDica('limites-da-lei', 'limites da lei')}</legend>
       <p>No mês: ${de(h.mes, limites.vooMesH)} · No semestre: ${de(h.semestre, limites.vooSemestreH)} · No ano: ${de(h.ano, limites.vooAnoH)} <small>(com a escala desta data)</small></p>
+      <p class="h">As horas de voo de fora do app (outra escola, por exemplo) entram nos limites do mês e do ano.</p>
       <label>Fora do app, neste mês (${mes}) <input type="number" min="0" max="999" step="0.1" data-f="ext-mes" value="${externas[DATA.slice(0, 7)] ?? ''}"></label>
       <label>Fora do app, neste ano, antes de ${mes} <input type="number" min="0" max="2000" step="0.1" data-f="ext-ano" value="${externas[`${DATA.slice(0, 4)}-00`] ?? ''}"></label>
     </fieldset>`;
@@ -196,7 +199,7 @@ export function rLimites() {
   if (!quadro) return;
   const limites = normalizarLimites(S.limites);
   const desligado = podeEditarLimites() ? '' : ' disabled';
-  quadro.innerHTML = `<h3>Limites da Lei do Aeronauta</h3>
+  quadro.innerHTML = `<h3>Limites da Lei do Aeronauta${botaoDeDica('limites-da-lei', 'limites da lei')}</h3>
     <p class="h">Lei 13.475/2017 e RBAC 117 (Apêndice A): a escala não põe um instrutor além destes limites e avisa a partir de 90% do mês, do semestre e do ano. As horas de voo contam só avião (simulador e Ground contam na jornada). A jornada vai de 30 minutos antes do primeiro compromisso a 30 minutos depois do último. Vazio é sem limite; só o Administrador muda.</p>
     <div class="limites-grade">
       ${CAMPOS_DOS_LIMITES.map(([chave, rotulo, divisor]) => `<label>${rotulo} <input type="number" min="0.5" step="0.5" data-limite="${chave}" data-divisor="${divisor}" value="${limites[chave] === null ? '' : String(limites[chave] / divisor)}"${desligado}></label>`).join('')}

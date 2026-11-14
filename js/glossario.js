@@ -10,7 +10,7 @@ import { reservaDaMissao } from './combustivel.js';
 const duracao = min => (min % 60 ? `${Math.floor(min / 60)}h${String(min % 60).padStart(2, '0')}` : `${min / 60} h`);
 const lei = LIMITES_DA_LEI;
 
-export const ABAS_DO_GLOSSARIO = ['Escala', 'Critérios', 'Demanda', 'Recursos', 'Instrutores', 'Alunos', 'Rodízio'];
+export const ABAS_DO_GLOSSARIO = ['Escala', 'Critérios', 'Demanda', 'Agenda', 'Recursos', 'Instrutores', 'Alunos', 'Rodízio'];
 
 export const GLOSSARIO = {
   // Escala
@@ -52,6 +52,9 @@ export const GLOSSARIO = {
   disponibilidade: { aba: 'Demanda', termo: 'Disponibilidade', texto: 'Quando o aluno pode voar: manhã, tarde, noite ou um horário exato. O voo só começa dentro dela.' },
   duracao: { aba: 'Demanda', termo: 'Duração', texto: `As horas do voo, de uma vez. O Ground tem ${duracao(GROUND_DURATION_MIN)}. Para dois voos do aluno no mesmo dia, use “+ missão”.` },
   prioridade: { aba: 'Demanda', termo: 'Prioridade', texto: 'De 1 a 5: o pedido de prioridade maior é escalado antes e escolhe primeiro o horário, o avião e o instrutor.' },
+
+  // Agenda
+  excecao: { aba: 'Agenda', termo: 'Exceção da Coordenação', texto: 'Registra o pedido depois do prazo das 13:00 da véspera. O pedido fica marcado como exceção, para auditoria.' },
 
   // Recursos
   janelas: { aba: 'Recursos', termo: 'Janelas de operação', texto: 'Os períodos do dia em que a escola opera nesta data. Período fechado não recebe voo nem Ground.' },

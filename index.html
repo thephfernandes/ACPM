@@ -171,7 +171,7 @@
     </form>
     <div class="tw" id="eqs">
       <table class="frota">
-        <thead><tr><th>Disponível</th><th>Recurso</th><th>Horas desde a revisão</th><th>Saldo até 50 h</th><th>Na escala do dia</th><th class="edit-only" aria-label="Revisão"></th></tr></thead>
+        <thead><tr><th>Disponível</th><th>Recurso</th><th>Horas desde a revisão<button type="button" class="dica-btn" data-dica="horas-desde-a-revisao" aria-label="O que é Horas desde a revisão?" aria-expanded="false"></button></th><th>Saldo até 50 h<button type="button" class="dica-btn" data-dica="saldo-da-revisao" aria-label="O que é Saldo até 50 h?" aria-expanded="false"></button></th><th>Na escala do dia</th><th class="edit-only" aria-label="Revisão"></th></tr></thead>
         <tbody id="revisao"></tbody>
       </table>
     </div>
@@ -229,7 +229,7 @@
       <button class="btn edit-only vista-alunos" data-act="adds">+ Novo aluno</button>
     </div>
     <div class="tw vista-alunos"><table class="cadastro alunos">
-      <thead><tr><th>Nome</th><th class="so-dados">CANAC</th><th>Curso</th><th>Peso (kg)</th><th>Não escalar com</th><th></th></tr></thead>
+      <thead><tr><th>Nome</th><th class="so-dados">CANAC</th><th>Curso</th><th>Peso (kg)</th><th>Não escalar com<button type="button" class="dica-btn" data-dica="nao-escalar-com" aria-label="O que é Não escalar com?" aria-expanded="false"></button></th><th></th></tr></thead>
       <tbody id="alu"></tbody>
     </table></div>
     <!-- O programa de cada curso (fase 14, js/views/cursos.js) -->
@@ -252,7 +252,7 @@
           <label>Registrado por<input id="ag-por" class="agenda-campo" maxlength="80" required placeholder="Quem anotou o pedido"></label>
           <label>Observação<input id="ag-obs" class="agenda-campo" maxlength="300" placeholder="Opcional"></label>
           <button class="btn" type="submit">Registrar pedido</button>
-          <button class="x" type="button" id="ag-excecao" hidden title="Registra fora do prazo das 13:00 (fica marcado para auditoria)">Exceção da Coordenação</button>
+          <button class="x" type="button" id="ag-excecao" hidden data-dica="excecao">Exceção da Coordenação</button>
           <p id="ag-erro" role="alert"></p>
         </form>
         <button class="btn edit-only" type="button" id="agenda-importar" hidden></button>
@@ -287,14 +287,14 @@
         <thead>
           <tr>
             <th>Aluno</th>
-            <th>Voa</th>
+            <th>Voa<button type="button" class="dica-btn" data-dica="voa" aria-label="O que é Voa?" aria-expanded="false"></button></th>
             <th>Missão</th>
             <th>Recurso</th>
-            <th>1ª preferência</th>
+            <th>1ª preferência<button type="button" class="dica-btn" data-dica="preferencias" aria-label="O que é 1ª preferência?" aria-expanded="false"></button></th>
             <th>2ª preferência</th>
-            <th>Disponibilidade</th>
-            <th>Duração</th>
-            <th>Prioridade</th>
+            <th>Disponibilidade<button type="button" class="dica-btn" data-dica="disponibilidade" aria-label="O que é Disponibilidade?" aria-expanded="false"></button></th>
+            <th>Duração<button type="button" class="dica-btn" data-dica="duracao" aria-label="O que é Duração?" aria-expanded="false"></button></th>
+            <th>Prioridade<button type="button" class="dica-btn" data-dica="prioridade" aria-label="O que é Prioridade?" aria-expanded="false"></button></th>
           </tr>
         </thead>
         <tbody id="dem" class="only"></tbody>

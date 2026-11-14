@@ -76,7 +76,9 @@ test.describe('Tela da Escala', () => {
     await expect(linha.locator('.c-peso')).toContainText('180 / 170 kg');
     const selo = linha.locator('.c-peso .tag.comb');
     await expect(selo).toHaveText('reduzir 4 gal');
-    await expect(selo).toHaveAttribute('title', 'Abastecer até 22 gal (4 a menos que o tanque cheio); o voo, o táxi e a reserva pedem 11 gal; autonomia de 3h23.');
+    // A dica diz o caso deste voo antes da explicação (revisão de 14/11)
+    await selo.click();
+    await expect(page.locator('#dica')).toContainText('Reduzir combustível Abastecer até 22 gal (4 a menos que o tanque cheio); o voo, o táxi e a reserva pedem 11 gal; autonomia de 3h23.');
   });
 
   test('turma de Ground: horário, missão, sala e instrutor uma vez só; cada aluno com o seu status e a sua ação', async ({ page }) => {

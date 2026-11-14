@@ -1249,6 +1249,8 @@ body.tela-painel { min-height: 100vh; background: #07122B; overflow: hidden; }
   border: 1px solid var(--ln); border-radius: 50%; background: transparent; color: var(--mu);
   font: 700 11px/1 inherit; cursor: help; vertical-align: middle;
 }
+/* O "?" é desenhado (o botão tem o nome "O que é…?"): o texto do rótulo continua limpo */
+.dica-btn::before { content: "?"; }
 .dica-btn:hover, .dica-btn[aria-expanded="true"] { border-color: currentColor; color: var(--ink); }
 .dica-btn:focus-visible { outline: 2px solid var(--ac); outline-offset: 2px; }
 [data-dica]:not(button):not(.dica-btn) { cursor: help; }

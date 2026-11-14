@@ -44,7 +44,7 @@ function linha({ reg: r, tipo, soParafuso }, grupo, voadas, revisao) {
   const aviao = AIRCRAFT_EQ_TYPES.includes(tipo);
   const horas = S.horas[r];
   const temHoras = typeof horas === 'number';
-  const parafuso = soParafuso ? ' <span class="tag fb" title="Exclusivo para a missão de Parafuso">Só Parafuso</span>' : '';
+  const parafuso = soParafuso ? ' <span class="tag fb" data-dica="so-parafuso">Só Parafuso</span>' : '';
   return `<tr data-r="${esc(r)}" data-grupo="${grupo}"${S.av[r] ? '' : ' class="manutencao"'}${recolhidos.has(grupo) ? ' hidden' : ''}>
     <td><label class="alvo"><input type="checkbox" class="sw" data-a="av" data-id="${esc(r)}"${S.av[r] ? ' checked' : ''} aria-label="${esc(r)} disponível"></label></td>
     <td><b>${esc(r)}</b>${aviao ? '' : ` <small class="sm">${tipo}</small>`}${parafuso}</td>
