@@ -142,3 +142,26 @@ describe('Horários por categoria: trocar a missão ou o avião do pedido', asyn
     assert.equal(ajustado({ p1: 500, p2: 500, jan: 'h500' }, 'Voo Local', 'C172').jan, 'h500');
   });
 });
+
+// Revisão de 14/11 (decisão do Pedro): sem vaga na 1ª nem na 2ª preferência, o horário mais perto da 1ª (sem a 1ª, da
+// 2ª); empatados, o mais cedo. Sem preferência, em ordem
+describe('Horários pela distância da preferência', () => {
+  it('a 1ª e a 2ª preferência primeiro, depois pela distância da 1ª; o empate vai para o mais cedo', async () => {
+    const { ordenarPelaPreferencia } = await import('../../js/horarios.js');
+    const lista = [390, 500, 610, 690, 760, 820, 870, 980];
+    assert.deepEqual(ordenarPelaPreferencia(lista, 760, 390), [760, 390, 820, 690, 870, 610, 980, 500]);
+    assert.deepEqual(ordenarPelaPreferencia(lista, 500, -1), [500, 390, 610, 690, 760, 820, 870, 980]);
+  });
+
+  it('sem a 1ª, pela distância da 2ª; sem nenhuma, em ordem', async () => {
+    const { ordenarPelaPreferencia } = await import('../../js/horarios.js');
+    const lista = [390, 500, 610, 690, 760];
+    assert.deepEqual(ordenarPelaPreferencia(lista, -1, 690), [690, 760, 610, 500, 390]);
+    assert.deepEqual(ordenarPelaPreferencia(lista, -1, -1), lista);
+  });
+
+  it('a preferência fora da lista não entra, mas a distância conta a partir dela', async () => {
+    const { ordenarPelaPreferencia } = await import('../../js/horarios.js');
+    assert.deepEqual(ordenarPelaPreferencia([390, 500, 610], 450, -1), [500, 390, 610]);
+  });
+});

@@ -49,7 +49,8 @@ describe('Voos: janelas preferidas e encaixe', () => {
 
   it('voo diurno não termina depois das 17:30', () => {
     const { out } = alocar({ ins: [instrutor(1, 1)], stu: [aluno(1000, { nb: 4, p1: 6, p2: 7 })] });
-    assert.deepEqual(out.map(o => [o.w, o.a, o.b, o.tag]), [[0, 390, 630, 'Próximo livre']]);
+    // As preferências (14:30 e 16:10) passariam das 17:30; o horário mais perto da 1ª que cabe (revisão de 14/11)
+    assert.deepEqual(out.map(o => [o.w, o.a, o.b, o.tag]), [[4, 760, 1000, 'Próximo livre']]);
   });
 
   // Revisão de 14/11: um pedido é um voo só, com as horas pedidas (para dividir no dia, "+ missão"); o número de
@@ -211,6 +212,30 @@ describe('Peso da tripulação', () => {
     assert.deepEqual(soInstrutor.al, [{ t: 'warn', s: 'Aluno 1000', m: 'Peso de Instrutor 01 não informado (0 kg): verificação de limite (170 kg) no C152 não realizada.' }]);
     const osDois = alocar({ ins: [instrutor(1, 1, { kg: 0 })], stu: [aluno(1000, {}, { kg: 0 })] });
     assert.deepEqual(osDois.al, [{ t: 'warn', s: 'Aluno 1000', m: 'Pesos do aluno e de Instrutor 01 não informados (0 kg): verificação de limite (170 kg) no C152 não realizada.' }]);
+  });
+});
+
+// Revisão de 14/11 (decisão do Pedro): sem vaga na 1ª nem na 2ª preferência, o horário mais perto da 1ª
+describe('O horário mais perto da preferência', () => {
+  it('voo: o horário livre mais perto da 1ª preferência, não o primeiro do dia', () => {
+    // Um avião e um instrutor; o aluno 1000 (prioridade 5) fica com as 12:40; o 1001 queria as 12:40
+    const { out } = alocar({ ins: [instrutor(1, 9)], stu: [aluno(1000, { p1: 760, p2: -1, pr: 5 }), aluno(1001, { p1: 760, p2: -1 })], semAeronaves: SO_PP_LJV });
+    const voo = out.find(o => o.stuId === 1001);
+    assert.deepEqual([hm(voo.a), voo.baseTag], ['13:40', 'Próximo livre']);
+  });
+
+  it('empatados, o mais cedo', () => {
+    const { out } = alocar({ ins: [instrutor(1, 9)], stu: [aluno(1000, { p1: 500, p2: -1, pr: 5 }), aluno(1001, { p1: 500, p2: -1 })], semAeronaves: SO_PP_LJV });
+    assert.equal(hm(out.find(o => o.stuId === 1001).a), '06:30');
+  });
+
+  it('Ground: a turma mais perto da 1ª preferência', () => {
+    // A sala está com o Ground PA-34 às 11:30 (prioridade 5); o Ground C152 queria as 11:30: vai para as 13:40 (12:40 e 10:10 cruzam a outra turma), não 06:30
+    const { out } = alocar({
+      ins: [instrutor(1, 9), instrutor(2, 9)],
+      stu: [aluno(1000, { mis: 'Ground PA-34', eq: 'Sala Ground', nb: 1.5, p1: 3, p2: -1, pr: 5 }), aluno(1001, { ...GROUND_C152, p1: 3, p2: -1 })]
+    });
+    assert.equal(hm(out.find(o => o.stuId === 1001).a), '13:40');
   });
 });
 

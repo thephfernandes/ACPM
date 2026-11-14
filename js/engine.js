@@ -4,7 +4,7 @@ import { T, NI, DAY, NIGHT_OK, MIS, DEFAULT_LIM, GROUND_EQ_TYPE, GROUND_REG, GRO
 import { FROTA_INICIAL, matriculasDoTipo } from './frota.js';
 import { hm, fmtH } from './format.js';
 import { isGroundMission, doesGroundGateFlight, disponibilidadeDoAluno, rotuloDaDisponibilidade } from './rules.js';
-import { HORARIOS_INICIAIS, horariosDaMissao, periodoDoMinuto, minutoDaPreferencia } from './horarios.js';
+import { HORARIOS_INICIAIS, horariosDaMissao, periodoDoMinuto, minutoDaPreferencia, ordenarPelaPreferencia } from './horarios.js';
 import { podeFazer, descreverExigencias } from './habilitacoes.js';
 import { categoriaDoRodizio, ajustarFilas } from './rodizio.js';
 import { avisosDeAtraso, intervaloEfetivo } from './status.js';
@@ -239,7 +239,8 @@ function equalizarHoras(out, state, limites, historico) {
   }
 }
 
-// opcoes.compactar: false monta a escala sem a compactação (para comparar e medir)
+// opcoes.compactar: false monta a escala sem a compactação; opcoes.dividirHoras: false, sem a divisão igual das horas
+// (para comparar, medir e testar)
 export function runAllocationEngine(state, opcoes = {}) {
   const used = {}, busy = {}, stuBusy = {}, stuLastPick = {}, load = {}, eu = {}, out = [], al = [];
   // A frota vem do cadastro (fase 7); sem ela (estados de teste antigos), a frota inicial
@@ -462,7 +463,8 @@ export function runAllocationEngine(state, opcoes = {}) {
         return (fp1 >= 0 && fp1 < minT) ? fp1 : minT;
       }, Infinity));
 
-      const semPrazo = [...new Set([...pf.filter(w => w >= 0), ...starts])].filter(w => starts.includes(w));
+      // A 1ª e a 2ª preferência, depois os outros horários pela distância da 1ª (revisão de 14/11, decisão do Pedro)
+      const semPrazo = ordenarPelaPreferencia(starts.map(w => T[w]), preferidos[0], preferidos[1]).map(m => T.indexOf(m));
       const candidateWins = semPrazo.filter(w => T[w] + durMin <= prazoFixo);
       // Prioriza janelas que terminam antes do voo preferido do aluno, mantendo a cascata Pref.1 -> Pref.2 -> Próximo livre
       candidateWins.sort((w1, w2) => {
@@ -660,11 +662,11 @@ export function runAllocationEngine(state, opcoes = {}) {
     const starts = horariosDaMissao(horarios, d.mis, d.eq).filter(m => state.win[periodoDoMinuto(m)] && naDisponibilidade(m));
     const endMax = night ? 1440 : T[NI];
     const dur = H * 60;
-    // Os horários possíveis: a 1ª e a 2ª preferência, depois os outros, em ordem; w é o período (a janela de operação em
-    // que o voo começa), para agrupar a escala
+    // Os horários possíveis: a 1ª e a 2ª preferência, depois os outros pela distância da 1ª (revisão de 14/11, decisão
+    // do Pedro); w é o período (a janela de operação em que o voo começa), para agrupar a escala
     const pf = preferidos;
-    const inicios = [...new Set([pf[0], pf[1], ...starts])]
-      .filter(m => starts.includes(m) && m >= minStartAfterGround && m + dur <= endMax)
+    const inicios = ordenarPelaPreferencia(starts, pf[0], pf[1])
+      .filter(m => m >= minStartAfterGround && m + dur <= endMax)
       .map(m => ({ w: periodoDoMinuto(m), a: m, b: m + dur }));
 
     // Filtra a frota candidata respeitando a exclusividade do C152 PR-JPL (Acrobat) para Parafuso
@@ -803,7 +805,7 @@ export function runAllocationEngine(state, opcoes = {}) {
     }
   }
 
-  equalizarHoras(out, state, limites, historico);
+  if (opcoes.dividirHoras !== false) equalizarHoras(out, state, limites, historico);
   // Compactação (fase 13): a escala compactada vale quando, já com as matrículas trocadas, custa menos pelo critério do
   // dia do que a escala sem compactar (a troca de matrículas mexe no tempo parado dos aviões)
   const compactada = opcoes.compactar === false ? null : out.map(o => ({ ...o }));

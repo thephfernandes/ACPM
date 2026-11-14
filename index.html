@@ -448,7 +448,7 @@
       <p>Uma linha por aluno. Ligue <i>Voa</i> para quem voa na data e preencha:</p>
       <ul>
         <li><b>Missão</b> e <b>Recurso</b> (só aparecem os permitidos para a missão; deixe o mouse sobre a missão para ver as habilitações que ela exige);</li>
-        <li><b>1ª e 2ª preferência:</b> os horários preferidos, entre os da categoria do avião (o PA-34 tem os seus); sem vaga neles, o sistema usa o próximo horário livre. Trocar a missão ou o avião leva as preferências para o horário mais próximo da lista nova;</li>
+        <li><b>1ª e 2ª preferência:</b> os horários preferidos, entre os da categoria do avião (o PA-34 tem os seus); sem vaga neles, o sistema usa o horário livre mais perto da 1ª preferência (sem ela, da 2ª; empatados, o mais cedo). Trocar a missão ou o avião leva as preferências para o horário mais próximo da lista nova;</li>
         <li><b>Disponibilidade:</b> quando o aluno pode voar (qualquer horário, manhã, tarde, noite ou um horário só);</li>
         <li><b>Duração:</b> as horas da missão, num voo só (para dividir em dois voos no dia, use <i>+ missão</i>);</li>
         <li><b>Prioridade:</b> de 1 a 5; quem tem 5 é atendido primeiro.</li>
@@ -496,7 +496,7 @@
       <ol>
         <li>Primeiro os <b>Grounds</b>, que definem a partir de que horário o voo do aluno pode começar.</li>
         <li>Depois os voos e simuladores, por <b>prioridade</b> (5 primeiro) e, empatados, na ordem do cadastro dos alunos.</li>
-        <li>Para cada pedido, tenta a 1ª preferência, depois a 2ª e depois o próximo horário livre, entre os horários de decolagem da categoria, sempre dentro da disponibilidade do aluno e das janelas abertas.</li>
+        <li>Para cada pedido, tenta a 1ª preferência, depois a 2ª e depois o horário livre mais perto da 1ª, entre os horários de decolagem da categoria, sempre dentro da disponibilidade do aluno e das janelas abertas.</li>
         <li>O <b>avião</b>: o instrutor fica no mesmo avião durante o dia; fora isso, o voo vai para um avião que já saiu (o de menor folga até o voo, para não deixar buraco no meio do dia) e, quando precisa de outro, sai o da frente do <i>hangar</i> (a ordem em Recursos).</li>
       </ol>
       <p>Um voo só entra na escala quando tudo isto vale ao mesmo tempo:</p>

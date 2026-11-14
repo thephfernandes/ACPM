@@ -254,3 +254,46 @@ describe('Invariantes da escala aprovada com atrasos e cancelamentos', () => {
     assert.deepEqual(falhas.slice(0, 5), []);
   });
 });
+
+// Revisão de 14/11 (decisão do Pedro): fora das preferências, o voo vai para o horário mais perto da 1ª. Sem a
+// compactação e sem a divisão das horas (que trocam o instrutor depois), nenhum horário mais perto (ou à mesma
+// distância e mais cedo) servia ao mesmo avião, ao mesmo instrutor e ao aluno
+describe('O horário mais perto da preferência, em 300 cenários', async () => {
+  const { horariosDaMissao, minutoDaPreferencia } = await import('../../js/horarios.js');
+  const { cobre } = await import('../../js/viabilidade.js');
+  const { normalizarLimites, dentroDosLimites } = await import('../../js/limites.js');
+  const { AIRCRAFT_EQ_TYPES } = await import('../../js/config.js');
+  const { disponibilidadeDoAluno } = await import('../../js/rules.js');
+
+  it('nenhum horário mais perto da 1ª preferência servia ao mesmo avião e instrutor', () => {
+    const falhas = [];
+    for (const seed of SEEDS) {
+      const estado = gerarCenario(seed);
+      const { out } = runAllocationEngine(estado, { compactar: false, dividirHoras: false });
+      for (const o of out.filter(v => !v.isGround && v.baseTag === 'Próximo livre' && v.status !== 'Cancelado')) {
+        const { d } = pedidoDe(estado, o);
+        const p1 = minutoDaPreferencia(d.p1), p2 = minutoDaPreferencia(d.p2);
+        const ancora = p1 >= 0 ? p1 : p2;
+        if (ancora < 0) continue;
+        const dur = o.b - o.a, fim = o.mis === 'Noturno' ? 1440 : T[NI];
+        const x = estado.ins.find(i => i.id === o.insId);
+        const permitidas = disponibilidadeDoAluno(d.jan);
+        // O voo cancelado sem o cadeado (dados antigos: o app fixa o cancelado) ainda ocupa o horário quando o motor escala
+        const outros = out.filter(v => v !== o);
+        const depoisDoGround = Math.max(0, ...out.filter(g => g.isGround && g.stuId === o.stuId && doesGroundGateFlight(g.mis, d)).map(g => g.b));
+        const unicos = lista => [...new Map(lista.map(v => [v.classKey || v.fKey, v])).values()];
+        for (const m of horariosDaMissao(estado.horarios || undefined, o.mis, o.eqType)) {
+          const maisPerto = Math.abs(m - ancora) < Math.abs(o.a - ancora) || (Math.abs(m - ancora) === Math.abs(o.a - ancora) && m < o.a);
+          if (!maisPerto || m === p1 || m === p2 || m + dur > fim || m < depoisDoGround || !estado.win[periodoDoMinuto(m)] || (permitidas && !permitidas(m))) continue;
+          const livre = v => !(v.a < m + dur && m < v.b);
+          if (!outros.filter(v => v.r === o.r).every(livre) || !outros.filter(v => v.insId === o.insId).every(livre) || !outros.filter(v => v.stuId === o.stuId).every(livre)) continue;
+          if (!cobre(x.aw, m, m + dur)) continue;
+          const compromissos = unicos(outros.filter(v => v.insId === o.insId)).map(v => ({ a: v.a, b: v.b, voo: AIRCRAFT_EQ_TYPES.includes(v.eqType) }));
+          if (!dentroDosLimites({ compromissos, novo: { a: m, b: m + dur, voo: AIRCRAFT_EQ_TYPES.includes(o.eqType) }, historico: null, limites: normalizarLimites(estado.limites) }).ok) continue;
+          falhas.push(`seed ${seed}: ${o.fKey} às ${o.a}, mas ${m} servia (âncora ${ancora})`);
+        }
+      }
+    }
+    assert.deepEqual(falhas.slice(0, 5), [], `${falhas.length} voo(s) longe da preferência sem motivo`);
+  });
+});

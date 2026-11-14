@@ -75,3 +75,11 @@ export function ajustarPreferencias(pedido, lista) {
   if (typeof pedido.jan === 'string' && /^h\d+$/.test(pedido.jan) && !lista.includes(+pedido.jan.slice(1))) delete pedido.jan;
 }
 
+
+// A ordem dos horários a tentar (revisão de 14/11, decisão do Pedro): a 1ª e a 2ª preferência, depois os outros pela
+// distância da 1ª (sem ela, da 2ª), o mais cedo no empate; sem preferência, em ordem. Só os horários da lista
+export function ordenarPelaPreferencia(lista, p1, p2) {
+  const ancora = p1 >= 0 ? p1 : p2 >= 0 ? p2 : null;
+  const resto = ancora === null ? [...lista] : [...lista].sort((a, b) => Math.abs(a - ancora) - Math.abs(b - ancora) || a - b);
+  return [...new Set([p1, p2, ...resto])].filter(m => lista.includes(m));
+}

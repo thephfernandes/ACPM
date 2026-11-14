@@ -30,8 +30,15 @@ function pico(voos) {
   return maior;
 }
 
+// A distância média (minutos) entre a decolagem e a 1ª preferência, nos voos que têm uma
+function distanciaMedia(out, preferenciaDe) {
+  const distancias = out.map(o => [o, preferenciaDe(o)]).filter(([, p]) => Number.isInteger(p) && p >= 0).map(([o, p]) => Math.abs(o.a - p));
+  return distancias.length ? Math.round(soma(distancias) / distancias.length) : 0;
+}
+
 // ativos: os ids dos instrutores que vêm no dia (quem não voou conta com 0 h no equilíbrio)
-export function metricasDaEscala(out, { ativos = [] } = {}) {
+// preferenciaDe: o minuto da 1ª preferência de um voo (-1 sem ela), para a distância até ela (revisão de 14/11)
+export function metricasDaEscala(out, { ativos = [], preferenciaDe = () => -1 } = {}) {
   const avioes = out.filter(o => AIRCRAFT_EQ_TYPES.includes(o.eqType));
   const porAviao = agrupar(avioes, o => o.r);
   const paradasDosAvioes = [...porAviao.values()].map(voos => paradas(juntar(voos)));
@@ -60,6 +67,7 @@ export function metricasDaEscala(out, { ativos = [] } = {}) {
     diferencaDeHoras: horas.length ? Math.round((Math.max(...horas) - Math.min(...horas)) * 10) / 10 : 0,
     somaDosQuadrados: Math.round(soma(horas.map(h => h * h)) * 100) / 100,
     preferencias,
+    distanciaDaPreferenciaMin: distanciaMedia(out, preferenciaDe),
     trocasDeAviao
   };
 }

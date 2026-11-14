@@ -57,3 +57,13 @@ describe('Métricas da escala', () => {
     assert.deepEqual([m.avioesUsados, m.avioesMinimo, m.avioesParadoMin, m.instrutoresParadoMin, m.diferencaDeHoras], [0, 0, 0, 0, 0]);
   });
 });
+
+// Revisão de 14/11: quanto os voos ficaram longe da 1ª preferência (minutos, em média; sem preferência, não conta)
+describe('Distância até a 1ª preferência', () => {
+  it('a média, em minutos, dos voos com a 1ª preferência; 0 sem nenhum', () => {
+    const preferencia = { '1_0_1': 390, '2_0_1': 610, '3_0_1': -1 };
+    const out = [voo('1_0_1', 'PR-VOB', 390, 1), voo('2_0_1', 'PR-VOB', 500, 2), voo('3_0_1', 'PR-VOC', 760, 3)];
+    assert.equal(metricasDaEscala(out, { preferenciaDe: o => preferencia[o.fKey] }).distanciaDaPreferenciaMin, 55);
+    assert.equal(metricasDaEscala(out).distanciaDaPreferenciaMin, 0);
+  });
+});

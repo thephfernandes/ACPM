@@ -7,6 +7,7 @@ import { readFile } from 'node:fs/promises';
 import { performance } from 'node:perf_hooks';
 import { runAllocationEngine } from '../js/engine.js';
 import { metricasDaEscala } from '../js/metricas.js';
+import { minutoDaPreferencia } from '../js/horarios.js';
 import { gerarCenario } from '../test/helpers/cenarios.js';
 
 const goldens = JSON.parse(await readFile(new URL('../test/fixtures/motor-goldens.json', import.meta.url), 'utf8'));
@@ -29,7 +30,19 @@ for (let rodada = 0; rodada < 3; rodada++) {
 
 // Como na tela: o voo cancelado não voa e fica fora das métricas (revisão de 14/11)
 const voam = out => out.filter(o => o.status !== 'Cancelado');
-const total = (saidas, campo) => saidas.reduce((n, s, i) => n + campo(metricasDaEscala(voam(s.out), { ativos: estados[i].ins.filter(x => x.on).map(x => x.id) }), s), 0);
+// O minuto da 1ª preferência do pedido de cada voo (-1 sem ela), para a distância até ela (revisão de 14/11)
+const preferenciaNo = estado => o => {
+  const aluno = estado.stu.find(x => x.id === o.stuId);
+  const pedido = aluno && (o.mid ? (aluno.extra || []).find(ex => ex.mid === o.mid) : aluno);
+  return pedido ? minutoDaPreferencia(pedido.p1) : -1;
+};
+const metricas = (s, i) => metricasDaEscala(voam(s.out), { ativos: estados[i].ins.filter(x => x.on).map(x => x.id), preferenciaDe: preferenciaNo(estados[i]) });
+const total = (saidas, campo) => saidas.reduce((n, s, i) => n + campo(metricas(s, i), s), 0);
+// A distância média até a 1ª preferência, em todos os voos das escalas (minutos)
+function distanciaMedia(saidas) {
+  const distancias = saidas.flatMap((s, i) => voam(s.out).map(o => [o, preferenciaNo(estados[i])(o)]).filter(([, p]) => p >= 0).map(([o, p]) => Math.abs(o.a - p)));
+  return distancias.length ? Math.round(distancias.reduce((n, d) => n + d, 0) / distancias.length) : 0;
+}
 const LINHAS = [
   ['Missões escaladas', (m, s) => s.out.length],
   ['Missões que não entraram', (m, s) => s.al.filter(a => a.t === 'err').length],
@@ -55,6 +68,10 @@ console.log('|---|---:|---:|---:|');
 for (const [rotulo, campo] of LINHAS) {
   const a = total(antes, campo), d = total(depois, campo);
   console.log(`| ${rotulo} | ${numero(a)} | ${numero(d)} | ${diferenca(a, d)} |`);
+}
+{
+  const a = distanciaMedia(antes), d = distanciaMedia(depois);
+  console.log(`| Distância média até a 1ª preferência (min) | ${numero(a)} | ${numero(d)} | ${diferenca(a, d)} |`);
 }
 const ordenados = [...tempos].sort((x, y) => x - y);
 const ms = v => `${v.toFixed(1).replace('.', ',')} ms`;
