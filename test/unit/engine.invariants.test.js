@@ -37,8 +37,9 @@ describe('Invariantes do motor de alocação', () => {
     assert.equal(alocadas + al.filter(a => a.t === 'err').length, tot);
   }));
 
+  // O voo cancelado não ocupa nada (revisão de 14/11): outro voo pode ficar no horário dele
   it('nenhuma aeronave ou simulador é escalado em horários sobrepostos', () => emTodos(({ out }) => {
-    const voos = out.filter(o => !o.isGround);
+    const voos = out.filter(o => !o.isGround && o.status !== 'Cancelado');
     for (const [i, x] of voos.entries()) {
       for (const y of voos.slice(i + 1)) {
         assert.ok(!(x.r === y.r && sobrepoe(x, y)), `${x.r} em ${x.fKey} e ${y.fKey}`);
@@ -46,7 +47,8 @@ describe('Invariantes do motor de alocação', () => {
     }
   }));
 
-  it('nenhum instrutor atende duas turmas ou voos ao mesmo tempo', () => emTodos(({ out }) => {
+  it('nenhum instrutor atende duas turmas ou voos ao mesmo tempo', () => emTodos(({ out: todos }) => {
+    const out = todos.filter(o => o.status !== 'Cancelado');
     for (const [i, x] of out.entries()) {
       for (const y of out.slice(i + 1)) {
         assert.ok(!(x.insId === y.insId && x.classKey !== y.classKey && sobrepoe(x, y)), `instrutor ${x.insId} em ${x.fKey} e ${y.fKey}`);
@@ -54,7 +56,8 @@ describe('Invariantes do motor de alocação', () => {
     }
   }));
 
-  it('nenhum aluno é escalado em horários sobrepostos', () => emTodos(({ out }) => {
+  it('nenhum aluno é escalado em horários sobrepostos', () => emTodos(({ out: todos }) => {
+    const out = todos.filter(o => o.status !== 'Cancelado');
     for (const [i, x] of out.entries()) {
       for (const y of out.slice(i + 1)) {
         assert.ok(!(x.stuId === y.stuId && sobrepoe(x, y)), `aluno ${x.stuId} em ${x.fKey} e ${y.fKey}`);
@@ -122,6 +125,8 @@ describe('Invariantes do motor de alocação', () => {
   it('sessões somam as horas pedidas, em sequência e numeradas', () => emTodos(({ estado, out }) => {
     const grupos = Map.groupBy(out.filter(o => !o.isGround), o => `${o.stuId}_${o.mid}`);
     for (const sessoes of grupos.values()) {
+      // Com uma sessão cancelada (que não ocupa nada), as outras podem passar para o horário dela
+      if (sessoes.some(o => o.status === 'Cancelado')) continue;
       const { d } = pedidoDe(estado, sessoes[0]);
       const H = Math.max(1, Math.round(+d.nb || 1));
       const K = Math.min(Math.max(+d.ss || 1, 1), H);
@@ -153,16 +158,19 @@ describe('Invariantes do motor de alocação', () => {
     const turmas = Map.groupBy(out.filter(o => o.isGround), o => o.classKey);
     for (const membros of turmas.values()) {
       assert.equal(new Set(membros.map(m => `${m.mis}|${m.w}|${m.insId}`)).size, 1);
-      membros.forEach(m => assert.equal(m.groupSize, membros.length));
+      membros.forEach(m => assert.equal(m.groupSize, Math.max(1, membros.filter(o => o.status !== 'Cancelado').length)));
       assert.ok(isGroundMission(membros[0].mis));
     }
   }));
 
   it('instrutor em duas matrículas do mesmo tipo só quando nenhuma estava livre em todos os horários dele', () => emTodos(({ estado, out }) => {
+    // Os voos com status de andamento ficam no avião deles e o cancelado não ocupa nada (revisão de 14/11): a regra vale
+    // para os que podem mudar
     for (const tipo of ['C152', 'C172', 'PA-34']) {
-      const voos = out.filter(o => o.eqType === tipo && o.r !== ACROBAT_REG);
-      for (const insId of new Set(voos.map(o => o.insId))) {
-        const meus = voos.filter(o => o.insId === insId);
+      const voos = out.filter(o => o.eqType === tipo && o.r !== ACROBAT_REG && o.status !== 'Cancelado');
+      const mudam = voos.filter(o => !['Atrasado', 'Em Voo'].includes(o.status));
+      for (const insId of new Set(mudam.map(o => o.insId))) {
+        const meus = mudam.filter(o => o.insId === insId);
         if (new Set(meus.map(o => o.r)).size < 2) continue;
         const livre = EQ[tipo].find(r => r !== ACROBAT_REG && estado.av[r] &&
           meus.every(f => !voos.some(o => o.insId !== insId && o.r === r && sobrepoe(o, f))));
@@ -194,5 +202,57 @@ describe('Invariantes do motor de alocação', () => {
       assert.deepEqual(estado, copia, `seed ${seed}: estado alterado`);
       assert.deepEqual(runAllocationEngine(estado), primeira, `seed ${seed}: saída diferente`);
     }
+  });
+});
+
+// Revisão de 14/11: a escala aprovada com atrasos, cancelamentos e pedidos novos. Cada voo ocupa o horário efetivo (o
+// atrasado, o novo); o cancelado não ocupa nada. Entre dois voos fixos, a sobreposição é o aviso de atraso; fora isso,
+// nada se sobrepõe
+describe('Invariantes da escala aprovada com atrasos e cancelamentos', () => {
+  const fixar = out => Object.fromEntries(out.map(o => [o.fKey, { a: o.a, b: o.b, r: o.r, insId: o.insId, ...(o.isGround ? { classKey: o.classKey } : {}) }]));
+  const dias = SEEDS.slice(0, 150).map(seed => {
+    const base = gerarCenario(seed);
+    const antes = runAllocationEngine(base);
+    const fStatus = {}, fObs = {};
+    antes.out.forEach((o, i) => {
+      if (i % 5 === 1) fStatus[o.fKey] = 'Cancelado';
+      if (i % 5 === 3 && !o.isGround && o.b + 60 <= 1440) { fStatus[o.fKey] = 'Atrasado'; fObs[o.fKey] = { novoInicio: o.a + 60 }; }
+    });
+    const novos = [0, 1, 2, 3].map(i => ({ id: 9000 + i, nm: `Novo ${i}`, kg: 70, bl: [], extra: [], fly: true, mis: 'Voo Local', eq: 'C152', p1: [390, 500, 610, 760][i], p2: -1, nb: 1, ss: 1, pr: 5 }));
+    const estado = { ...base, stu: [...base.stu, ...novos], fixos: fixar(antes.out), fStatus, fObs };
+    return { seed, estado, ...runAllocationEngine(estado) };
+  });
+
+  it('nada se sobrepõe a um voo novo no avião, no instrutor ou no aluno (cada voo no horário efetivo)', () => {
+    const falhas = [];
+    for (const { seed, estado, out } of dias) {
+      const ativos = [...new Map(out.filter(o => (estado.fStatus[o.fKey] || o.status) !== 'Cancelado').map(o => [o.classKey || o.fKey, o])).values()]
+        .map(o => ({ o, a: estado.fObs[o.fKey] ? estado.fObs[o.fKey].novoInicio : o.a, b: estado.fObs[o.fKey] ? estado.fObs[o.fKey].novoInicio + o.b - o.a : o.b }));
+      for (const [i, x] of ativos.entries()) {
+        for (const y of ativos.slice(i + 1)) {
+          if ((x.o.fixo && y.o.fixo) || !sobrepoe(x, y)) continue;
+          if (x.o.r === y.o.r || x.o.insId === y.o.insId) falhas.push(`seed ${seed}: ${x.o.fKey} e ${y.o.fKey}`);
+        }
+      }
+      const porAluno = out.filter(o => (estado.fStatus[o.fKey] || o.status) !== 'Cancelado' && !o.fixo);
+      for (const x of porAluno) {
+        for (const y of out.filter(o => o !== x && o.stuId === x.stuId && (estado.fStatus[o.fKey] || o.status) !== 'Cancelado')) {
+          const ya = estado.fObs[y.fKey] ? estado.fObs[y.fKey].novoInicio : y.a;
+          if (sobrepoe(x, { a: ya, b: ya + y.b - y.a })) falhas.push(`seed ${seed}: aluno ${x.stuId}`);
+        }
+      }
+    }
+    assert.deepEqual(falhas.slice(0, 5), [], `${falhas.length} sobreposição(ões)`);
+  });
+
+  it('os voos com status ficam onde estavam, com o mesmo instrutor e avião', () => {
+    const falhas = [];
+    for (const { seed, estado, out } of dias) {
+      for (const o of out.filter(v => estado.fStatus[v.fKey])) {
+        const p = estado.fixos[o.fKey];
+        if (p && (o.a !== p.a || o.r !== p.r || o.insId !== p.insId)) falhas.push(`seed ${seed}: ${o.fKey}`);
+      }
+    }
+    assert.deepEqual(falhas.slice(0, 5), []);
   });
 });

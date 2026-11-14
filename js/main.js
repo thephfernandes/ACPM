@@ -1025,8 +1025,9 @@ function aplicarStatus(fKey, status, detalhe) {
   else delete S.fObs[fKey];
   const voo = vooDaChave(fKey);
   if (voo) voo.status = status;
-  // Em Voo e Atrasado fixam o voo (fase 12): uma alteração na escala não o tira do lugar
-  if (voo && (status === 'Em Voo' || status === 'Atrasado')) S.fixos = { ...(S.fixos || {}), [fKey]: S.fixos && S.fixos[fKey] ? S.fixos[fKey] : pinoDoVoo(voo) };
+  // Em Voo, Atrasado e Cancelado fixam o voo (fase 12; o cancelado desde a revisão de 14/11): uma alteração na escala
+  // não o tira do lugar (o cancelado fica onde estava, sem ocupar nada)
+  if (voo && ['Em Voo', 'Atrasado', 'Cancelado'].includes(status)) S.fixos = { ...(S.fixos || {}), [fKey]: S.fixos && S.fixos[fKey] ? S.fixos[fKey] : pinoDoVoo(voo) };
   save();
   logChange('mod', `Status de ${voo ? `${voo.s} (${hm(voo.a)}–${hm(voo.b)})` : fKey}: ${textoParaOHistorico(status, detalhe)}`);
 }

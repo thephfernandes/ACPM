@@ -27,7 +27,9 @@ for (let rodada = 0; rodada < 3; rodada++) {
   });
 }
 
-const total = (saidas, campo) => saidas.reduce((n, s, i) => n + campo(metricasDaEscala(s.out, { ativos: estados[i].ins.filter(x => x.on).map(x => x.id) }), s), 0);
+// Como na tela: o voo cancelado não voa e fica fora das métricas (revisão de 14/11)
+const voam = out => out.filter(o => o.status !== 'Cancelado');
+const total = (saidas, campo) => saidas.reduce((n, s, i) => n + campo(metricasDaEscala(voam(s.out), { ativos: estados[i].ins.filter(x => x.on).map(x => x.id) }), s), 0);
 const LINHAS = [
   ['Missões escaladas', (m, s) => s.out.length],
   ['Missões que não entraram', (m, s) => s.al.filter(a => a.t === 'err').length],

@@ -4,7 +4,7 @@
 import { WIN, PRE, T, AIRCRAFT_EQ_TYPES } from '../config.js';
 import { HABILITACOES, nomeDaHabilitacao } from '../habilitacoes.js';
 import { esc, hm, opts, LIMITE_DO_NOME } from '../format.js';
-import { S, RES, DATA, insBy, isGestor } from '../state.js';
+import { S, DATA, insBy, isGestor, voosQueVoam } from '../state.js';
 import { $ } from '../dom.js';
 import { canacDe } from './dados-pessoais.js';
 import { normalizarLimites, LIMITES_DA_LEI, comHorasExternas } from '../limites.js';
@@ -36,10 +36,10 @@ export function mostrarVistaDosInstrutores(vista) {
   document.querySelectorAll('#s-ins [data-vista-ins]').forEach(b => b.classList.toggle('on', b.dataset.vistaIns === vista));
 }
 
-// Voos e aulas de cada instrutor na escala da data (a turma de Ground conta uma vez) e as janelas em que ele está ocupado
+// Voos e aulas de cada instrutor na escala da data, sem os cancelados (a turma de Ground conta uma vez) e as janelas em que ele está ocupado
 function ocupacaoDosInstrutores() {
   const porInstrutor = new Map();
-  ((RES && RES.out) || []).forEach(o => {
+  voosQueVoam().forEach(o => {
     const atual = porInstrutor.get(o.insId) || { voos: new Set(), janelas: new Set() };
     atual.voos.add(o.classKey || o.fKey);
     WIN.forEach((_, i) => {
@@ -57,7 +57,7 @@ const atributos = x => `data-k="i" data-id="${x.id}" data-hab="${x.hab.join(' ')
 // hoje, só voo em avião) no mês, no semestre e no ano
 function horasComAEscala(x) {
   const passadas = (S.horasDosInstrutores || {})[x.id] || { mes: 0, semestre: 0, ano: 0, fimAnterior: null };
-  const hoje = [...new Map(((RES && RES.out) || []).filter(o => o.insId === x.id && AIRCRAFT_EQ_TYPES.includes(o.eqType)).map(o => [o.classKey || o.fKey, o])).values()]
+  const hoje = [...new Map(voosQueVoam().filter(o => o.insId === x.id && AIRCRAFT_EQ_TYPES.includes(o.eqType)).map(o => [o.classKey || o.fKey, o])).values()]
     .reduce((total, o) => total + o.h, 0);
   const somar = h => Math.round((h + hoje) * 10) / 10;
   return { mes: somar(passadas.mes), semestre: somar(passadas.semestre), ano: somar(passadas.ano), fimAnterior: passadas.fimAnterior };

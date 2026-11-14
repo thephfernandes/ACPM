@@ -35,6 +35,8 @@ test.describe('Escala', () => {
     await page.locator('#dlg-status').getByLabel('Meteorologia').check();
     await page.locator('#dlg-status').getByRole('button', { name: 'Confirmar' }).click();
     await expect(page.locator('#out table tbody tr.st-Cancelado')).toHaveCount(1);
+    // O cancelado fica fixo onde estava (revisão de 14/11): não ocupa nada, e os outros voos podem usar o horário
+    await expect(page.locator('#out table tbody tr.st-Cancelado .fixo')).toHaveCount(1);
     const depois = await lerEscala(page);
     expect(json({ antes: antes.resumo, depois: depois.resumo, linha: depois.linhas.at(-1) })).toMatchSnapshot('cancelamento.json');
     await expect(page.locator('#audit-log-list')).toContainText(': Cancelado (Meteorologia)');

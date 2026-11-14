@@ -19,6 +19,7 @@ import { HORARIOS_INICIAIS, horariosDaMissao, periodoDoMinuto, minutoDaPreferenc
 import { disponibilidadeDoAluno, doesGroundGateFlight } from './rules.js';
 import { INTERVALO_DO_HANGAR } from './metricas.js';
 import { normalizarCriterios } from './criterios.js';
+import { intervaloEfetivo } from './status.js';
 
 // Um voo que muda de instrutor junto com o horário vai para quem já voa até esta distância (minutos) dele
 const ENCOSTA = 60;
@@ -27,6 +28,18 @@ const EPS = 1e-9;
 const STATUS_QUE_MUDAM = ['Confirmado', 'Pendente'];
 
 const soma = lista => lista.reduce((total, v) => total + v, 0);
+
+// Os voos que ocupam o dia (sem os cancelados; o aluno cancelado de uma turma acompanha a turma), o atrasado no
+// horário novo (revisão de 14/11). Os voos de out ficam os mesmos objetos, menos o atrasado (uma cópia, que nunca muda:
+// o voo com status fica onde está)
+function ocupando(out, estado) {
+  const statusDe = v => (estado.fStatus && estado.fStatus[v.fKey]) || v.status || 'Confirmado';
+  const ativas = new Set(out.filter(o => statusDe(o) !== 'Cancelado').map(o => o.classKey || o.fKey));
+  return out.filter(o => ativas.has(o.classKey || o.fKey)).map(o => {
+    const efetivo = intervaloEfetivo(o, statusDe(o), (estado.fObs || {})[o.fKey]);
+    return efetivo.a === o.a ? o : { ...o, ...efetivo };
+  });
+}
 const menorPrimeiro = (a, b) => (a === b ? 0 : a - b);
 
 // As paradas (minutos) entre os blocos de uma lista de intervalos [início, fim]; os que se encostam ou se sobrepõem
@@ -70,7 +83,7 @@ const agrupar = (lista, chave) => lista.reduce((grupos, o) => grupos.set(chave(o
 export function custoDaEscala(out, estado) {
   const pesos = PESOS_DA_COMPACTACAO[normalizarCriterios(estado.criterios).buracos];
   const pedidoDe = pedidosDo(estado);
-  const unidades = [...new Map(out.map(o => [o.classKey || o.fKey, o])).values()];
+  const unidades = [...new Map(ocupando(out, estado).map(o => [o.classKey || o.fKey, o])).values()];
   const intervalos = lista => lista.map(o => [o.a, o.b]);
   return soma([...agrupar(unidades, o => o.insId).values()].map(l => custoDoInstrutor(intervalos(l), pesos)))
     + soma([...agrupar(unidades.filter(o => AIRCRAFT_EQ_TYPES.includes(o.eqType)), o => o.r).values()].map(l => custoDoAviao(intervalos(l), pesos)))
@@ -90,8 +103,9 @@ export function compactar(out, state, { saldo = () => Infinity, posicao = () => 
   const pedidoDe = pedidosDo(state);
   const statusDe = v => (state.fStatus && state.fStatus[v.fKey]) || v.status || 'Confirmado';
 
-  // As unidades: um voo, ou uma turma de Ground inteira (1h30 uma vez só)
-  const unidades = [...agrupar(out, o => o.classKey || o.fKey).values()].map(voos => {
+  // As unidades: um voo, ou uma turma de Ground inteira (1h30 uma vez só). O voo cancelado não ocupa nada e o atrasado
+  // ocupa o horário novo (revisão de 14/11); os dois ficam onde estão
+  const unidades = [...agrupar(ocupando(out, state), o => o.classKey || o.fKey).values()].map(voos => {
     const v = voos[0];
     const presa = voos.some(o => o.fixo || !STATUS_QUE_MUDAM.includes(statusDe(o))) || v.mis === 'Noturno' || (v.mis === 'Parafuso' && v.eqType === 'C152');
     const i = v.fKey.lastIndexOf('_');

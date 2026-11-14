@@ -43,3 +43,20 @@ test.describe('Rodízio', () => {
     await expect(page.locator('#manual-aba-rodizio')).toBeInViewport();
   });
 });
+
+// Revisão de 14/11: o voo cancelado não voa e não conta nos contadores da data
+test('o voo cancelado não conta no Rodízio, nos Recursos nem nos Instrutores', async ({ page }) => {
+  const estado = {
+    ...cenario({ ins: [doC172(1), doC172(2)], stu: [aluno(1000, { eq: 'C172', p1: 390, p2: -1 })] }),
+    fixos: { '1000_0_1': { a: 390, b: 450, r: 'PP-ABP', insId: 1 } }, fStatus: { '1000_0_1': 'Cancelado' },
+    aprovacao: { em: '2026-11-10T21:05:00.000Z', por: 'Rayane' }
+  };
+  await abrir(page, { estado });
+  await irPara(page, 'rod');
+  await expect(page.locator('#rodizio [data-cat="c172"] li').nth(0)).toContainText('Instrutor 01');
+  await expect(page.locator('#rodizio')).not.toContainText('voo nesta data');
+  await irPara(page, 'rec');
+  await expect(page.locator('#hangar li[data-id="PP-ABP"]')).not.toContainText('voo nesta data');
+  await irPara(page, 'ins');
+  await expect(page.locator('#inst-dia tr[data-id="1"] td.voos')).toHaveText('');
+});

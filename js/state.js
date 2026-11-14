@@ -22,6 +22,9 @@ export const setData = v => { DATA = v; };
 export const dadoIndisponivel = parte => Boolean(S.indisponiveis && S.indisponiveis.includes(parte));
 export const isGestor = () => ApiClient.readOnly || document.body.getAttribute('data-role') === 'gestor';
 
+// Os voos da escala desta data que voam (revisão de 14/11): o cancelado não conta nos contadores das abas
+export const voosQueVoam = () => ((RES && RES.out) || []).filter(o => ((S.fStatus || {})[o.fKey] || o.status) !== 'Cancelado');
+
 export const insBy = id => S.ins.find(x => x.id === id);
 export const stuBy = id => S.stu.find(x => x.id === id);
 

@@ -70,10 +70,25 @@ test.describe('Status do voo com detalhes', () => {
     await expect(dialogo(page)).toBeHidden();
     await expect(linha(page, 'Aluno 1000').locator('.st-detalhe')).toHaveText('nova decolagem 10:40');
 
+    // Fora da escala aprovada, o voo seguinte (do mesmo instrutor) sai do horário novo do atrasado (revisão de 14/11)
+    await expect(linha(page, 'Aluno 1001').locator('.c-hr')).not.toContainText('11:30');
+    await expect(page.locator('#out details.caixa.avisos')).toHaveCount(0);
+    await expect(await abrirHistorico(page)).toContainText('Status de Aluno 1000 (10:10–11:10): Atrasado (nova decolagem 10:40)');
+  });
+
+  test('na escala aprovada, o atraso que invade o voo seguinte vira aviso', async ({ page }) => {
+    const estado = {
+      ...doisVoos(), aprovacao: { em: '2026-11-10T21:05:00.000Z', por: 'Rayane' },
+      fixos: { '1000_0_1': { a: 610, b: 670, r: 'PP-LJV', insId: 1 }, '1001_0_1': { a: 690, b: 750, r: 'PR-BTB', insId: 1 } }
+    };
+    await abrir(page, { estado });
+    await abrirEscala(page);
+    await linha(page, 'Aluno 1000').locator('.st-sel').selectOption('Atrasado');
+    await dialogo(page).getByLabel('Nova decolagem').fill('10:40');
+    await confirmar(page);
     const avisos = page.locator('#out details.caixa.avisos');
     await expect(avisos.locator('summary')).toHaveText('1 aviso: 1 atraso com conflito');
     await expect(avisos.locator('.al.warn')).toContainText('Atraso: a nova decolagem às 10:40 (pouso às 11:40) se sobrepõe ao voo das 11:30 de Aluno 1001');
-    await expect(await abrirHistorico(page)).toContainText('Status de Aluno 1000 (10:10–11:10): Atrasado (nova decolagem 10:40)');
   });
 
   test('Voltar ou Esc desiste: o status continua o anterior e nada vai para o histórico', async ({ page }) => {

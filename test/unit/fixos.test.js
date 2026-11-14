@@ -212,6 +212,62 @@ describe('Turma de Ground fixa', () => {
   });
 });
 
+// Revisão de 14/11: o voo atrasado ocupa o horário novo; o cancelado não ocupa nada nem conta nas horas
+describe('Voos fixos atrasados e cancelados', () => {
+  const VOO = { a: 390, b: 450, r: 'PP-LJV', insId: 1 };
+
+  it('o voo fixo atrasado ocupa o horário novo (e deixa o de antes)', () => {
+    const estado = {
+      ...cenario({ ins: [instrutor(1, 9)], stu: [aluno(1000, { p1: 390, p2: -1 }), aluno(1001, { p1: 500, p2: -1 })], semAeronaves: apenas('C152', 'PP-LJV') }),
+      fixos: { '1000_0_1': VOO }, fStatus: { '1000_0_1': 'Atrasado' }, fObs: { '1000_0_1': { novoInicio: 500 } }
+    };
+    const { out, al } = runAllocationEngine(estado);
+    const novo = doAluno(out, 1001);
+    assert.ok(novo.b <= 500 || novo.a >= 560, `o voo novo às ${novo.a}`);
+    assert.deepEqual(al.filter(a => /Atraso/.test(a.m)), []);
+  });
+
+  it('o atraso conta no limite da lei do instrutor (o horário novo)', () => {
+    // O voo das 06:30 atrasado para as 16:30: com a jornada de 10 h (até 18:00 com o encerramento), o voo novo do
+    // instrutor só cabe a partir das 10:10 (pelo horário de antes, caberia às 08:20)
+    const estado = {
+      ...cenario({ ins: [instrutor(1, 9)], stu: [aluno(1000, { p1: 390, p2: -1 }), aluno(1001, { p1: 390, p2: -1 })] }),
+      fixos: { '1000_0_1': VOO }, fStatus: { '1000_0_1': 'Atrasado' }, fObs: { '1000_0_1': { novoInicio: 990 } },
+      limites: { jornadaMin: 600 }
+    };
+    const { out } = runAllocationEngine(estado, { compactar: false });
+    assert.equal(doAluno(out, 1001).a, 610);
+  });
+
+  it('o voo cancelado não conta na revisão de 50 horas, no limite da lei nem na turma', () => {
+    const turma = { a: 500, b: 590, r: 'SALA-GROUND', insId: 1, classKey: 'GND_Ground C152_1_1' };
+    const estado = {
+      ...cenario({
+        ins: [instrutor(1, 9)],
+        stu: [aluno(1000, { p1: 390, p2: -1 }), aluno(1001, { ...GROUND_C152, p1: 500, p2: -1 }), aluno(1002, { ...GROUND_C152, p1: 500, p2: -1 })],
+        horas: { 'PP-LJV': 49 }
+      }),
+      fixos: { '1000_0_1': VOO, '1001_0_1': turma, '1002_0_1': turma },
+      fStatus: { '1000_0_1': 'Cancelado', '1001_0_1': 'Cancelado' },
+      horasDosInstrutores: { 1: { mes: 99, semestre: 0, ano: 0, fimAnterior: null } }
+    };
+    const { out, al, revisao } = runAllocationEngine(estado);
+    assert.deepEqual(revisao['PP-LJV'], { inicio: 49, voadas: 0, fim: 49, paraAs: null });
+    assert.deepEqual(al.filter(a => /Limite da lei/.test(a.m)), []);
+    assert.deepEqual([doAluno(out, 1002).groupSize, doAluno(out, 1002).tag], [1, 'Pref. 1']);
+  });
+
+  it('o voo fixo cancelado não conta nas horas da divisão igual', () => {
+    // O instrutor 1 (menos habilitações) tem o voo das 08:20 e um cancelado; com o cancelado contando, o voo iria para o 2
+    const estado = {
+      ...cenario({ ins: [instrutor(1, 1), instrutor(2, 9)], stu: [aluno(1000, { p1: 390, p2: -1 }), aluno(1001, { p1: 500, p2: -1 })] }),
+      fixos: { '1000_0_1': VOO }, fStatus: { '1000_0_1': 'Cancelado' }
+    };
+    const { out } = runAllocationEngine(estado, { compactar: false });
+    assert.equal(doAluno(out, 1001).insId, 1);
+  });
+});
+
 describe('Voos fixos: em 100 dias gerados', async () => {
   const { gerarCenario } = await import('../helpers/cenarios.js');
 

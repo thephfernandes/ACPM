@@ -4,7 +4,7 @@
 import { WIN, NI, AIRCRAFT_EQ_TYPES, SIM_EQ_TYPES, REVISAO_H } from '../config.js';
 import { normalizarHangar } from '../hangar.js';
 import { FROTA_INICIAL } from '../frota.js';
-import { S, RES } from '../state.js';
+import { S, RES, voosQueVoam } from '../state.js';
 import { $ } from '../dom.js';
 import { hm, fmtH, esc } from '../format.js';
 import { CATEGORIAS_COM_HORARIOS } from '../horarios.js';
@@ -59,7 +59,7 @@ function linha({ reg: r, tipo, soParafuso }, grupo, voadas, revisao) {
 export function rRevisao() {
   const resumo = (RES && RES.revisao) || {};
   const voadas = {};
-  ((RES && RES.out) || []).forEach(o => { voadas[o.r] = (voadas[o.r] || 0) + o.h; });
+  voosQueVoam().forEach(o => { voadas[o.r] = (voadas[o.r] || 0) + o.h; });
   const categoria = ($('#flt-rec-cat') && $('#flt-rec-cat').value) || '';
   $('#revisao').innerHTML = GRUPOS.filter(g => !categoria || g.id === categoria).map(({ id, rotulo, tipos }) => {
     // A frota do cadastro, na ordem de cada tipo (uma categoria sem recursos não aparece)
@@ -104,7 +104,7 @@ export function rHangar() {
   if (!lista) return;
   const frota = S.frota || FROTA_INICIAL;
   const hangar = normalizarHangar(S.hangar, frota);
-  const voos = (RES && RES.out) || [];
+  const voos = voosQueVoam();
   lista.innerHTML = hangar.map((r, i) => {
     const tipo = (frota.find(f => f.reg === r) || {}).tipo || '';
     const naEscala = voos.filter(o => o.r === r).length;

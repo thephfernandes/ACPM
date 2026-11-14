@@ -1,13 +1,13 @@
 // Rodízio: as filas de cada categoria (na data aberta), quem já voa nelas na escala e os botões para ajustar a ordem
 // (aparecem com o mouse ou o foco).
 import { CATEGORIAS_DO_RODIZIO, categoriaDoRodizio, ajustarFilas } from '../rodizio.js';
-import { S, RES } from '../state.js';
+import { S, voosQueVoam } from '../state.js';
 import { $ } from '../dom.js';
 import { esc } from '../format.js';
 
 export function rRodizio() {
   const filas = ajustarFilas(S.filas, S.ins);
-  const voos = (RES && RES.out) || [];
+  const voos = voosQueVoam();
   $('#rodizio').innerHTML = CATEGORIAS_DO_RODIZIO.map(({ id, nome }) => {
     const fila = filas[id];
     const itens = fila.map((insId, i) => {
