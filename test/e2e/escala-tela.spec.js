@@ -45,6 +45,13 @@ test.describe('Tela da Escala', () => {
     await expect(avisos.locator('.al.warn')).toHaveCount(2);
   });
 
+  // Revisão de 14/11: o aviso de peso diz de quem é o peso que falta; o resumo conta alunos e instrutores
+  test('resumo dos avisos: alunos e instrutores sem peso', async ({ page }) => {
+    await abrir(page, { estado: cenario({ ins: [instrutor(1, 1, { kg: 0 })], stu: [aluno(1000, { p1: 390, p2: -1 }), aluno(1001, { p1: 500, p2: -1 }, { kg: 0 })] }) });
+    await abrirEscala(page);
+    await expect(page.locator('#out details.caixa.avisos summary')).toHaveText('2 avisos: 1 aluno sem peso · 1 instrutor sem peso');
+  });
+
   test('uma linha por voo: duração junto do horário, preferência só quando não é a 1ª, peso com o limite e status discreto', async ({ page }) => {
     await abrir(page, { estado: cenario({ ins: [instrutor(1, 9)], stu: [
       aluno(1000, { mis: 'Voo Local', eq: 'C152', p1: 0, p2: 1 }),

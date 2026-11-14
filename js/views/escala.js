@@ -330,19 +330,23 @@ function tempoParado(out) {
     </div>`;
 }
 
-// Avisos agrupados por tipo: alunos sem peso, aviões que param para a revisão e outros
+// Avisos agrupados por tipo: alunos e instrutores sem peso, aviões que param para a revisão e outros. O aviso de peso
+// diz de quem é o peso que falta (revisão de 14/11): "Peso do aluno", "Peso de Instrutor 01" ou "Pesos do aluno e de…"
+const INSTRUTOR_SEM_PESO = /^Pesos? (?:do aluno e )?de (.+?) não informados? \(/;
 function resumoDosAvisos(avisos) {
-  const ehPeso = a => a.m.startsWith('Peso do aluno não informado');
+  const ehPeso = a => /^Pesos? d/.test(a.m);
   const ehRevisao = a => a.m.startsWith('Aeronave parou');
   const ehAtraso = a => a.m.startsWith('Atraso:');
   const ehLimite = a => a.m.startsWith('Limite da lei:');
-  const semPeso = new Set(avisos.filter(ehPeso).map(a => a.s.replace(/ \(.*\)$/, ''))).size;
+  const semPeso = new Set(avisos.filter(a => ehPeso(a) && /^Pesos? do aluno/.test(a.m)).map(a => a.s.replace(/ \(.*\)$/, ''))).size;
+  const instrutoresSemPeso = new Set(avisos.filter(ehPeso).map(a => (INSTRUTOR_SEM_PESO.exec(a.m) || [])[1]).filter(Boolean)).size;
   const revisao = avisos.filter(ehRevisao).length;
   const atrasos = avisos.filter(ehAtraso).length;
   const limites = new Set(avisos.filter(ehLimite).map(a => a.s)).size;
   const outros = avisos.filter(a => !ehPeso(a) && !ehRevisao(a) && !ehAtraso(a) && !ehLimite(a)).length;
   const partes = [
     semPeso && `${semPeso} ${semPeso === 1 ? 'aluno sem peso' : 'alunos sem peso'}`,
+    instrutoresSemPeso && `${instrutoresSemPeso} ${instrutoresSemPeso === 1 ? 'instrutor sem peso' : 'instrutores sem peso'}`,
     revisao && `${revisao} ${revisao === 1 ? 'avião para' : 'aviões param'} para a revisão de 50 horas`,
     atrasos && `${atrasos} ${atrasos === 1 ? 'atraso com conflito' : 'atrasos com conflito'}`,
     limites && `${limites} ${limites === 1 ? 'instrutor perto' : 'instrutores perto'} do limite da lei`,
