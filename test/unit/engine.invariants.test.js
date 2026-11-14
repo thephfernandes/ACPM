@@ -122,21 +122,13 @@ describe('Invariantes do motor de alocação', () => {
     }
   }));
 
-  it('sessões somam as horas pedidas, em sequência e numeradas', () => emTodos(({ estado, out }) => {
+  // Revisão de 14/11: um voo por pedido, com as horas pedidas
+  it('cada pedido de voo é um voo só, com as horas pedidas', () => emTodos(({ estado, out }) => {
     const grupos = Map.groupBy(out.filter(o => !o.isGround), o => `${o.stuId}_${o.mid}`);
-    for (const sessoes of grupos.values()) {
-      // Com uma sessão cancelada (que não ocupa nada), as outras podem passar para o horário dela
-      if (sessoes.some(o => o.status === 'Cancelado')) continue;
-      const { d } = pedidoDe(estado, sessoes[0]);
-      const H = Math.max(1, Math.round(+d.nb || 1));
-      const K = Math.min(Math.max(+d.ss || 1, 1), H);
-      const ordem = [...sessoes].sort((x, y) => x.a - y.a);
-      assert.equal(ordem.length, K);
-      assert.equal(ordem.reduce((n, s) => n + s.h, 0), H);
-      ordem.forEach((s, j) => {
-        assert.equal(s.ss, `${j + 1}/${K}`);
-        if (j) assert.ok(s.a >= ordem[j - 1].b);
-      });
+    for (const voos of grupos.values()) {
+      const { d } = pedidoDe(estado, voos[0]);
+      assert.equal(voos.length, 1);
+      assert.deepEqual([voos[0].fKey.endsWith('_1'), voos[0].ss, voos[0].h, voos[0].b - voos[0].a], [true, '1/1', Math.max(1, Math.round(+d.nb || 1)), Math.max(1, Math.round(+d.nb || 1)) * 60]);
     }
   }));
 

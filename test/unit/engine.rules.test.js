@@ -52,17 +52,11 @@ describe('Voos: janelas preferidas e encaixe', () => {
     assert.deepEqual(out.map(o => [o.w, o.a, o.b, o.tag]), [[0, 390, 630, 'Próximo livre']]);
   });
 
-  it('divide as horas em sessões sequenciais', () => {
+  // Revisão de 14/11: um pedido é um voo só, com as horas pedidas (para dividir no dia, "+ missão"); o número de
+  // sessões dos dados antigos não conta
+  it('um pedido é um voo só, com as horas pedidas', () => {
     const { out } = alocar({ ins: [instrutor(1, 1), instrutor(2, 1)], stu: [aluno(1000, { nb: 3, ss: 2, p1: 0, p2: 2 })] });
-    assert.deepEqual(out.map(o => [o.ss, o.w, o.h, o.tag]), [['1/2', 0, 2, 'Pref. 1'], ['2/2', 2, 1, 'Pref. 2']]);
-    assert.deepEqual(out.map(o => o.fKey), ['1000_0_1', '1000_0_2']);
-  });
-
-  // Intencional (Gabriel, PR #2): o aluno não voa o dia inteiro com o mesmo instrutor.
-  // O avião acompanha o instrutor, então a troca de instrutor também troca o avião.
-  it('sessão seguinte troca de instrutor quando há alternativa; o avião é o que já saiu (fase 10: menos aviões fora do hangar)', () => {
-    const { out } = alocar({ ins: [instrutor(1, 1), instrutor(2, 1)], stu: [aluno(1000, { nb: 3, ss: 2, p1: 0, p2: 2 })] });
-    assert.deepEqual(out.map(o => [o.r, o.insId]), [['PP-LJV', 1], ['PP-LJV', 2]]);
+    assert.deepEqual(out.map(o => [o.fKey, o.ss, o.a, o.b, o.h, o.tag]), [['1000_0_1', '1/1', 390, 570, 3, 'Pref. 1']]);
   });
 
   it('o instrutor fica no mesmo avião ao longo do dia', () => {
@@ -271,8 +265,8 @@ describe('Revisão de 50 horas', () => {
     assert.deepEqual([al, revisao], [[], {}]);
   });
 
-  it('as sessões do mesmo pedido somam no saldo do avião', () => {
-    const { out, al } = alocar({ ins, stu: [aluno(1000, { nb: 2, ss: 2 })], semAeronaves: SO_PP_LJV, horas: { 'PP-LJV': 49 } });
+  it('o voo inteiro precisa caber no saldo do avião', () => {
+    const { out, al } = alocar({ ins, stu: [aluno(1000, { nb: 2 })], semAeronaves: SO_PP_LJV, horas: { 'PP-LJV': 49 } });
     assert.equal(out.length, 0, 'só havia saldo para 1 das 2 h');
     assert.equal(al[0].m, 'Rejeitado: os C152 livres estão sem saldo até a revisão de 50 horas.');
   });

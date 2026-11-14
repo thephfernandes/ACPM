@@ -58,7 +58,11 @@ export function gerarCenario(seed) {
     const nb = ground ? 1.5 : int(1, 4);
     const noturno = mis === 'Noturno';
     const pref = () => (noturno ? NOTURNO : int(-1, ground ? 7 : 8));
-    return { fly: r() > 0.15, mis, eq, p1: pref(), p2: pref(), nb, ss: ground ? 1 : int(1, Math.min(3, nb)), pr: int(1, 5) };
+    const fly = r() > 0.15, p1 = pref(), p2 = pref();
+    // Uma sessão por pedido (revisão de 14/11); o sorteio das sessões de antes continua, para os outros campos dos
+    // cenários não mudarem
+    if (!ground) int(1, Math.min(3, nb));
+    return { fly, mis, eq, p1, p2, nb, ss: 1, pr: int(1, 5) };
   };
 
   const stu = Array.from({ length: int(4, 30) }, (_, i) => ({

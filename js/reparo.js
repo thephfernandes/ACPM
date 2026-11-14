@@ -23,8 +23,6 @@ const menorPrimeiro = (a, b) => (a === b ? 0 : a - b);
 const unicos = lista => [...new Map(lista.map(o => [o.classKey || o.fKey, o])).values()];
 // A turma de Ground muda inteira; o voo, sozinho
 const doGrupo = (resultado, voo) => (voo.isGround ? resultado.out.filter(o => o.classKey === voo.classKey) : [voo]);
-// As sessões do mesmo pedido: a chave é aluno_missão_sessão
-const sessao = fKey => { const i = fKey.lastIndexOf('_'); return { pedido: fKey.slice(0, i), n: +fKey.slice(i + 1) }; };
 
 export function sugerirReparos(estado, resultado, fKey, { maximo = 3, depoisDe = null } = {}) {
   const voo = resultado.out.find(o => o.fKey === fKey);
@@ -92,18 +90,15 @@ export function sugerirReparos(estado, resultado, fKey, { maximo = 3, depoisDe =
   }
 
   // Sem nada no mesmo horário: o primeiro horário mais tarde, no mesmo dia, com o avião e o instrutor de antes quando
-  // eles servem. Vale a disponibilidade de cada aluno; a sessão fica antes da seguinte do mesmo pedido, e o Ground
-  // termina antes dos voos que dependem dele
+  // eles servem. Vale a disponibilidade de cada aluno, e o Ground termina antes dos voos que dependem dele
   if (!opcoes.length && !pedidoMudou) {
     const duracao = voo.b - voo.a;
     const inicios = voo.isGround ? T.slice(0, NI) : horariosDaMissao(estado.horarios || HORARIOS_INICIAIS, voo.mis, tipo);
     const fimDoDia = voo.mis === 'Noturno' ? 1440 : T[NI];
-    const { pedido, n } = sessao(fKey);
-    const proximaSessao = Math.min(...resultado.out.filter(o => sessao(o.fKey).pedido === pedido && sessao(o.fKey).n > n).map(o => o.a), Infinity);
     const voosQueDependem = voo.isGround
       ? outros.filter(o => grupo.some(v => v.stuId === o.stuId) && !o.isGround && doesGroundGateFlight(voo.mis, { mis: o.mis, eq: o.eqType }))
       : [];
-    const limite = Math.min(fimDoDia, proximaSessao, ...voosQueDependem.map(o => o.a));
+    const limite = Math.min(fimDoDia, ...voosQueDependem.map(o => o.a));
     const alunosPodem = (a, b) => grupo.every(v => {
       const permitidas = disponibilidadeDoAluno((pedidoDo(v) || {}).jan);
       return (!permitidas || permitidas(a)) && livre(outros.filter(o => o.stuId === v.stuId).map(o => [o.a, o.b]), a, b);

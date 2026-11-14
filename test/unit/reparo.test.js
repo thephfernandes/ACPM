@@ -106,15 +106,6 @@ describe('Sugestões para um conflito', () => {
     assert.equal(new Set(depois.out.map(o => o.classKey)).size, 1, 'a mesma turma');
   });
 
-  it('a primeira sessão não passa para depois da segunda', () => {
-    // O aluno 1000 voa duas sessões (06:30 e 08:20) com o mesmo instrutor; ele sai, e o outro está ocupado às 06:30
-    const base = cenario({ ins: [instrutor(1, 1), instrutor(2, 9)], stu: [aluno(1000, { p1: 390, p2: -1, nb: 2, ss: 2 }), aluno(1001, { p1: 390, p2: -1 })] });
-    const { estado, resultado } = aprovadoEMudado(base, e => semInstrutor(e.fixos['1000_0_1'].insId)(e));
-    const segunda = resultado.out.find(o => o.fKey === '1000_0_2');
-    const opcoes = sugerirReparos(estado, resultado, '1000_0_1', { maximo: 10 });
-    for (const o of opcoes.filter(op => op.mudancas && 'a' in op.mudancas)) assert.ok(o.mudancas.b <= segunda.a, o.texto);
-  });
-
   // Revisão de 14/11: as sugestões vêm do código do conflito, não do texto; "Soltar o voo" devolve o pedido ao motor
   it('o pedido mudou (a duração): só soltar ou cancelar; solto, o voo volta para a escala sem conflito', () => {
     const base = cenario({ ins: [instrutor(1, 9)], stu: [aluno(1000, { p1: 390, p2: -1 })] });
