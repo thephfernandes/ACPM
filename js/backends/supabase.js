@@ -181,6 +181,27 @@ export function criarBackendSupabase(cliente, { aoConflito = () => {}, aoErro = 
       if (error) throw Object.assign(erroComCodigo(error), { campo: error.hint || null });
     },
 
+    // Resultados das missões dos cursos: grava-se só pela função (o servidor valida e diz quem registrou); a situação de
+    // cada missão vem pronta (o último registro), e os registros de uma data, da tabela
+    async registrarResultado({ aluno, curso, missao, resultado, data, voo = null }) {
+      const { data: id, error } = await cliente.rpc('registrar_resultado', { p_aluno: aluno, p_curso: curso, p_missao: missao, p_resultado: resultado, p_data: data, p_voo: voo });
+      if (error) throw erroComCodigo(error);
+      return id;
+    },
+
+    async situacaoDasMissoes() {
+      const { data: situacao, error } = await cliente.rpc('situacao_das_missoes');
+      if (error) throw erroComCodigo(error);
+      return situacao || [];
+    },
+
+    async resultadosDoDia(data) {
+      const { data: linhas, error } = await cliente.from('resultados_de_missao')
+        .select('id, aluno, curso, missao, resultado, data, voo, registrado_em, registrado_por').eq('data', data).order('id');
+      if (error) throw erroComCodigo(error);
+      return linhas;
+    },
+
     async importarHistorico(data, entradas) {
       const { data: importadas, error } = await cliente.rpc('importar_historico', { p_data: data, p_entradas: entradas });
       if (error) throw new Error(error.message);

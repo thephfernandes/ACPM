@@ -20,7 +20,7 @@ test.describe('Dados pessoais (neste navegador)', () => {
   test('Alunos: o painel valida e salva; a tabela mostra o CANAC; o histórico registra só os campos', async ({ page }) => {
     await abrir(page, { estado: estado() });
     await irPara(page, 'alu');
-    await expect(page.locator('#s-alu thead th')).toHaveText(['Nome', 'CANAC', 'Peso (kg)', 'Não escalar com', '']);
+    await expect(page.locator('#s-alu thead th')).toHaveText(['Nome', 'CANAC', 'Curso', 'Peso (kg)', 'Não escalar com', '']);
     await abrirDadosDoAluno(page, 1000);
     await expect(painel(page).locator('h2')).toHaveText('Dados pessoais Aluno 1000');
     await campo(page, 'CPF').fill('529.982.247-24');

@@ -8,8 +8,9 @@ import { FROTA_INICIAL } from './frota.js';
 import { HORARIOS_INICIAIS, minutoDaPreferencia, ajustarPreferencias } from './horarios.js';
 import { disponibilidadeAtual } from './rules.js';
 import { LIMITES_DA_LEI } from './limites.js';
+import { cursosVazios } from './cursos.js';
 
-export const ESQUEMA = 17;
+export const ESQUEMA = 18;
 
 // Um pedido do dia com as preferências em minutos e a disponibilidade no formato atual (formato 12)
 function pedidoEmMinutos(pedido) {
@@ -128,6 +129,15 @@ const PASSOS = {
   // Versão 17 (fase 13): os dias guardam os critérios da compactação (campo "criterios"), pelo mesmo motivo da versão 13
   17: {
     cadastro: cadastro => cadastro,
+    dia: dia => dia
+  },
+  // Versão 18 (fase 14): o cadastro guarda o programa dos cursos (PP, PC e INVA; começa vazio) e o curso de cada aluno
+  18: {
+    cadastro: cadastro => {
+      if (cadastro.cursos && typeof cadastro.cursos === 'object') return cadastro;
+      const { esquema, ...resto } = cadastro;
+      return { ...resto, cursos: cursosVazios(), ...(esquema === undefined ? {} : { esquema }) };
+    },
     dia: dia => dia
   }
 };

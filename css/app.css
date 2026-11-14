@@ -650,6 +650,36 @@ table.frota tr:hover .rev, table.frota .rev:focus-visible { opacity: 1; }
 
 /* Instrutores: a disponibilidade do dia numa grade; o cadastro numa tabela, com as habilitações num painel lateral */
 #s-ins[data-vista="dia"] .vista-cadastro, #s-ins[data-vista="cadastro"] .vista-dia { display: none; }
+/* Alunos › Cursos (fase 14): o programa de cada curso */
+#s-alu[data-vista="alunos"] .vista-cursos, #s-alu[data-vista="cursos"] .vista-alunos { display: none; }
+.vista-cursos { display: flex; flex-direction: column; gap: 12px; }
+.vista-cursos .curso h3 small { font: 500 14px 'Barlow', sans-serif; color: var(--mu); margin-left: 6px; }
+.programa td.n { color: var(--mu); font-variant-numeric: tabular-nums; width: 2.5em; }
+.programa input.codigo { width: 7.5em; font-variant-numeric: tabular-nums; }
+.programa input[data-cf="nome"] { width: 100%; min-width: 12em; }
+.programa td.acoes { white-space: nowrap; }
+/* A missão do curso no dia (fase 14): o código, a próxima missão, o resultado e o progresso */
+.etapa { display: inline-block; padding: 0 6px; border-radius: 4px; background: var(--info-bg); color: var(--ac); font: 600 12.5px 'Barlow Semi Condensed', sans-serif; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.stu-cell .etapa, .stu-cell .usar-proxima { margin-left: 6px; }
+.usar-proxima { padding: 1px 6px; font-size: 13px; }
+.resultado { display: flex; align-items: center; gap: 6px; margin-top: 4px; flex-wrap: wrap; }
+.res-sel { font-size: 13px; padding: 2px 4px; }
+.res-sel.res-aprovado, .res.res-aprovado { color: var(--ok); font-weight: 600; }
+.res-sel.res-reprovado, .res.res-reprovado { color: var(--er); font-weight: 600; }
+td.c-curso .progresso { display: block; margin-top: 2px; color: var(--mu); font-variant-numeric: tabular-nums; }
+@media (max-width: 640px) {
+  /* Um cartão por missão: o número, o código e o nome; a missão; o recurso, as horas e os botões */
+  table.cadastro.programa tr[data-i] { display: grid; grid-template-columns: 2em 1fr 1fr auto; grid-template-areas: "n id nome nome" "mis mis mis mis" "eq eq nb acoes"; gap: 6px 8px; align-items: center; padding: 10px 8px; border-top: 1px solid var(--ln); }
+  table.cadastro.programa tr[data-i]:first-child { border-top: 0; }
+  table.cadastro.programa td:nth-child(1) { grid-area: n; }
+  table.cadastro.programa td:nth-child(2) { grid-area: id; }
+  table.cadastro.programa td:nth-child(3) { grid-area: nome; }
+  table.cadastro.programa td:nth-child(4) { grid-area: mis; }
+  table.cadastro.programa td:nth-child(5) { grid-area: eq; }
+  table.cadastro.programa td:nth-child(6) { grid-area: nb; }
+  table.cadastro.programa td:nth-child(7) { grid-area: acoes; padding: 0; }
+  table.cadastro.programa input, table.cadastro.programa select { width: 100%; min-width: 0; }
+}
 .legenda-disp { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; margin: 0 0 8px; font-size: 13.5px; color: var(--mu); }
 .legenda-disp span { display: inline-flex; align-items: center; gap: 6px; }
 .legenda-disp .cel { width: 22px; height: 14px; cursor: default; }

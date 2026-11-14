@@ -8,6 +8,7 @@ import { prazoDaAgendaPermite } from '../../js/agenda.js';
 import { gravarDadosPessoais } from '../../js/dados-pessoais.js';
 import { quadroDoDia } from '../../js/quadro.js';
 import { acumularHoras } from '../../js/limites.js';
+import { situacaoPorMissao, validarRegistro } from '../../js/resultados.js';
 
 export const URL_TESTE = 'https://acpm-teste.supabase.invalid';
 
@@ -69,6 +70,8 @@ export function criarSupabaseFalso({ documentos = {}, dias = {}, agora = new Dat
   const solicitacoes = [];
   // Dados pessoais ('aluno:1000' → campos, atualizado_em e atualizado_por): operadores e secretaria leem e gravam
   const dadosPessoais = new Map();
+  // Resultados das missões dos cursos (fase 14): só acréscimo
+  const resultados = [];
   const sessoes = new Map();
   // Contas criadas pelo administrador, senhas e e-mails trocados e pedidos de troca de e-mail (só neste servidor)
   const contasCriadas = [];
@@ -153,6 +156,7 @@ export function criarSupabaseFalso({ documentos = {}, dias = {}, agora = new Dat
       }
       if (url.pathname === '/rest/v1/historico') return responder(200, consultar(historico, url));
       if (url.pathname === '/rest/v1/solicitacoes') return responder(200, consultar(solicitacoes, url));
+      if (url.pathname === '/rest/v1/resultados_de_missao') return responder(200, leEscala ? consultar(resultados, url) : []);
       if (url.pathname === '/rest/v1/dados_pessoais') {
         if (!veDados) return responder(200, []);
         const linhas = [...dadosPessoais].map(([chave, d]) => ({ tipo: chave.split(':')[0], id_cadastro: Number(chave.split(':')[1]), cpf: null, canac: null, nascimento: null, celular: null, email: null, ...d }));
@@ -223,6 +227,8 @@ export function criarSupabaseFalso({ documentos = {}, dias = {}, agora = new Dat
         const dia = tabelaDias.get(hoje);
         return responder(200, { data: hoje, ...quadroDoDia(dia ? dia.conteudo : null) });
       }
+      // A situação de cada missão (o último registro); quem não lê a escala recebe a lista vazia
+      if (funcao === 'situacao_das_missoes') return responder(200, leEscala ? [...situacaoPorMissao(resultados).values()].map(({ id, ...r }) => r) : []);
       if (funcao === 'salvar_dados_pessoais') {
         if (!veDados) return responder(403, { code: '42501', message: 'somente operadores e a secretaria alteram dados pessoais' });
         try {
@@ -242,6 +248,15 @@ export function criarSupabaseFalso({ documentos = {}, dias = {}, agora = new Dat
         return responder(...salvar(banco, args.p_chave, args.p_conteudo, args.p_versao_lida));
       }
       if (funcao === 'salvar_dia') return responder(...salvar(tabelaDias, args.p_data, args.p_conteudo, args.p_versao_lida));
+      if (funcao === 'registrar_resultado') {
+        try {
+          const r = validarRegistro({ aluno: args.p_aluno, curso: args.p_curso, missao: args.p_missao, resultado: args.p_resultado, data: args.p_data, voo: args.p_voo });
+          resultados.push({ id: resultados.length + 1, ...r, registrado_em: new Date(Date.now() + resultados.length).toISOString(), registrado_por: conta.nome });
+          return responder(200, resultados.length);
+        } catch (e) {
+          return responder(400, { code: e.code, message: e.message });
+        }
+      }
       if (funcao === 'registrar_historico') {
         const id = historico.length + 1;
         historico.push({ id, data: args.p_data, registrado_em: new Date(Date.now() + id).toISOString(), usuario: conta.id, autor: conta.nome,
@@ -266,6 +281,7 @@ export function criarSupabaseFalso({ documentos = {}, dias = {}, agora = new Dat
     historico,
     solicitacoes,
     dadosPessoais,
+    resultados,
     contasCriadas,
     trocasDeEmail,
     senhaDe,

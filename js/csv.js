@@ -42,7 +42,8 @@ export function linhasDoCsv(res, fStatus = {}, fObs = {}) {
     .sort((a, b) => ordemDoTipo(a) - ordemDoTipo(b) || a.r.localeCompare(b.r) || a.a - b.a || a.o - b.o)
     .map(o => {
       const status = fStatus[o.fKey] || o.status || 'Confirmado';
-      const missao = o.ss && o.ss !== '1/1' ? `${o.mis} (sessão ${o.ss})` : o.mis;
+      // A missão do curso (fase 14) vem antes do tipo de missão: "PP-07 · Navegação"
+      const missao = (o.etapa ? `${o.etapa} · ` : '') + (o.ss && o.ss !== '1/1' ? `${o.mis} (sessão ${o.ss})` : o.mis);
       return [o.r, `${hm(o.a)}–${hm(o.b)}`, o.s, missao, o.ins, observacoes(o, status, fObs[o.fKey], res.revisao)];
     });
 }

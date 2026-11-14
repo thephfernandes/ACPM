@@ -36,7 +36,8 @@ export function linhasDoQuadro(out, fStatus = {}, fObs = {}) {
       modelo: principal.eqType === GROUND_EQ_TYPE ? '' : principal.eqType || '',
       alunos: itens.map(o => o.s),
       instrutor: principal.ins,
-      missao: principal.mis,
+      // A missão do curso (fase 14) antes do tipo; a turma de Ground fica só com o tipo
+      missao: principal.etapa && itens.length === 1 && !principal.isGround ? `${principal.etapa} · ${principal.mis}` : principal.mis,
       status,
       motivo: status === 'Cancelado' ? textoDoDetalhe(status, detalhe) : '',
       ordem
@@ -112,7 +113,7 @@ export function quadroDoDia(dia) {
   const out = dia && dia.resultado && Array.isArray(dia.resultado.out) ? dia.resultado.out : null;
   if (!out) return { voos: null, fStatus: {}, fObs: {} };
   const voos = out.filter(o => o && Number.isInteger(o.a) && Number.isInteger(o.b))
-    .map(o => ({ fKey: o.fKey, classKey: o.classKey, isGround: Boolean(o.isGround), a: o.a, b: o.b, r: o.r, eqType: o.eqType, s: nomeCurto(o.s), ins: o.ins, mis: o.mis, status: o.status }))
+    .map(o => ({ fKey: o.fKey, classKey: o.classKey, isGround: Boolean(o.isGround), a: o.a, b: o.b, r: o.r, eqType: o.eqType, s: nomeCurto(o.s), ins: o.ins, mis: o.mis, etapa: o.etapa || null, status: o.status }))
     .sort((x, y) => x.a - y.a || String(x.fKey).localeCompare(String(y.fKey)));
   const fObs = Object.fromEntries(Object.entries(dia.fObs && typeof dia.fObs === 'object' ? dia.fObs : {})
     .filter(([, d]) => d && typeof d === 'object')

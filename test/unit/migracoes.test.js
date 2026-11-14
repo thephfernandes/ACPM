@@ -48,7 +48,7 @@ describe('Migrações do formato dos dados', () => {
     const novo = migrarCadastro(structuredClone(cadastro));
     assert.equal(novo.esquema, ESQUEMA);
     // Desde as versões 11, 12 e 15, o cadastro também guarda a frota, os horários de decolagem e os limites da lei
-    assert.deepEqual({ ...novo, ins: null }, { ...cadastro, ins: null, frota: FROTA_INICIAL, horarios: HORARIOS_INICIAIS, limites: LIMITES_DA_LEI, esquema: ESQUEMA });
+    assert.deepEqual({ ...novo, ins: null }, { ...cadastro, ins: null, frota: FROTA_INICIAL, horarios: HORARIOS_INICIAIS, limites: LIMITES_DA_LEI, cursos: { PP: [], PC: [], INVA: [] }, esquema: ESQUEMA });
     assert.equal(migrarCadastro(null), null);
   });
 
@@ -108,7 +108,7 @@ describe('Migrações do formato dos dados', () => {
     const { LIMITES_DA_LEI } = await import('../../js/limites.js');
     const novo = migrarCadastro({ nid: 1000, ins: [], stu: [], frota: [], horarios: {}, esquema: 14 });
     assert.deepEqual(novo.limites, LIMITES_DA_LEI);
-    assert.deepEqual(Object.keys(novo), ['nid', 'ins', 'stu', 'frota', 'horarios', 'limites', 'esquema']);
+    assert.deepEqual(Object.keys(novo), ['nid', 'ins', 'stu', 'frota', 'horarios', 'limites', 'cursos', 'esquema']);
     const proprios = { ...LIMITES_DA_LEI, vooMesH: 90 };
     assert.deepEqual(migrarCadastro({ nid: 1000, ins: [], stu: [], limites: proprios, esquema: 14 }).limites, proprios);
     assert.ok(ESQUEMA >= 15);
@@ -124,6 +124,15 @@ describe('Migrações do formato dos dados', () => {
     const dia = { criterios: { buracos: 'aviao', horarios: 'fixos' }, esquema: 16 };
     assert.deepEqual(migrarDia(dia), { ...dia, esquema: ESQUEMA });
     assert.ok(ESQUEMA >= 17);
+  });
+
+  it('versão 18: o cadastro ganha o programa dos cursos (vazio), antes de "esquema"', () => {
+    const novo = migrarCadastro({ nid: 1000, ins: [], stu: [], frota: [], horarios: {}, limites: {}, esquema: 17 });
+    assert.deepEqual(novo.cursos, { PP: [], PC: [], INVA: [] });
+    assert.deepEqual(Object.keys(novo), ['nid', 'ins', 'stu', 'frota', 'horarios', 'limites', 'cursos', 'esquema']);
+    const proprio = { PP: [{ id: 'PP-01', nome: 'A', mis: 'Voo Local', eq: 'C152', nb: 1 }], PC: [], INVA: [] };
+    assert.deepEqual(migrarCadastro({ nid: 1000, ins: [], stu: [], cursos: proprio, esquema: 17 }).cursos, proprio);
+    assert.ok(ESQUEMA >= 18);
   });
 
   it('os nomes novos são os da frota cadastrada, na mesma ordem', () => {

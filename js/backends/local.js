@@ -4,6 +4,7 @@ import { prazoDaAgendaPermite } from '../agenda.js';
 import { gravarDadosPessoais } from '../dados-pessoais.js';
 import { acumularHoras } from '../limites.js';
 import { hojeISO } from '../format.js';
+import { situacaoPorMissao, validarRegistro } from '../resultados.js';
 
 export const CHAVES_LOCAIS = { cadastro: 'acpm4_cadastro', estado: 'acpm3', escala: 'acpm3_res', historico: 'acpm3_audit', bi: 'acpm3_bi' };
 export const CHAVE_LEGADA = 'acpm2';
@@ -11,6 +12,7 @@ const PREFIXO_DIA = 'acpm4_dia_';
 const CHAVE_HISTORICO = 'acpm4_historico';
 const CHAVE_AGENDA = 'acpm4_agenda';
 const CHAVE_DADOS_PESSOAIS = 'acpm4_dados_pessoais';
+const CHAVE_RESULTADOS = 'acpm4_resultados';
 const DOCUMENTO_DIA = /^dia:(\d{4}-\d{2}-\d{2})$/;
 
 const chaveLocal = documento => {
@@ -164,6 +166,23 @@ export const backendLocal = {
   async salvarDadosPessoais(tipo, id, dados, { autor = null, agora = new Date() } = {}) {
     const tabela = gravarDadosPessoais(lerJson(CHAVE_DADOS_PESSOAIS) || {}, tipo, id, dados, { hoje: hojeISO(), autor, agora: agora.toISOString() });
     localStorage.setItem(CHAVE_DADOS_PESSOAIS, JSON.stringify(tabela));
+  },
+
+  // Resultados das missões dos cursos neste navegador, com as regras do servidor: só acréscimo; vale o último registro
+  async registrarResultado(registro, { autor = null, agora = new Date() } = {}) {
+    const lista = lerJson(CHAVE_RESULTADOS) || [];
+    const id = proximoId(lista);
+    lista.push({ id, ...validarRegistro(registro), registrado_em: agora.toISOString(), registrado_por: autor });
+    localStorage.setItem(CHAVE_RESULTADOS, JSON.stringify(lista));
+    return id;
+  },
+
+  async situacaoDasMissoes() {
+    return [...situacaoPorMissao(lerJson(CHAVE_RESULTADOS) || []).values()].map(({ id, ...r }) => r);
+  },
+
+  async resultadosDoDia(data) {
+    return (lerJson(CHAVE_RESULTADOS) || []).filter(r => r.data === data);
   },
 
   async importarHistorico(data, entradas) {

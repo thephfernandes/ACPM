@@ -3,6 +3,8 @@
 import { MIS } from './config.js';
 import { disponibilidadeAtual, disponibilidadeDoAluno, normalizeMissionFields } from './rules.js';
 import { horariosDaMissao, preferenciasPadrao, paraMinuto } from './horarios.js';
+import { normalizarCursos } from './cursos.js';
+import { situacaoPorMissao, proximaMissao } from './resultados.js';
 
 export const FUSO_DO_AEROCLUBE = 'America/Sao_Paulo';
 
@@ -60,7 +62,10 @@ export function pedidoDaSolicitacao(solicitacao, horarios) {
 // Importa para a demanda da data as solicitações ativas ainda não importadas. Só acrescenta: o aluno sem voo no dia
 // recebe o pedido como missão principal; quem já voa a mesma missão só ganha a disponibilidade pedida; senão, o
 // pedido entra como missão extra. As solicitações vistas ficam anotadas no dia (estado.importadas) para não repetir.
-export function importarSolicitacoes(estado, solicitacoes) {
+// Aluno de um curso (fase 14): quando a próxima missão dele no programa é do tipo pedido, o pedido entra como ela (o
+// código, o recurso e as horas do programa); situacao: o último resultado de cada missão
+export function importarSolicitacoes(estado, solicitacoes, { situacao = [] } = {}) {
+  const programa = normalizarCursos(estado.cursos), mapa = situacaoPorMissao(situacao);
   const resumo = { novos: 0, atualizados: 0, semAluno: 0 };
   if (!Array.isArray(estado.importadas)) estado.importadas = [];
   for (const solicitacao of solicitacoes) {
@@ -69,6 +74,9 @@ export function importarSolicitacoes(estado, solicitacoes) {
     const aluno = estado.stu.find(x => x.id === solicitacao.aluno);
     if (!aluno) { resumo.semAluno++; continue; }
     const pedido = pedidoDaSolicitacao(solicitacao, estado.horarios);
+    const jaNoDia = [aluno, ...(aluno.extra || [])].filter(m => m.fly && m.etapa).map(m => m.etapa);
+    const proxima = proximaMissao(programa, mapa, aluno.id, aluno.curso, { exceto: jaNoDia });
+    if (proxima && proxima.mis === pedido.mis) Object.assign(pedido, { etapa: proxima.id, eq: proxima.eq, nb: proxima.nb });
     const mesmaMissao = [aluno, ...(aluno.extra || [])].find(m => m.fly && m.mis === pedido.mis);
     if (mesmaMissao) {
       Object.assign(mesmaMissao, { p1: pedido.p1, p2: pedido.p2 });

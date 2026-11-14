@@ -3,6 +3,7 @@
 import { MIS, NI, T, PRE, GROUND_EQ_TYPE, GROUND_DURATION_H } from './config.js';
 import { hm } from './format.js';
 import { periodoDoMinuto, minutoDaPreferencia, preferenciaValida } from './horarios.js';
+import { codigoValido } from './cursos.js';
 
 // Disponibilidade do aluno para o pedido (da agenda da secretaria ou escolhida na demanda): o voo só começa nesses
 // horários. "manha", "tarde" e "noite" valem por período (as janelas de operação de cada um); "h450" é um horário
@@ -76,6 +77,8 @@ export function normalizeMissionFields(target) {
   }
   target.p1 = preferenciaValida(target.p1);
   target.p2 = preferenciaValida(target.p2);
+  // O código da missão do curso (fase 14), quando o pedido veio do programa
+  if (Object.hasOwn(target, 'etapa') && !(typeof target.etapa === 'string' && codigoValido(target.etapa))) delete target.etapa;
   const mRule = missionRule(target.mis) || MIS['Voo Local'];
   if (!mRule.eq.includes(target.eq)) target.eq = mRule.defEq;
   if (mRule.isGround) {

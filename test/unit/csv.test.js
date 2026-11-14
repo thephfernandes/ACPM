@@ -33,6 +33,11 @@ describe('CSV da escala por avião', () => {
     assert.deepEqual(linha.slice(0, 5), ['PR-BTB', '06:30–07:30', 'Ana', 'Navegação (sessão 2/2)', 'Bruno']);
   });
 
+  it('a missão do curso vai na coluna Fase / Missão, antes do tipo de missão (fase 14)', () => {
+    const [linha] = linhasDoCsv(escala([voo('PR-BTB', 'C152', 390, { mis: 'Navegação', etapa: 'PP-07' })]));
+    assert.equal(linha[3], 'PP-07 · Navegação');
+  });
+
   it('observações: peso do aluno + instrutor contra o limite do avião, pesos não informados, status e turma de Ground', () => {
     const obs = (o, fStatus) => linhasDoCsv(escala([o]), fStatus)[0][5];
     assert.equal(obs(voo('PR-BTB', 'C152', 390)), 'Peso aluno + instrutor: 150 kg (limite do C152: 170 kg) · dentro do envelope');

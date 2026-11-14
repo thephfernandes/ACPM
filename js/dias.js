@@ -10,9 +10,10 @@ import { normalizarHangar } from './hangar.js';
 import { normalizarLimites } from './limites.js';
 import { normalizarFixos, normalizarAprovacao } from './fixos.js';
 import { CRITERIOS_PADRAO, normalizarCriterios } from './criterios.js';
+import { normalizarCursos } from './cursos.js';
 
-// jan: disponibilidade do aluno (só quando o pedido tem uma)
-const CAMPOS_DO_PEDIDO = ['fly', 'mis', 'eq', 'p1', 'p2', 'nb', 'ss', 'pr', 'jan'];
+// jan: disponibilidade do aluno (só quando o pedido tem uma); etapa: o código da missão do curso (fase 14)
+const CAMPOS_DO_PEDIDO = ['fly', 'mis', 'eq', 'p1', 'p2', 'nb', 'ss', 'pr', 'jan', 'etapa'];
 const DATA_ISO = /^\d{4}-\d{2}-\d{2}$/;
 
 // Cada recurso da frota começa disponível; o dia guarda só o que muda
@@ -37,10 +38,12 @@ export function separar(estado) {
         // Horas de voo fora do app (fase 11), por mês ('AAAA-MM'; 'AAAA-00': antes deste mês, no ano)
         ...(horasExternas && Object.keys(horasExternas).length ? { horasExternas: { ...horasExternas } } : {})
       })),
-      stu: estado.stu.map(({ id, nm, kg, bl }) => ({ id, nm, kg, bl: [...(bl || [])] })),
+      // O curso do aluno (fase 14), quando ele tem um
+      stu: estado.stu.map(({ id, nm, kg, bl, curso }) => ({ id, nm, kg, bl: [...(bl || [])], ...(curso ? { curso } : {}) })),
       ...(Array.isArray(estado.frota) ? { frota: estado.frota.map(f => ({ ...f })) } : {}),
       ...(estado.horarios ? { horarios: structuredClone(estado.horarios) } : {}),
-      ...(estado.limites ? { limites: { ...estado.limites } } : {})
+      ...(estado.limites ? { limites: { ...estado.limites } } : {}),
+      ...(estado.cursos ? { cursos: structuredClone(estado.cursos) } : {})
     },
     dia: {
       win: [...estado.win],
@@ -74,6 +77,7 @@ export function juntar(cadastro, dia = diaPadrao()) {
     ...(Array.isArray(cadastro.frota) ? { frota } : {}),
     ...(cadastro.horarios ? { horarios: normalizarHorarios(cadastro.horarios) } : {}),
     ...(cadastro.limites ? { limites: normalizarLimites(cadastro.limites) } : {}),
+    ...(cadastro.cursos ? { cursos: normalizarCursos(cadastro.cursos) } : {}),
     win: Array.isArray(dia.win) ? [...dia.win] : WIN.map(() => true),
     av: { ...avDaFrota(frota), ...(dia.av || {}) },
     lim: { ...DEFAULT_LIM },

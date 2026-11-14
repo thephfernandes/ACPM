@@ -261,7 +261,7 @@ describe('Formato dos dados guardados (versões)', () => {
     assert.equal(backend.docs.get('dia:2026-10-16').resultado.out[0].r, 'SIM-MONO-A');
     assert.equal(backend.docs.get('dia:2026-11-11').av['SIM-MLTE-D'], false);
     const fase3 = cadastroFase3();
-    assert.deepEqual(backend.docs.get('cadastro'), { ...fase3, ins: fase3.ins.map(x => ({ ...x, hab: habilitacoesDoNivel(x.lv) })), frota: FROTA_INICIAL, horarios: HORARIOS_INICIAIS, limites: LIMITES_DA_LEI, esquema: ESQUEMA });
+    assert.deepEqual(backend.docs.get('cadastro'), { ...fase3, ins: fase3.ins.map(x => ({ ...x, hab: habilitacoesDoNivel(x.lv) })), frota: FROTA_INICIAL, horarios: HORARIOS_INICIAIS, limites: LIMITES_DA_LEI, cursos: { PP: [], PC: [], INVA: [] }, esquema: ESQUEMA });
 
     backend.gravacoes.length = 0;
     assert.equal(await ApiClient.atualizarFormatoGravado(), false, 'já atualizado');

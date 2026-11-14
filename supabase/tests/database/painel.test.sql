@@ -6,7 +6,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = public, extensions;
 
-select plan(23);
+select plan(24);
 
 insert into auth.users (id, email, created_at, updated_at) values
   ('00000000-0000-4000-a000-000000000031', 'painel@painel.acpm.invalid', now(), now()),
@@ -26,7 +26,7 @@ insert into public.dias (data, conteudo) values ((now() at time zone 'America/Sa
   'fObs', jsonb_build_object('1000_0_1', jsonb_build_object('novoInicio', 640), '1001_0_1', jsonb_build_object('motivo', 'Outro', 'texto', 'Aluno com febre')),
   'resultado', jsonb_build_object('out', jsonb_build_array(
     jsonb_build_object('fKey', '1000_0_1', 'classKey', '1000_0_1', 'isGround', false, 'a', 610, 'b', 670, 'r', 'PR-VOB', 'eqType', 'C152',
-      's', 'Maria Silva Santos', 'ins', 'Instrutor 01', 'insId', 1, 'stuId', 1000, 'kg', 140, 'mis', 'Voo Local', 'status', 'Confirmado'),
+      's', 'Maria Silva Santos', 'ins', 'Instrutor 01', 'insId', 1, 'stuId', 1000, 'kg', 140, 'mis', 'Voo Local', 'etapa', 'PP-07', 'status', 'Confirmado'),
     jsonb_build_object('fKey', '1001_0_1', 'classKey', '1001_0_1', 'isGround', false, 'a', 390, 'b', 450, 'r', 'PP-ABP', 'eqType', 'C172',
       's', 'João', 'ins', 'Instrutor 02', 'insId', 2, 'stuId', 1001, 'kg', 150, 'mis', 'IFR', 'status', 'Confirmado'),
     jsonb_build_object('fKey', '1002_0_1', 'classKey', 'GND_Ground C152_1_3', 'isGround', true, 'a', 500, 'b', 590, 'r', 'SALA-GROUND',
@@ -60,6 +60,8 @@ select is(jsonb_array_length(public.painel_do_dia()->'voos'), 3, 'todos os voos 
 select is((select array_agg(v->>'s' order by (v->>'a')::integer) from jsonb_array_elements(public.painel_do_dia()->'voos') v),
   array['João', 'Ana C.', 'Maria S.'], 'em ordem de decolagem, com o aluno abreviado');
 select is((select v->>'kg' from jsonb_array_elements(public.painel_do_dia()->'voos') v limit 1), null, 'sem o peso (nem o que o quadro não mostra)');
+select is((select array_agg(v->>'etapa' order by (v->>'a')::integer) from jsonb_array_elements(public.painel_do_dia()->'voos') v),
+  array[null, null, 'PP-07'], 'com a missão do curso (fase 14)');
 select is(public.painel_do_dia()->'fStatus', '{"1000_0_1": "Atrasado", "1001_0_1": "Cancelado"}'::jsonb, 'com o status de cada voo');
 select is(public.painel_do_dia()->'fObs', '{"1000_0_1": {"novoInicio": 640}, "1001_0_1": {"motivo": "Outro"}}'::jsonb,
   'do detalhe do status, o novo horário e a categoria do motivo (sem o texto livre)');

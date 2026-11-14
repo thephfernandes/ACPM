@@ -9,6 +9,7 @@ import { descreverExigencias } from '../habilitacoes.js';
 import { S } from '../state.js';
 import { $ } from '../dom.js';
 import { renderAuditPanel } from './escala.js';
+import { etapaNaDemanda } from './etapas.js';
 
 export function allowedEqOptionsForMission(mis, currentEq) {
   const m = MIS[mis] || MIS['Voo Local'];
@@ -28,9 +29,11 @@ export const singleDemandRowHTML = (stu, d, mid = 0) => {
   const horarios = horariosDaMissao(S.horarios, d.mis, isGroundMission(d.mis) ? GROUND_EQ_TYPE : d.eq);
   const isGnd = isGroundMission(d.mis);
   const trCls = `${d.fly ? 'on p' + d.pr : 'off'}${isExtra ? ' extra-row' : ''}`;
+  // A missão do curso (fase 14): o código do pedido, ou a próxima do programa para usar
+  const etapa = etapaNaDemanda(stu, d, mid);
   const firstCell = isExtra
-    ? `<div class="stu-cell"><span class="sm">↳ missão extra</span><button class="x edit-only" data-act="del-mis" data-id="${stu.id}" data-mid="${mid}" aria-label="Tirar a missão extra de ${esc(stu.nm)}" title="Tirar esta missão extra">✕</button></div>`
-    : `<div class="stu-cell"><span>${esc(stu.nm)}</span><button class="btn-add-mis edit-only" data-act="add-mis" data-id="${stu.id}" title="Outra missão para este aluno no mesmo dia" aria-label="Mais uma missão para ${esc(stu.nm)}">+ missão</button></div>`;
+    ? `<div class="stu-cell"><span class="sm">↳ missão extra</span>${etapa}<button class="x edit-only" data-act="del-mis" data-id="${stu.id}" data-mid="${mid}" aria-label="Tirar a missão extra de ${esc(stu.nm)}" title="Tirar esta missão extra">✕</button></div>`
+    : `<div class="stu-cell"><span>${esc(stu.nm)}</span>${etapa}<button class="btn-add-mis edit-only" data-act="add-mis" data-id="${stu.id}" title="Outra missão para este aluno no mesmo dia" aria-label="Mais uma missão para ${esc(stu.nm)}">+ missão</button></div>`;
   const soParafuso = d.mis === 'Parafuso' && d.eq === 'C152' ? matriculasDoTipo(S.frota || [], 'C152', { parafuso: true }) : [];
   const exige = `Exige ${descreverExigencias(d.mis, isGnd ? GROUND_EQ_TYPE : d.eq)}${soParafuso.length ? ` (no ${soParafuso.join(' ou ')})` : ''}`;
   const de = ` de ${esc(stu.nm)}`;

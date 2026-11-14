@@ -151,7 +151,7 @@ describe('Link compartilhável (perfil Gestor)', () => {
     estado.horasDosInstrutores = { [estado.ins[0].id]: { mes: 80, semestre: 400, ano: 700, fimAnterior: 1110 } };
     estado.filas = { cheque: [], mlte: [9], noturno: [8, 7], c172: [8, 7, 9] };
     estado.stu = [
-      aluno(1000, { jan: 'manha' }, { kg: 81, bl: [3] }),
+      aluno(1000, { jan: 'manha', etapa: 'PP-07' }, { kg: 81, bl: [3] }),
       aluno(1001, { fly: false }),
       aluno(1002, { fly: false }, { extra: [missaoExtra(1003, { mis: 'IFR', eq: 'C172' }), missaoExtra(1004, { fly: false })] })
     ];
@@ -173,6 +173,7 @@ describe('Link compartilhável (perfil Gestor)', () => {
     assert.deepEqual([destino.fixos, destino.aprovacao], [estado.fixos, estado.aprovacao], 'a escala aprovada vai no link');
     assert.deepEqual(destino.criterios, estado.criterios, 'os critérios da compactação vão no link (quem abre gera a mesma escala)');
     assert.equal(destino.stu[0].jan, 'manha', 'a disponibilidade vai no link');
+    assert.equal(destino.stu[0].etapa, 'PP-07', 'a missão do curso vai no link');
     assert.deepEqual(destino.stu.map(s => [s.id, s.fly, s.kg, s.bl, s.extra.map(ex => [ex.mid, ex.mis])]), [
       [1000, true, 81, [3], []],
       [1002, false, 70, [], [[1003, 'IFR']]]

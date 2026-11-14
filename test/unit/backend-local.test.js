@@ -102,6 +102,25 @@ describe('Backend local: agenda de solicitações', () => {
   });
 });
 
+describe('Backend local: resultados das missões', () => {
+  const registro = { aluno: 1000, curso: 'PP', missao: 'PP-07', resultado: 'reprovado', data: '2026-11-10', voo: '1000_0_1' };
+
+  it('registra com quem registrou; a situação é o último registro; lê os registros do dia', async () => {
+    const primeiro = await backendLocal.registrarResultado(registro, { autor: 'Maria' });
+    const segundo = await backendLocal.registrarResultado({ ...registro, missao: ' pp-07 ', resultado: 'aprovado', data: '2026-11-11' }, { autor: 'Maria' });
+    assert.ok(segundo > primeiro);
+    assert.deepEqual((await backendLocal.situacaoDasMissoes()).map(r => [r.missao, r.resultado, r.data, r.registrado_por]), [['PP-07', 'aprovado', '2026-11-11', 'Maria']]);
+    assert.deepEqual((await backendLocal.resultadosDoDia('2026-11-10')).map(r => [r.id, r.resultado]), [[primeiro, 'reprovado']]);
+  });
+
+  it('valida como o servidor e nunca apaga nem altera', async () => {
+    await assert.rejects(backendLocal.registrarResultado({ ...registro, resultado: 'talvez' }), e => e.code === '23514');
+    await backendLocal.registrarResultado(registro);
+    await backendLocal.registrarResultado({ ...registro, resultado: 'pendente' });
+    assert.deepEqual((await backendLocal.resultadosDoDia('2026-11-10')).map(r => r.resultado), ['reprovado', 'pendente']);
+  });
+});
+
 describe('Backend local: limpeza (só no modo local)', () => {
   it('limpa o histórico de uma data sem tocar nas outras', async () => {
     await backendLocal.registrar({ data: '2026-11-11', tipo: 'mod', descricao: 'Dia 11' });

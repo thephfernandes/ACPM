@@ -3,6 +3,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { criarBackendSupabase } from '../../js/backends/supabase.js';
+import { situacaoPorMissao, validarRegistro } from '../../js/resultados.js';
 
 const espera = ms => new Promise(r => setTimeout(r, ms));
 
@@ -12,6 +13,7 @@ function clienteFalso(documentos = {}, { atraso = 0, dias = {} } = {}) {
   const tabelaDias = new Map(Object.entries(dias));
   const historico = [];
   const solicitacoes = [];
+  const resultados = [];
   // Contas do servidor falso: a do usuário logado e as que o administrador gerencia
   const contas = [{ usuario: 'u-eu', email: 'eu@teste.acpm', senha: 'senha atual bem longa', nome: 'Eu', perfil: 'administrador' }];
   const atualizacoes = [];
@@ -24,6 +26,7 @@ function clienteFalso(documentos = {}, { atraso = 0, dias = {} } = {}) {
     if (tabela === 'dias') return [...tabelaDias].map(([data, d]) => ({ data, ...d }));
     if (tabela === 'historico') return historico.map(h => ({ ...h }));
     if (tabela === 'solicitacoes') return solicitacoes.map(s => ({ ...s }));
+    if (tabela === 'resultados_de_missao') return resultados.map(r => ({ ...r }));
     throw new Error(`tabela inesperada: ${tabela}`);
   };
 
@@ -109,6 +112,16 @@ function clienteFalso(documentos = {}, { atraso = 0, dias = {} } = {}) {
         }
         return { data: args.p_entradas.length, error: null };
       }
+      if (nome === 'registrar_resultado') {
+        try {
+          const r = validarRegistro({ aluno: args.p_aluno, curso: args.p_curso, missao: args.p_missao, resultado: args.p_resultado, data: args.p_data, voo: args.p_voo });
+          resultados.push({ id: resultados.length + 1, ...r, registrado_em: new Date(Date.UTC(2026, 10, 10, 12, 0, resultados.length)).toISOString(), registrado_por: 'Operador' });
+          return { data: resultados.length, error: null };
+        } catch (e) {
+          return { data: null, error: { code: e.code, message: e.message } };
+        }
+      }
+      if (nome === 'situacao_das_missoes') return { data: [...situacaoPorMissao(resultados).values()].map(({ id, ...r }) => r), error: null };
       if (nome === 'listar_contas') return { data: contas.map(({ senha, ...c }) => c), error: null };
       if (nome === 'criar_conta') {
         if (contas.some(c => c.email === args.p_email)) return { data: null, error: { code: '23505', message: 'já existe' } };
@@ -325,6 +338,19 @@ describe('Backend Supabase: escala por data e histórico', () => {
     await backend.cancelarSolicitacao(id, 'Maria');
     assert.equal(cliente.chamadas.at(-1)[0], 'cancelar_solicitacao');
     await assert.rejects(backend.cancelarSolicitacao(id, 'Maria'), e => e.code === 'P0002');
+  });
+
+  it('resultados das missões: registra pela função, lê a situação e os registros do dia; repassa o código do erro', async () => {
+    const cliente = clienteFalso();
+    const backend = criarBackendSupabase(cliente);
+    const registro = { aluno: 1000, curso: 'PP', missao: 'PP-07', resultado: 'aprovado', data: '2026-11-11', voo: '1000_0_1' };
+    const id = await backend.registrarResultado(registro);
+    assert.deepEqual(cliente.chamadas.at(-1), ['registrar_resultado', { p_aluno: 1000, p_curso: 'PP', p_missao: 'PP-07', p_resultado: 'aprovado', p_data: '2026-11-11', p_voo: '1000_0_1' }]);
+    assert.equal(id, 1);
+    assert.deepEqual((await backend.situacaoDasMissoes()).map(r => [r.aluno, r.curso, r.missao, r.resultado]), [[1000, 'PP', 'PP-07', 'aprovado']]);
+    assert.deepEqual((await backend.resultadosDoDia('2026-11-11')).map(r => [r.id, r.voo, r.resultado]), [[1, '1000_0_1', 'aprovado']]);
+    assert.deepEqual(await backend.resultadosDoDia('2026-11-12'), []);
+    await assert.rejects(backend.registrarResultado({ ...registro, curso: 'XX' }), e => e.code === '23514');
   });
 
   it('depois de um conflito, nada mais é gravado: nem outras datas nem o histórico', async () => {

@@ -7,6 +7,7 @@ import { textoDoDetalhe } from '../status.js';
 import { linhasDoQuadro } from '../quadro.js';
 import { painelDaEscala } from './painel-aeroporto.js';
 import { atualizarPainelDeReparo } from './reparo.js';
+import { resultadoNaEscala } from './etapas.js';
 import { OPCOES_DE_BURACOS, OPCOES_DE_HORARIOS, normalizarCriterios } from '../criterios.js';
 import { metricasDaEscala } from '../metricas.js';
 import { sumUniqueOperationalHours, consolidateTimelineSlots } from '../engine.js';
@@ -414,11 +415,11 @@ function tabela(voos) {
       <td class="c-aviao nw"${rs}>${esc(nomeDoRecurso(o.r))}${ehGround(o) ? '' : ` <small>${esc(o.eqType || '')}</small>`}</td>
       <td class="c-instr nw"${rs}>${esc(o.ins)}</td>
       <td class="c-peso nw"${rs}>${peso(o)}</td>
-      <td class="c-status">${seletorDeStatus(o)}</td>
+      <td class="c-status">${seletorDeStatus(o)}${resultadoNaEscala(o)}</td>
       <td class="c-acao edit-only acao">${acao(o)}</td>
     </tr>`;
     for (const aluno of grupo.slice(1)) {
-      h += `<tr class="membro${statusDe(aluno) === 'Cancelado' ? ' st-Cancelado' : ''}"${doTempo}><td class="c-aluno"><b>${esc(aluno.s)}</b></td><td class="c-status">${seletorDeStatus(aluno)}</td><td class="c-acao edit-only acao">${acao(aluno)}</td></tr>`;
+      h += `<tr class="membro${statusDe(aluno) === 'Cancelado' ? ' st-Cancelado' : ''}"${doTempo}><td class="c-aluno"><b>${esc(aluno.s)}</b></td><td class="c-status">${seletorDeStatus(aluno)}${resultadoNaEscala(aluno)}</td><td class="c-acao edit-only acao">${acao(aluno)}</td></tr>`;
     }
   }
   return h + '</tbody></table></div>';

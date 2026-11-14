@@ -15,6 +15,7 @@ import { normalizarHangar } from './hangar.js';
 import { LIMITES_DA_LEI, normalizarLimites, comHorasExternas } from './limites.js';
 import { normalizarFixos, normalizarAprovacao } from './fixos.js';
 import { normalizarCriterios } from './criterios.js';
+import { normalizarCursos, normalizarCursoDoAluno, codigoValido } from './cursos.js';
 
 // Validação do link compartilhado: o conteúdo vem da URL, então só entram os tipos e as faixas que a interface produz
 const LIMITE = { instrutores: 200, alunos: 500, extras: 10, bloqueios: 50, matriculas: 100, nome: 80 };
@@ -23,12 +24,14 @@ const numero = (v, min, max, padrao) => (typeof v === 'number' && v >= min && v 
 const texto = (v, max = LIMITE.nome) => (typeof v === 'string' ? v.slice(0, max) : '');
 const lista = (v, max) => (Array.isArray(v) ? v.slice(0, max) : []);
 const id = v => inteiro(v, 1, Number.MAX_SAFE_INTEGER, null);
-const pedido = (mis, eq, p1, p2, nb, ss, pr, jan) => ({
+const pedido = (mis, eq, p1, p2, nb, ss, pr, jan, etapa) => ({
   mis: texto(mis), eq: texto(eq),
   // Preferências em minutos (links anteriores ao formato 12 trazem o número da janela, convertido ao normalizar)
   p1: preferenciaValida(p1), p2: preferenciaValida(p2),
   nb: numero(nb, 1, 11, 1), ss: inteiro(ss, 1, 3, 1), pr: inteiro(pr, 1, 5, 3),
-  ...(disponibilidadeValida(jan) ? { jan } : {})
+  ...(disponibilidadeValida(jan) ? { jan } : {}),
+  // A missão do curso (fase 14; os links anteriores não a trazem)
+  ...(typeof etapa === 'string' && codigoValido(etapa) ? { etapa } : {})
 });
 
 export const ApiClient = {
@@ -94,6 +97,13 @@ export const ApiClient = {
     x.hangar = normalizarHangar(x.hangar, x.frota);
     // Limites da Lei do Aeronauta (fase 11) e as horas de voo fora do app de cada instrutor ('AAAA-MM' ou 'AAAA-00')
     x.limites = normalizarLimites(x.limites);
+    // O programa dos cursos e o curso de cada aluno (fase 14)
+    x.cursos = normalizarCursos(x.cursos);
+    x.stu.forEach(s => {
+      const curso = normalizarCursoDoAluno(s.curso);
+      if (curso) s.curso = curso;
+      else delete s.curso;
+    });
     x.ins.forEach(i => {
       const externas = i.horasExternas && typeof i.horasExternas === 'object' ? i.horasExternas : {};
       const validas = Object.entries(externas).filter(([quando, horas]) => /^\d{4}-(0\d|1[0-2])$/.test(quando) && typeof horas === 'number' && horas > 0 && horas <= 2000);
@@ -165,7 +175,19 @@ export const ApiClient = {
     const horasBase = await this.horasDosInstrutores(data);
     const horasDosInstrutores = comHorasExternas(horasBase, estado.ins, data);
     const escala = dia && dia.resultado && Array.isArray(dia.resultado.out) ? dia.resultado : null;
-    return { estado, escala, novo: !dia, horasBase, horasDosInstrutores };
+    const resultados = await this.resultadosDaData(data);
+    return { estado, escala, novo: !dia, horasBase, horasDosInstrutores, resultados };
+  },
+
+  // Os resultados das missões dos cursos (fase 14): a situação de cada missão e os registros da data. Vão à parte (não
+  // são gravados no dia); sem resposta, ficam vazios
+  async resultadosDaData(data) {
+    try {
+      const [situacao, doDia] = await Promise.all([this.backend.situacaoDasMissoes(), this.backend.resultadosDoDia(data)]);
+      return { situacao: situacao || [], doDia: doDia || [] };
+    } catch (e) {
+      return { situacao: [], doDia: [] };
+    }
   },
 
   async horasDosInstrutores(data) {
@@ -246,6 +268,21 @@ export const ApiClient = {
     return this.backend.salvarDadosPessoais(tipo, id, dados, { autor: this.autorAtual || null });
   },
 
+  // Resultados das missões dos cursos (fase 14): fora do estado; o servidor decide quem lê (os perfis da escala) e quem
+  // registra (operadores e administradores)
+  registrarResultado(registro) {
+    if (this.readOnly) return Promise.reject(Object.assign(new Error('somente leitura'), { code: '42501' }));
+    return this.backend.registrarResultado(registro, { autor: this.autorAtual || null });
+  },
+
+  situacaoDasMissoes() {
+    return this.backend.situacaoDasMissoes();
+  },
+
+  resultadosDoDia(data) {
+    return this.backend.resultadosDoDia(data);
+  },
+
   async biDoPeriodo(de, ate) {
     return biDosDias((await this.backend.listarDias(de, ate)).map(d => ({ ...d, conteudo: migrarDia(d.conteudo) })));
   },
@@ -320,8 +357,8 @@ export const ApiClient = {
         .map(s => [
           s.id, s.nm, s.kg, s.bl,
           s.fly ? 1 : 0, s.mis, s.eq, s.p1, s.p2, s.nb, s.ss, s.pr,
-          (s.extra || []).filter(ex => ex.fly).map(ex => [ex.mid, ex.mis, ex.eq, ex.p1, ex.p2, ex.nb, ex.ss, ex.pr, ex.jan || '']),
-          s.jan || ''
+          (s.extra || []).filter(ex => ex.fly).map(ex => [ex.mid, ex.mis, ex.eq, ex.p1, ex.p2, ex.nb, ex.ss, ex.pr, ex.jan || '', ex.etapa || '']),
+          s.jan || '', s.etapa || ''
         ])
     };
     const b64 = btoa(unescape(encodeURIComponent(JSON.stringify(compact))));
@@ -406,9 +443,9 @@ export const ApiClient = {
           state.stu.push(target);
         }
         if (row.length >= 12) {
-          const [, , , , flyFlag, mis, eq, p1, p2, nb, ss, pr, extraArr, jan] = row;
+          const [, , , , flyFlag, mis, eq, p1, p2, nb, ss, pr, extraArr, jan, etapa] = row;
           Object.assign(target, cadastro, {
-            fly: Boolean(flyFlag), ...pedido(mis, eq, p1, p2, nb, ss, pr, jan),
+            fly: Boolean(flyFlag), ...pedido(mis, eq, p1, p2, nb, ss, pr, jan, etapa),
             extra: lista(extraArr, LIMITE.extras).filter(Array.isArray)
               .map(([mid, ...campos]) => ({ mid: id(mid), fly: true, ...pedido(...campos) }))
               .filter(ex => ex.mid !== null)
