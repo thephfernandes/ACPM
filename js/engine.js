@@ -713,7 +713,10 @@ export function runAllocationEngine(state, opcoes = {}) {
         const ins = f2.filter(x => (comMenosCombustivel ? reducao(x) < Infinity : pesoCabe(stu.kg, x.kg, lim)));
         if (!ins.length) { bad = 'peso'; break; }
 
-        ins.sort((a, b) => (comMenosCombustivel && reducao(a) - reducao(b)) || (prev && (a.id === prev.x.id) - (b.id === prev.x.id)) ||
+        // Quando o peso importa (o avião tem limite e o aluno, o peso), o instrutor com o peso informado vem antes: sem
+        // ele, o limite não é conferido (revisão de 14/11)
+        const pesoImporta = Boolean(lim && stu.kg);
+        ins.sort((a, b) => (comMenosCombustivel && reducao(a) - reducao(b)) || (pesoImporta && !a.kg - !b.kg) || (prev && (a.id === prev.x.id) - (b.id === prev.x.id)) ||
           voosHoje(a) - voosHoje(b) || naFila(a) - naFila(b) ||
           qtdHabilitacoes(a) - qtdHabilitacoes(b) || (load[a.id] || 0) - (load[b.id] || 0));
 
@@ -781,7 +784,9 @@ export function runAllocationEngine(state, opcoes = {}) {
 
         if (lim && !warned && (!stu.kg || !x.kg)) {
           warned = true;
-          al.push({ t: 'warn', s: labelStu, m: `Peso do aluno não informado (0 kg): verificação de limite (${lim} kg) no ${d.eq} não realizada.` });
+          // O aviso diz de quem é o peso que falta (revisão de 14/11)
+          const quem = !stu.kg && !x.kg ? `Pesos do aluno e de ${x.nm} não informados` : !stu.kg ? 'Peso do aluno não informado' : `Peso de ${x.nm} não informado`;
+          al.push({ t: 'warn', s: labelStu, m: `${quem} (0 kg): verificação de limite (${lim} kg) no ${d.eq} não realizada.` });
         }
       });
     } else {

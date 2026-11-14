@@ -205,6 +205,19 @@ describe('Peso da tripulação', () => {
     assert.equal(out[0].kg, 0);
     assert.deepEqual(al, [{ t: 'warn', s: 'Aluno 1000', m: 'Peso do aluno não informado (0 kg): verificação de limite (170 kg) no C152 não realizada.' }]);
   });
+
+  // Revisão de 14/11
+  it('quando o peso importa, o instrutor com o peso informado vem antes', () => {
+    const { out, al } = alocar({ ins: [instrutor(1, 1, { kg: 0 }), instrutor(2, 9)], stu: [aluno(1000)] });
+    assert.deepEqual([out[0].insId, al], [2, []]);
+  });
+
+  it('o aviso diz de quem é o peso que falta', () => {
+    const soInstrutor = alocar({ ins: [instrutor(1, 1, { kg: 0 })], stu: [aluno(1000)] });
+    assert.deepEqual(soInstrutor.al, [{ t: 'warn', s: 'Aluno 1000', m: 'Peso de Instrutor 01 não informado (0 kg): verificação de limite (170 kg) no C152 não realizada.' }]);
+    const osDois = alocar({ ins: [instrutor(1, 1, { kg: 0 })], stu: [aluno(1000, {}, { kg: 0 })] });
+    assert.deepEqual(osDois.al, [{ t: 'warn', s: 'Aluno 1000', m: 'Pesos do aluno e de Instrutor 01 não informados (0 kg): verificação de limite (170 kg) no C152 não realizada.' }]);
+  });
 });
 
 describe('Disponibilidade do aluno', () => {
