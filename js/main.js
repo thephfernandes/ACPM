@@ -43,7 +43,7 @@ import { LIMITES_DA_LEI, normalizarLimites, comHorasExternas } from './limites.j
 import { rRec, rRevisao, rHangar, alternarGrupoDaFrota, NOMES_DAS_CATEGORIAS } from './views/recursos.js';
 import { normalizarHangar, moverNoHangar } from './hangar.js';
 import { opcoesDeCategoria, categoriaDoTipo } from './categorias.js';
-import { setRole, save, logChange, escalaCalculada, marcarEscalaSoCalculada, gravarEscalaCalculada, abrirData, historicoParaPainel, carregarData, carregarBI, avisarDadosIndisponiveis, lerDadosDeNovo } from './actions.js';
+import { setRole, save, logChange, escalaCalculada, marcarEscalaSoCalculada, gravarEscalaCalculada, abrirData, historicoParaPainel, carregarData, carregarBI, avisarDadosIndisponiveis, lerDadosDeNovo, mostrarNoHistorico } from './actions.js';
 import { exp, pdf } from './export.js';
 import { projetoSupabase } from './config-supabase.js';
 import { CATEGORIAS_DO_RODIZIO, ajustarFilas } from './rodizio.js';
@@ -138,7 +138,7 @@ document.addEventListener('submit', async e => {
   if (!salvo) return;
   fecharPainelDeDados(true);
   showToast(`Dados pessoais de ${salvo.nome} salvos.`, 'ok');
-  if (salvo.alterados.length) logChange('mod', `Dados pessoais de ${salvo.nome} atualizados: ${salvo.alterados.join(', ')}`);
+  if (salvo.historico && salvo.data === DATA) mostrarNoHistorico(salvo.historico);
 });
 
 // Painel das habilitações de um instrutor: ✕ e Esc fecham (o foco volta para o botão que abriu)

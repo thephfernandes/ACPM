@@ -5,7 +5,7 @@
 import { separar } from '../../js/dias.js';
 import { migrarCadastro, migrarDia } from '../../js/migracoes.js';
 import { prazoDaAgendaPermite } from '../../js/agenda.js';
-import { gravarDadosPessoais } from '../../js/dados-pessoais.js';
+import { gravarDadosPessoais, semQuemSaiu } from '../../js/dados-pessoais.js';
 import { quadroDoDia } from '../../js/quadro.js';
 import { acumularHoras } from '../../js/limites.js';
 import { situacaoPorMissao, validarRegistro } from '../../js/resultados.js';
@@ -94,6 +94,7 @@ export function criarSupabaseFalso({ documentos = {}, dias = {}, historico: hist
   const saidas = [];
   const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': '*', 'Access-Control-Allow-Methods': '*' };
   let falhasDeGravacao = 0;
+  let gravacoesDeDados = 0;
   let statusDaFalha = 503;
   let leiturasDeDiasSeguras = null;
   let gravacoesSeguras = null;
@@ -258,20 +259,35 @@ export function criarSupabaseFalso({ documentos = {}, dias = {}, historico: hist
       if (funcao === 'salvar_dados_pessoais') {
         if (!veDados) return responder(403, { code: '42501', message: 'somente operadores e a secretaria alteram dados pessoais' });
         try {
-          const tabela = gravarDadosPessoais(Object.fromEntries(dadosPessoais), args.p_tipo, args.p_id, args.p_dados,
-            { hoje: agora.toISOString().slice(0, 10), autor: conta.nome, agora: agora.toISOString() });
+          const cadastro = banco.get('cadastro');
+          // Cada gravação com a sua data (como o clock_timestamp do banco)
+          const quando = new Date(agora.getTime() + gravacoesDeDados++).toISOString();
+          const r = gravarDadosPessoais(Object.fromEntries(dadosPessoais), args.p_tipo, args.p_id, args.p_dados,
+            { hoje: agora.toISOString().slice(0, 10), autor: conta.nome, agora: quando, atualizadoEmLido: args.p_atualizado_em, cadastro: cadastro && cadastro.conteudo });
           dadosPessoais.clear();
-          Object.entries(tabela).forEach(([chave, d]) => dadosPessoais.set(chave, d));
-          return responder(204);
+          Object.entries(r.tabela).forEach(([chave, d]) => dadosPessoais.set(chave, d));
+          let entrada = null;
+          if (r.descricao) {
+            const id = historico.length + 1;
+            historico.push({ id, data: args.p_data, registrado_em: quando, usuario: conta.id, autor: conta.nome, tipo: 'mod', descricao: r.descricao, reverter: null, reverte: null, importado: false });
+            entrada = { id, descricao: r.descricao };
+          }
+          return responder(200, { atualizado_em: r.atualizado_em, atualizado_por: conta.nome, historico: entrada });
         } catch (e) {
-          return responder(e.code === '23505' ? 409 : 400, { code: e.code, message: e.message.replace(/\.$/, ''), hint: e.campo });
+          return responder({ 23505: 409, PT409: 409, P0002: 404 }[e.code] || 400, { code: e.code, message: e.message.replace(/\.$/, ''), hint: e.campo });
         }
       }
       if (!operador) return responder(403, { code: '42501', message: 'somente operadores podem alterar a escala' });
       if (funcao === 'salvar_documento') {
         // Depois da conversão (o cadastro existe), os documentos da fase 2 ficam só como cópia
         if (args.p_chave !== 'cadastro' && banco.has('cadastro')) return responder(409, { code: 'PT409', message: `${args.p_chave} é da versão anterior do app`, hint: 'formato' });
-        return responder(...salvar(banco, args.p_chave, args.p_conteudo, args.p_versao_lida));
+        const resposta = salvar(banco, args.p_chave, args.p_conteudo, args.p_versao_lida);
+        // Quem sai do cadastro leva os dados pessoais junto
+        if (resposta[0] === 200 && args.p_chave === 'cadastro') {
+          const ficam = semQuemSaiu(Object.fromEntries(dadosPessoais), args.p_conteudo);
+          for (const chave of [...dadosPessoais.keys()]) if (!Object.hasOwn(ficam, chave)) dadosPessoais.delete(chave);
+        }
+        return responder(...resposta);
       }
       if (funcao === 'salvar_dia') {
         // Um dia não nasce num formato mais antigo que o do cadastro, e só leva os status da lista

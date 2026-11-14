@@ -268,8 +268,13 @@ export const ApiClient = {
     return this.backend.listarDadosPessoais(tipo);
   },
 
-  salvarDadosPessoais(tipo, id, dados) {
-    return this.backend.salvarDadosPessoais(tipo, id, dados, { autor: this.autorAtual || null });
+  lerDadosPessoais(tipo, id) {
+    return this.backend.lerDadosPessoais(tipo, id);
+  },
+
+  // Grava a partir da versão lida ao abrir o painel; o histórico da data (registrado junto) vem na resposta
+  salvarDadosPessoais(tipo, id, dados, { atualizadoEm = null, data = null } = {}) {
+    return this.backend.salvarDadosPessoais(tipo, id, dados, { autor: this.autorAtual || null, atualizadoEm, data });
   },
 
   // Resultados das missões dos cursos (fase 14): fora do estado; o servidor decide quem lê (os perfis da escala) e quem

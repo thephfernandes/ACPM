@@ -2,7 +2,7 @@
 // tabela. Ficam fora do cadastro; o histórico registra só os campos que mudaram. No modo
 // compartilhado, operadores, administradores e a secretaria veem e editam; o gestor não vê.
 import { test, expect, abrir, irPara, prepararContexto, vigiarErros, abrirMenuDaConta, AMANHA } from './fixtures.js';
-import { instalarSupabaseFalso, documentosAtuais, CONTAS } from './supabase-falso.js';
+import { criarSupabaseFalso, instalarSupabaseFalso, documentosAtuais, CONTAS } from './supabase-falso.js';
 import { aluno, cenario, instrutor } from '../helpers/montar.js';
 
 const estado = () => cenario({ ins: [instrutor(1, 9), instrutor(2, 9)], stu: [aluno(1000), aluno(1001)] });
@@ -99,10 +99,12 @@ test.describe('Dados pessoais (neste navegador)', () => {
 });
 
 test.describe('Dados pessoais (modo compartilhado)', () => {
-  async function entrar(browser, conta) {
+  // Cada conta no seu navegador; com servidor, os navegadores dividem o mesmo servidor
+  async function entrar(browser, conta, servidorComum = null) {
     const context = await browser.newContext({ baseURL: test.info().project.use.baseURL, locale: 'pt-BR', timezoneId: 'America/Sao_Paulo' });
     await prepararContexto(context);
-    const servidor = await instalarSupabaseFalso(context, documentosAtuais(estado(), AMANHA));
+    const servidor = servidorComum || await instalarSupabaseFalso(context, documentosAtuais(estado(), AMANHA));
+    if (servidorComum) await servidorComum.instalar(context);
     const page = await context.newPage();
     const erros = vigiarErros(page);
     await page.goto('./?supabase=teste');
@@ -143,5 +145,73 @@ test.describe('Dados pessoais (modo compartilhado)', () => {
     await expect(gestor.page.locator('#s-alu thead th', { hasText: 'CANAC' })).toBeHidden();
     expect(gestor.erros).toEqual([]);
     await gestor.context.close();
+  });
+
+  // Revisão de 14/11 ------------------------------------------------------------------------------------------------
+
+  test('duas pessoas editam a mesma pessoa: a segunda é avisada e não apaga o que a primeira gravou', async ({ browser }) => {
+    const servidor = criarSupabaseFalso(documentosAtuais(estado(), AMANHA));
+    const a = await entrar(browser, CONTAS.operador, servidor);
+    const b = await entrar(browser, CONTAS.administrador, servidor);
+    await abrirDadosDoAluno(a.page, 1000);
+    await abrirDadosDoAluno(b.page, 1000);
+    await campo(a.page, 'CANAC').fill('123456');
+    await salvar(a.page);
+    await expect(painel(a.page)).toBeHidden();
+
+    await campo(b.page, 'Celular').fill('37991234567');
+    await salvar(b.page);
+    await expect(painel(b.page).locator('#dados-erro')).toHaveText('Outra pessoa alterou estes dados enquanto você editava. Feche e abra de novo para ver a versão atual.');
+    expect(servidor.dadosPessoais.get('aluno:1000')).toMatchObject({ canac: '123456' });
+    expect(servidor.dadosPessoais.get('aluno:1000').celular).toBeUndefined();
+    // Abrindo de novo, vem o que a outra pessoa gravou
+    await painel(b.page).getByRole('button', { name: 'Cancelar' }).click();
+    await abrirDadosDoAluno(b.page, 1000);
+    await expect(campo(b.page, 'CANAC')).toHaveValue('123456');
+    for (const x of [a, b]) { expect(x.erros.filter(e => !e.includes('409'))).toEqual([]); await x.context.close(); }
+  });
+
+  test('o painel lê a pessoa ao abrir; sem resposta, não deixa salvar', async ({ browser }) => {
+    const { context, servidor, page, erros } = await entrar(browser, CONTAS.operador);
+    // Outra pessoa grava depois do login: o painel mostra o que está no servidor
+    servidor.dadosPessoais.set('aluno:1001', { canac: '777777', atualizado_em: '2026-11-10T13:00:00.000Z', atualizado_por: 'Rayane' });
+    await abrirDadosDoAluno(page, 1001);
+    await expect(campo(page, 'CANAC')).toHaveValue('777777');
+    await painel(page).getByRole('button', { name: 'Cancelar' }).click();
+
+    servidor.falhar('/rest/v1/dados_pessoais', 20);
+    await abrirDadosDoAluno(page, 1000);
+    // (o supabase-js tenta a leitura de novo algumas vezes antes de desistir)
+    await expect(painel(page).locator('#dados-erro')).toHaveText('Não foi possível ler os dados pessoais. Feche e tente de novo.', { timeout: 20000 });
+    await expect(campo(page, 'CPF')).toBeDisabled();
+    await expect(painel(page).getByRole('button', { name: 'Salvar' })).toBeDisabled();
+    expect(erros.filter(e => !e.includes('503'))).toEqual([]);
+    await context.close();
+  });
+
+  test('a alteração da secretaria vai para o histórico (só os nomes dos campos)', async ({ browser }) => {
+    const { context, servidor, page, erros } = await entrar(browser, CONTAS.secretaria);
+    await abrirDadosDoAluno(page, 1000);
+    await campo(page, 'CANAC').fill('123456');
+    await salvar(page);
+    await expect(painel(page)).toBeHidden();
+    expect(servidor.historico.map(h => [h.data, h.descricao, h.autor])).toContainEqual([AMANHA, 'Dados pessoais de Aluno 1000 atualizados: CANAC', 'Secretaria de Teste']);
+    expect(erros).toEqual([]);
+    await context.close();
+  });
+
+  test('excluir um aluno apaga os dados pessoais dele', async ({ browser }) => {
+    const { context, servidor, page, erros } = await entrar(browser, CONTAS.operador);
+    await abrirDadosDoAluno(page, 1001);
+    await campo(page, 'CANAC').fill('123456');
+    await salvar(page);
+    await expect(painel(page)).toBeHidden();
+    expect(servidor.dadosPessoais.has('aluno:1001')).toBe(true);
+    const excluir = page.locator('#alu tr[data-id="1001"] [data-act="dels"]');
+    await excluir.click();
+    await excluir.click();
+    await expect.poll(() => servidor.dadosPessoais.has('aluno:1001')).toBe(false);
+    expect(erros).toEqual([]);
+    await context.close();
   });
 });

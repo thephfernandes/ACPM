@@ -1,10 +1,10 @@
 // Painel dos dados pessoais (fase 9): CPF, CANAC, nascimento, celular e e-mail de um aluno ou instrutor, ao lado da
 // tabela. Só operadores, administradores e a secretaria veem (no modo local, fora do perfil Gestor). Os dados ficam só
 // aqui, fora do estado: nunca vão para o cadastro, o link compartilhado, o CSV, o PDF ou o BI.
-import { CAMPOS_PESSOAIS, validarDadosPessoais, formatarCpf, formatarCelular, camposAlterados } from '../dados-pessoais.js';
+import { CAMPOS_PESSOAIS, validarDadosPessoais, formatarCpf, formatarCelular } from '../dados-pessoais.js';
 import { ApiClient } from '../storage.js';
 import { veDadosPessoais } from '../perfis.js';
-import { isGestor, insBy, stuBy } from '../state.js';
+import { isGestor, insBy, stuBy, DATA } from '../state.js';
 import { esc, hojeISO } from '../format.js';
 import { $ } from '../dom.js';
 
@@ -47,10 +47,41 @@ function campoHtml({ id, rotulo }, dados) {
 
 const quando = iso => new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
-export function abrirPainelDeDados(tipo, id, botao) {
+// A leitura feita ao abrir o painel (revisão de 14/11): a gravação leva de volta a versão lida (atualizado_em). Sem a
+// leitura, o painel não deixa salvar (salvar a partir de dados velhos apagaria o que outra pessoa gravou)
+let leitura = { pedido: 0, atualizadoEm: null, lida: false };
+
+export async function abrirPainelDeDados(tipo, id, botao) {
   const p = pessoa(tipo, id);
   if (!p || !podeVerDadosPessoais()) return;
-  const dados = DADOS[tipo][id] || {};
+  const pedido = ++leitura.pedido;
+  leitura = { pedido, atualizadoEm: null, lida: false };
+  desenharPainel(tipo, id, botao, p, DADOS[tipo][id] || {});
+  habilitarPainel(false, 'Lendo os dados…');
+  let dados;
+  try {
+    dados = await ApiClient.lerDadosPessoais(tipo, id);
+  } catch (e) {
+    if (pedido !== leitura.pedido) return;
+    habilitarPainel(false, 'Não foi possível ler os dados pessoais. Feche e tente de novo.');
+    return;
+  }
+  if (pedido !== leitura.pedido || $('#painel-dados').hidden) return;
+  leitura = { pedido, atualizadoEm: dados.atualizado_em || null, lida: true };
+  if (Object.keys(dados).length) DADOS[tipo][id] = dados;
+  else delete DADOS[tipo][id];
+  atualizarColunas();
+  desenharPainel(tipo, id, botao, p, dados);
+  habilitarPainel(true, '');
+  $('#dado-cpf').focus();
+}
+
+function habilitarPainel(sim, mensagem) {
+  document.querySelectorAll('#form-dados input, #form-dados button[type="submit"]').forEach(el => { el.disabled = !sim; });
+  $('#dados-erro').textContent = mensagem;
+}
+
+function desenharPainel(tipo, id, botao, p, dados) {
   const painel = $('#painel-dados');
   painel.dataset.tipo = tipo;
   painel.dataset.id = id;
@@ -70,7 +101,6 @@ export function abrirPainelDeDados(tipo, id, botao) {
       ${dados.atualizado_em ? `<p class="h">Atualizado em ${quando(dados.atualizado_em)}${dados.atualizado_por ? ` por ${esc(dados.atualizado_por)}` : ''}.</p>` : ''}
     </form>`;
   painel.hidden = false;
-  $('#dado-cpf').focus();
 }
 
 export function fecharPainelDeDados(devolverFoco = false) {
@@ -101,16 +131,22 @@ export async function salvarPainelDeDados() {
   const { dados, erros } = validarDadosPessoais(entrada, hojeISO());
   mostrarErros(erros);
   if (Object.keys(erros).length) return null;
+  if (!leitura.lida) return null;
+  const data = DATA;
+  let resposta;
   try {
-    await ApiClient.salvarDadosPessoais(tipo, id, dados);
+    resposta = await ApiClient.salvarDadosPessoais(tipo, id, dados, { atualizadoEm: leitura.atualizadoEm, data });
   } catch (e) {
     if (e.campo) mostrarErros({ [e.campo]: comoFrase(e.message) });
+    else if (e.code === 'PT409') $('#dados-erro').textContent = 'Outra pessoa alterou estes dados enquanto você editava. Feche e abra de novo para ver a versão atual.';
+    else if (e.code === 'P0002') $('#dados-erro').textContent = 'Esta pessoa não está no cadastro gravado. Espere a alteração ser gravada e tente de novo.';
     else $('#dados-erro').textContent = 'Não foi possível salvar. Verifique a conexão e tente de novo.';
     return null;
   }
-  const antes = DADOS[tipo][id] || {};
-  if (Object.keys(dados).length) DADOS[tipo][id] = { ...dados, atualizado_em: new Date().toISOString(), atualizado_por: ApiClient.autorAtual || null };
+  if (Object.keys(dados).length) DADOS[tipo][id] = { ...dados, atualizado_em: resposta.atualizado_em, atualizado_por: resposta.atualizado_por || null };
   else delete DADOS[tipo][id];
+  leitura = { ...leitura, atualizadoEm: resposta.atualizado_em || null };
   atualizarColunas();
-  return { nome: pessoa(tipo, id).nm, alterados: camposAlterados(antes, dados) };
+  // O histórico já foi registrado junto com a gravação (o servidor registra os campos que mudaram)
+  return { nome: pessoa(tipo, id).nm, historico: resposta.historico || null, data };
 }

@@ -237,9 +237,21 @@ export function criarBackendSupabase(cliente, { aoConflito = () => {}, aoErro = 
       return Object.fromEntries(data.map(({ id_cadastro, ...dados }) => [id_cadastro, Object.fromEntries(Object.entries(dados).filter(([, v]) => v !== null))]));
     },
 
-    async salvarDadosPessoais(tipo, id, dados) {
-      const { error } = await cliente.rpc('salvar_dados_pessoais', { p_tipo: tipo, p_id: id, p_dados: dados });
+    // Os dados de uma pessoa, lidos ao abrir o painel, com a versão (atualizado_em) que a gravação leva de volta
+    async lerDadosPessoais(tipo, id) {
+      const { data, error } = await cliente.from('dados_pessoais')
+        .select('cpf, canac, nascimento, celular, email, atualizado_em, atualizado_por').eq('tipo', tipo).eq('id_cadastro', id).maybeSingle();
+      if (error) throw erroComCodigo(error);
+      return data ? Object.fromEntries(Object.entries(data).filter(([, v]) => v !== null)) : {};
+    },
+
+    // Grava a partir da versão lida (outra pessoa gravou antes: PT409); o servidor registra o histórico da data
+    async salvarDadosPessoais(tipo, id, dados, { atualizadoEm = null, data = null } = {}) {
+      const { data: resposta, error } = await cliente.rpc('salvar_dados_pessoais', {
+        p_tipo: tipo, p_id: id, p_dados: dados, p_atualizado_em: atualizadoEm, p_data: data
+      });
       if (error) throw Object.assign(erroComCodigo(error), { campo: error.hint || null });
+      return resposta;
     },
 
     // Resultados das missões dos cursos: grava-se só pela função (o servidor valida e diz quem registrou); a situação de

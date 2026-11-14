@@ -67,12 +67,30 @@ export const camposAlterados = (antes, depois) => CAMPOS_PESSOAIS
   .filter(({ id }) => ((antes && antes[id]) || '') !== ((depois && depois[id]) || ''))
   .map(c => c.rotulo);
 
-// O que o servidor faz ao gravar, para o modo local e o servidor dos testes seguirem a mesma regra: valida, confere que
-// o CPF e o CANAC não se repetem entre pessoas do mesmo tipo e, sem nenhum dado, apaga. tabela: { 'aluno:1000': {...} }.
-// Devolve a tabela nova; o erro traz o código do servidor e o campo
+// O nome de um aluno ou instrutor no cadastro, ou null (não está no cadastro)
+export function nomeNoCadastro(cadastro, tipo, id) {
+  const lista = cadastro && cadastro[tipo === 'aluno' ? 'stu' : 'ins'];
+  const p = Array.isArray(lista) ? lista.find(x => x && x.id === id) : null;
+  return p ? String(p.nm || '').slice(0, 80) : null;
+}
+
+// Sem os dados pessoais de quem não está mais no cadastro (só com as duas listas no cadastro)
+export function semQuemSaiu(tabela, cadastro) {
+  if (!cadastro || !Array.isArray(cadastro.stu) || !Array.isArray(cadastro.ins)) return tabela;
+  const ficam = new Set([...cadastro.stu.map(x => `aluno:${x.id}`), ...cadastro.ins.map(x => `instrutor:${x.id}`)]);
+  return Object.fromEntries(Object.entries(tabela).filter(([chave]) => ficam.has(chave)));
+}
+
+// O que o servidor faz ao gravar (salvar_dados_pessoais), para o modo local e o servidor dos testes seguirem a mesma
+// regra: só para quem está no cadastro; valida; confere que o CPF e o CANAC não se repetem entre pessoas do mesmo tipo;
+// recusa quando a versão lida (atualizadoEmLido) não é a guardada (outra pessoa gravou antes); sem nenhum dado, apaga.
+// tabela: { 'aluno:1000': {...} }. Devolve a tabela nova, a versão nova e a descrição para o histórico (null sem
+// mudança); o erro traz o código do servidor e o campo
 const erroDosDados = (code, message, campo = null) => Object.assign(new Error(message), { code, campo });
-export function gravarDadosPessoais(tabela, tipo, id, entrada, { hoje, autor = null, agora = null }) {
+export function gravarDadosPessoais(tabela, tipo, id, entrada, { hoje, autor = null, agora = null, atualizadoEmLido = null, cadastro }) {
   if (!['aluno', 'instrutor'].includes(tipo) || !Number.isInteger(id) || id <= 0) throw erroDosDados('22023', 'aluno ou instrutor inválido');
+  const nome = nomeNoCadastro(cadastro, tipo, id);
+  if (nome === null) throw erroDosDados('P0002', `${tipo} que não está no cadastro`);
   const { dados, erros } = validarDadosPessoais(entrada, hoje);
   const [campo] = Object.keys(erros);
   if (campo) throw erroDosDados('22023', erros[campo], campo);
@@ -81,8 +99,18 @@ export function gravarDadosPessoais(tabela, tipo, id, entrada, { hoje, autor = n
     const repetido = dados[c] && Object.entries(tabela).some(([outra, d]) => outra !== chave && outra.startsWith(`${tipo}:`) && d[c] === dados[c]);
     if (repetido) throw erroDosDados('23505', `${c === 'cpf' ? 'CPF' : 'CANAC'} já cadastrado para outro ${tipo}.`, c);
   }
+  const atual = tabela[chave] || null;
+  if ((atual ? atual.atualizado_em : null) !== (atualizadoEmLido ?? null)) {
+    throw erroDosDados('PT409', 'os dados pessoais foram alterados por outra pessoa; abra de novo para ver a versão atual');
+  }
   const nova = { ...tabela };
-  if (Object.keys(dados).length) nova[chave] = { ...dados, atualizado_em: agora, atualizado_por: autor };
+  const preenchido = Object.keys(dados).length > 0;
+  if (preenchido) nova[chave] = { ...dados, atualizado_em: agora, atualizado_por: autor };
   else delete nova[chave];
-  return nova;
+  const alterados = camposAlterados(atual, dados);
+  return {
+    tabela: nova,
+    atualizado_em: preenchido ? agora : null,
+    descricao: alterados.length ? `Dados pessoais de ${nome || tipo} atualizados: ${alterados.join(', ')}` : null
+  };
 }

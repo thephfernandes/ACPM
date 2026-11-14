@@ -3,7 +3,7 @@
 // só quais campos mudaram, nunca os valores.
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { CAMPOS_PESSOAIS, cpfValido, validarDadosPessoais, formatarCpf, formatarCelular, camposAlterados } from '../../js/dados-pessoais.js';
+import { CAMPOS_PESSOAIS, cpfValido, validarDadosPessoais, formatarCpf, formatarCelular, camposAlterados, gravarDadosPessoais, semQuemSaiu, nomeNoCadastro } from '../../js/dados-pessoais.js';
 
 describe('Dados pessoais: validação', () => {
   it('os campos: CPF, CANAC, nascimento, celular e e-mail', () => {
@@ -57,5 +57,38 @@ describe('Dados pessoais: na tela e no histórico', () => {
     assert.deepEqual(camposAlterados({ cpf: '52998224725', email: 'a@b.com' }, { cpf: '52998224725', celular: '37991234567' }), ['Celular', 'E-mail']);
     assert.deepEqual(camposAlterados({}, {}), []);
     assert.deepEqual(camposAlterados(null, { canac: '123456' }), ['CANAC']);
+  });
+});
+
+// Revisão de 14/11: a mesma regra do servidor (salvar_dados_pessoais) para o modo local e o servidor dos testes
+describe('Dados pessoais: gravar com a versão lida', () => {
+  const cadastro = { stu: [{ id: 1000, nm: 'Ana Souza' }, { id: 1001, nm: 'Bia' }], ins: [{ id: 7, nm: 'Instrutor 07' }] };
+  const opcoes = (extra = {}) => ({ hoje: '2026-11-14', autor: 'Rayane', agora: '2026-11-14T12:00:00.000Z', cadastro, ...extra });
+
+  it('grava, diz quando e o que mudou (a descrição do histórico, sem os valores)', () => {
+    const r = gravarDadosPessoais({}, 'aluno', 1000, { cpf: '529.982.247-25', canac: '123456' }, opcoes({ atualizadoEmLido: null }));
+    assert.deepEqual(r.tabela, { 'aluno:1000': { cpf: '52998224725', canac: '123456', atualizado_em: '2026-11-14T12:00:00.000Z', atualizado_por: 'Rayane' } });
+    assert.equal(r.atualizado_em, '2026-11-14T12:00:00.000Z');
+    assert.equal(r.descricao, 'Dados pessoais de Ana Souza atualizados: CPF, CANAC');
+    const igual = gravarDadosPessoais(r.tabela, 'aluno', 1000, { cpf: '52998224725', canac: '123456' }, opcoes({ atualizadoEmLido: r.atualizado_em, agora: '2026-11-14T13:00:00.000Z' }));
+    assert.equal(igual.descricao, null, 'sem mudança, nada para o histórico');
+  });
+
+  it('outra pessoa gravou antes (a versão lida não é a guardada): recusa com o código do servidor', () => {
+    const { tabela } = gravarDadosPessoais({}, 'aluno', 1000, { canac: '123456' }, opcoes({ atualizadoEmLido: null }));
+    assert.throws(() => gravarDadosPessoais(tabela, 'aluno', 1000, { canac: '654321' }, opcoes({ atualizadoEmLido: null })), e => e.code === 'PT409');
+    assert.throws(() => gravarDadosPessoais(tabela, 'aluno', 1000, { canac: '654321' }, opcoes({ atualizadoEmLido: '2000-01-01T00:00:00.000Z' })), e => e.code === 'PT409');
+  });
+
+  it('só quem está no cadastro', () => {
+    assert.equal(nomeNoCadastro(cadastro, 'instrutor', 7), 'Instrutor 07');
+    assert.equal(nomeNoCadastro(cadastro, 'aluno', 7), null);
+    assert.throws(() => gravarDadosPessoais({}, 'aluno', 1003, { canac: '123456' }, opcoes({ atualizadoEmLido: null })), e => e.code === 'P0002');
+  });
+
+  it('quem sai do cadastro leva os dados pessoais junto', () => {
+    const tabela = { 'aluno:1000': { canac: '1' }, 'aluno:1002': { canac: '2' }, 'instrutor:7': { canac: '3' }, 'instrutor:8': { canac: '4' } };
+    assert.deepEqual(Object.keys(semQuemSaiu(tabela, cadastro)), ['aluno:1000', 'instrutor:7']);
+    assert.equal(semQuemSaiu(tabela, { stu: [] }), tabela, 'sem as duas listas no cadastro, nada sai');
   });
 });

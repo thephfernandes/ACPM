@@ -196,6 +196,12 @@ function horario(iso, importado) {
   return importado ? `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')} ${hora.slice(0, 5)}` : hora;
 }
 
+// Uma entrada que o servidor já registrou (os dados pessoais: a própria função registra os campos que mudaram)
+export function mostrarNoHistorico({ id, descricao }) {
+  AUDIT_LOG.unshift({ id, ts: new Date().toTimeString().slice(0, 8), type: 'mod', desc: descricao, revert: null, reverte: null, autor: ApiClient.autorAtual, importado: false });
+  renderAuditPanel();
+}
+
 export async function historicoParaPainel(data) {
   return (await ApiClient.historicoDoDia(data)).map(e => ({
     id: e.id,

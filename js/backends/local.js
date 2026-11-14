@@ -1,7 +1,7 @@
 // Backend local: os documentos da escala ficam no localStorage deste navegador (modo sem login).
 // cadastro e dia:AAAA-MM-DD são o formato por data (fase 3); estado, escala, historico e bi, o da fase 2.
 import { prazoDaAgendaPermite } from '../agenda.js';
-import { gravarDadosPessoais } from '../dados-pessoais.js';
+import { gravarDadosPessoais, semQuemSaiu } from '../dados-pessoais.js';
 import { acumularHoras } from '../limites.js';
 import { hojeISO } from '../format.js';
 import { situacaoPorMissao, validarRegistro } from '../resultados.js';
@@ -71,6 +71,11 @@ export const backendLocal = {
     const chave = chaveLocal(documento);
     try {
       localStorage.setItem(chave, JSON.stringify(conteudo));
+      // Como o servidor: quem sai do cadastro leva os dados pessoais junto
+      if (documento === 'cadastro') {
+        const dados = lerJson(CHAVE_DADOS_PESSOAIS);
+        if (dados) localStorage.setItem(CHAVE_DADOS_PESSOAIS, JSON.stringify(semQuemSaiu(dados, conteudo)));
+      }
       return true;
     } catch (e) { return false; }
   },
@@ -169,9 +174,18 @@ export const backendLocal = {
       .map(([chave, dados]) => [Number(chave.slice(tipo.length + 1)), dados]));
   },
 
-  async salvarDadosPessoais(tipo, id, dados, { autor = null, agora = new Date() } = {}) {
-    const tabela = gravarDadosPessoais(lerJson(CHAVE_DADOS_PESSOAIS) || {}, tipo, id, dados, { hoje: hojeISO(), autor, agora: agora.toISOString() });
-    localStorage.setItem(CHAVE_DADOS_PESSOAIS, JSON.stringify(tabela));
+  async lerDadosPessoais(tipo, id) {
+    return (lerJson(CHAVE_DADOS_PESSOAIS) || {})[`${tipo}:${id}`] || {};
+  },
+
+  // Como o servidor: a partir da versão lida, só para quem está no cadastro, e o histórico da data registra os campos
+  async salvarDadosPessoais(tipo, id, dados, { autor = null, agora = new Date(), atualizadoEm = null, data = null } = {}) {
+    const r = gravarDadosPessoais(lerJson(CHAVE_DADOS_PESSOAIS) || {}, tipo, id, dados, {
+      hoje: hojeISO(), autor, agora: agora.toISOString(), atualizadoEmLido: atualizadoEm, cadastro: lerJson(CHAVES_LOCAIS.cadastro)
+    });
+    localStorage.setItem(CHAVE_DADOS_PESSOAIS, JSON.stringify(r.tabela));
+    const historico = r.descricao ? { id: await this.registrar({ data: data || hojeISO(), tipo: 'mod', descricao: r.descricao }), descricao: r.descricao } : null;
+    return { atualizado_em: r.atualizado_em, atualizado_por: autor, historico };
   },
 
   // Resultados das missões dos cursos neste navegador, com as regras do servidor: só acréscimo; vale o último registro

@@ -52,7 +52,7 @@ select ok(not exists (select 1 from public.historico), 'painel não lê o histó
 select ok(not exists (select 1 from public.solicitacoes), 'painel não lê a agenda');
 select ok(not exists (select 1 from public.dados_pessoais), 'painel não lê os dados pessoais');
 select throws_ok($$ select public.salvar_dia(current_date, '{}', 0) $$, '42501', null, 'painel não grava a escala');
-select throws_ok($$ select public.salvar_dados_pessoais('aluno', 1000, '{"canac":"123456"}') $$, '42501', null, 'painel não grava dados pessoais');
+select throws_ok($$ select public.salvar_dados_pessoais('aluno', 1000, '{"canac":"123456"}', null, null) $$, '42501', null, 'painel não grava dados pessoais');
 
 -- Painel: o quadro de hoje
 select is(public.painel_do_dia()->>'data', ((now() at time zone 'America/Sao_Paulo')::date)::text, 'o quadro é o de hoje (São Paulo)');
