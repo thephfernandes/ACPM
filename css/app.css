@@ -1227,3 +1227,37 @@ body.tela-painel { min-height: 100vh; background: #07122B; overflow: hidden; }
 .login-painel h1 { margin: 0; font: 700 22px 'Barlow Semi Condensed', sans-serif; }
 .login-painel label { display: flex; flex-direction: column; gap: 4px; font-weight: 600; }
 .login-logo { height: 44px; width: auto; align-self: flex-start; }
+
+/* As dicas (revisão de 14/11): o balão do glossário e o botão "?" ao lado de um rótulo */
+.dica {
+  position: fixed; top: 0; left: 0; z-index: 60;
+  width: max-content; max-width: min(300px, calc(100vw - 16px));
+  padding: 8px 10px; border: 1px solid var(--ln); border-radius: 6px;
+  background: var(--pop-bg); color: var(--pop-txt);
+  font-size: 12.5px; line-height: 1.45; box-shadow: 0 8px 24px rgba(0,0,0,.35);
+  pointer-events: auto;
+}
+.dica[hidden] { display: none; }
+.dica strong { font-weight: 700; }
+.dica::after {
+  content: ""; position: absolute; top: 100%; left: var(--seta, 50%); margin-left: -6px;
+  border: 6px solid transparent; border-top-color: var(--pop-bg);
+}
+.dica.abaixo::after { top: auto; bottom: 100%; border-top-color: transparent; border-bottom-color: var(--pop-bg); }
+.dica-btn {
+  display: inline-grid; place-items: center; width: 18px; height: 18px; margin: 0 2px; padding: 0;
+  border: 1px solid var(--ln); border-radius: 50%; background: transparent; color: var(--mu);
+  font: 700 11px/1 inherit; cursor: help; vertical-align: middle;
+}
+.dica-btn:hover, .dica-btn[aria-expanded="true"] { border-color: currentColor; color: var(--ink); }
+.dica-btn:focus-visible { outline: 2px solid var(--ac); outline-offset: 2px; }
+[data-dica]:not(button):not(.dica-btn) { cursor: help; }
+.tag[data-dica] { text-decoration: underline dotted; text-underline-offset: 2px; }
+/* No celular e no toque, o "?" tem 44 px para o dedo; o círculo continua pequeno */
+@media (max-width: 640px), (pointer: coarse) {
+  .dica-btn {
+    width: 44px; height: 44px; margin: -13px -11px; border-color: transparent;
+    background: radial-gradient(circle, transparent 8px, var(--ln) 8.5px, var(--ln) 9.5px, transparent 10px);
+  }
+  .dica-btn:hover, .dica-btn[aria-expanded="true"] { border-color: transparent; }
+}

@@ -14,7 +14,7 @@ import { metricasDaEscala } from '../metricas.js';
 import { sumUniqueOperationalHours, consolidateTimelineSlots } from '../engine.js';
 import { S, RES, AUDIT_LOG, TL_MODE, DATA, isGestor, dadoIndisponivel } from '../state.js';
 import { motivoDoFixo } from '../fixos.js';
-import { $ } from '../dom.js';
+import { $, posicionarJunto } from '../dom.js';
 
 export const HT = o => (o.isGround || isGroundMission(o.mis) ? '01h30 (1,5 h)' : o.h + ' h' + (o.ss !== '1/1' ? ` (sessão ${o.ss})` : ''));
 
@@ -57,21 +57,6 @@ function conteudoDoPopup(o) {
     ${!turma && o.stuId ? `<button type="button" class="tl-pop-btn edit-only" data-act="rm-fly" data-id="${esc(o.stuId)}" data-mid="${esc(o.mid || 0)}">✕ Excluir da escala</button>` : ''}`;
 }
 
-// Acima da barra (ou abaixo, quando não cabe), sempre inteiro na tela; a seta aponta para o meio da barra
-const MARGEM = 8, DISTANCIA = 10;
-function posicionarPopup(pop, barra) {
-  const r = barra.getBoundingClientRect();
-  const { offsetWidth: largura, offsetHeight: altura } = pop;
-  const acima = r.top - DISTANCIA - altura >= MARGEM || r.bottom + DISTANCIA + altura > innerHeight - MARGEM && r.top > innerHeight - r.bottom;
-  const topo = Math.min(Math.max(acima ? r.top - DISTANCIA - altura : r.bottom + DISTANCIA, MARGEM), innerHeight - altura - MARGEM);
-  const meio = r.left + r.width / 2;
-  const esquerda = Math.min(Math.max(meio - largura / 2, MARGEM), innerWidth - largura - MARGEM);
-  pop.style.top = `${Math.round(topo)}px`;
-  pop.style.left = `${Math.round(esquerda)}px`;
-  pop.style.setProperty('--seta', `${Math.round(Math.min(Math.max(meio - esquerda, 14), largura - 14))}px`);
-  pop.classList.toggle('abaixo', !acima);
-}
-
 const barraDoPopup = () => (popupDe === null ? null : document.querySelector(`#out .tl-bar[data-pop="${CSS.escape(popupDe)}"]`));
 
 export function abrirPopupDoMapa(barra) {
@@ -82,7 +67,7 @@ export function abrirPopupDoMapa(barra) {
   pop.hidden = false;
   barra.setAttribute('aria-expanded', 'true');
   popupDe = barra.dataset.pop;
-  posicionarPopup(pop, barra);
+  posicionarJunto(pop, barra);
 }
 
 export function fecharPopupDoMapa({ devolverFoco = false } = {}) {
@@ -100,7 +85,7 @@ export const popupDoMapaAberto = () => popupDe !== null;
 export function reposicionarPopupDoMapa() {
   if (popupDe === null) return;
   const barra = barraDoPopup();
-  if (barra && barra.checkVisibility()) posicionarPopup($('#tl-pop'), barra);
+  if (barra && barra.checkVisibility()) posicionarJunto($('#tl-pop'), barra);
   else fecharPopupDoMapa();
 }
 
@@ -249,9 +234,9 @@ const statusDe = o => (S.fStatus && S.fStatus[o.fKey]) || o.status || 'Confirmad
 
 // A preferência só aparece quando o voo não ficou na 1ª
 function preferencia(o) {
-  if (o.baseTag === 'Pref. 2') return ' <span class="tag">2ª preferência</span>';
-  if (o.baseTag === 'Próximo livre') return ' <span class="tag fb">horário livre</span>';
-  if (o.baseTag === 'Horário ajustado') return ' <span class="tag fb" title="A compactação mudou o horário para fechar um buraco do dia (pela regra dos horários escolhida)">horário ajustado</span>';
+  if (o.baseTag === 'Pref. 2') return ' <span class="tag" data-dica="segunda-preferencia">2ª preferência</span>';
+  if (o.baseTag === 'Próximo livre') return ' <span class="tag fb" data-dica="horario-livre">horário livre</span>';
+  if (o.baseTag === 'Horário ajustado') return ' <span class="tag fb" data-dica="horario-ajustado">horário ajustado</span>';
   return '';
 }
 
@@ -314,10 +299,10 @@ function rCompactacao(out) {
   lugar.hidden = !out.length && !S.aprovacao;
   const criterios = normalizarCriterios(S.criterios);
   const travado = isGestor() || Boolean(S.aprovacao);
-  const grupo = (campo, rotulo, opcoes) => `<span class="flt-rotulo"><span>${rotulo}</span> <span class="seg" role="group" aria-label="${rotulo}">${opcoes.map(([id, nome, dica]) =>
-    `<button type="button" data-criterio="${campo}" data-valor="${id}" aria-pressed="${criterios[campo] === id}"${criterios[campo] === id ? ' class="on"' : ''} title="${esc(dica)}"${travado ? ' disabled' : ''}>${esc(nome)}</button>`).join('')}</span></span>`;
-  $('#criterios').title = S.aprovacao && !isGestor() ? 'Com a escala aprovada, os voos fixos não mudam: reabra a escala para mudar os critérios.' : '';
-  $('#criterios').innerHTML = grupo('buracos', 'Buracos', OPCOES_DE_BURACOS) + grupo('horarios', 'Horários', OPCOES_DE_HORARIOS);
+  // Cada critério e cada opção com a dica do glossário (revisão de 14/11)
+  const grupo = (campo, rotulo, dica, opcoes) => `<span class="flt-rotulo"><span>${rotulo}</span><button type="button" class="dica-btn" data-dica="${dica}" aria-label="O que é ${rotulo}?" aria-expanded="false">?</button> <span class="seg" role="group" aria-label="${rotulo}">${opcoes.map(([id, nome]) =>
+    `<button type="button" data-criterio="${campo}" data-valor="${id}" data-dica="criterio-${id}" aria-pressed="${criterios[campo] === id}"${criterios[campo] === id ? ' class="on"' : ''}${travado ? ' disabled' : ''}>${esc(nome)}</button>`).join('')}</span></span>`;
+  $('#criterios').innerHTML = grupo('buracos', 'Buracos', 'buracos', OPCOES_DE_BURACOS) + grupo('horarios', 'Horários', 'horarios', OPCOES_DE_HORARIOS);
 }
 
 // O tempo parado que sobra na escala (sem os voos cancelados), ao lado do resumo: o efeito dos critérios da compactação

@@ -44,3 +44,19 @@ export const focusLast = sel => {
   const e = [...document.querySelectorAll(sel)].pop();
   if (e) { e.scrollIntoView({ block: 'center' }); e.focus(); e.select(); }
 };
+
+// Um balão junto de um elemento (o popup do mapa da escala, a dica): acima dele (ou abaixo, quando não cabe), sempre
+// inteiro na tela; a seta (--seta) aponta para o meio do elemento
+const MARGEM = 8, DISTANCIA = 10;
+export function posicionarJunto(balao, alvo) {
+  const r = alvo.getBoundingClientRect();
+  const { offsetWidth: largura, offsetHeight: altura } = balao;
+  const acima = r.top - DISTANCIA - altura >= MARGEM || r.bottom + DISTANCIA + altura > innerHeight - MARGEM && r.top > innerHeight - r.bottom;
+  const topo = Math.min(Math.max(acima ? r.top - DISTANCIA - altura : r.bottom + DISTANCIA, MARGEM), innerHeight - altura - MARGEM);
+  const meio = r.left + r.width / 2;
+  const esquerda = Math.min(Math.max(meio - largura / 2, MARGEM), innerWidth - largura - MARGEM);
+  balao.style.top = `${Math.round(topo)}px`;
+  balao.style.left = `${Math.round(esquerda)}px`;
+  balao.style.setProperty('--seta', `${Math.round(Math.min(Math.max(meio - esquerda, 14), largura - 14))}px`);
+  balao.classList.toggle('abaixo', !acima);
+}

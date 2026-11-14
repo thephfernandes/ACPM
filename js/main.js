@@ -55,6 +55,7 @@ import { importarSolicitacoes, disponibilidadeDaSolicitacao } from './agenda.js'
 import { abrirAgenda, carregarMes, mudarMes, escolherDia, diaDaAgenda, lembrarRegistradoPor, podeEditarAgenda, rAgenda, preencherHorariosDaAgenda } from './views/agenda.js';
 import { ESQUEMA } from './migracoes.js';
 import { iniciarSessaoSupabase } from './sessao.js';
+import { iniciarDicas } from './dicas.js';
 
 const activeTimers = new WeakMap();
 
@@ -1238,6 +1239,8 @@ window.addEventListener('beforeunload', e => {
     if (savedTheme) document.documentElement.setAttribute('data-theme', savedTheme);
   } catch (e) {}
   mostrarTema();
+  // As dicas dos termos (revisão de 14/11)
+  iniciarDicas();
 
   const amanha = amanhaISO();
   abrirData(amanha);
