@@ -26,6 +26,10 @@ function backendEmMemoria() {
       return [...docs.keys()].filter(k => k.startsWith('dia:')).map(k => k.slice(4)).filter(d => d >= de && d <= ate).sort()
         .map(d => ({ data: d, conteudo: structuredClone(docs.get(`dia:${d}`)) }));
     },
+    async diasEmFormatoAntigo(esquema) {
+      const versao = c => (c && typeof c.esquema === 'number' ? Math.floor(c.esquema) : 0);
+      return [...docs.keys()].filter(k => k.startsWith('dia:') && versao(docs.get(k)) < esquema).map(k => k.slice(4)).sort();
+    },
     async diaAnterior(data) {
       const d = [...docs.keys()].filter(k => k.startsWith('dia:')).map(k => k.slice(4)).filter(x => x < data).sort().pop();
       return d ? { data: d, conteudo: structuredClone(docs.get(`dia:${d}`)) } : null;
@@ -256,6 +260,8 @@ describe('Formato dos dados guardados (versões)', () => {
     await backend.gravar('dia:2026-11-11', diaFase3());
     await backend.gravar('dia:2026-11-12', { ...diaFase3(), av: { 'SIM-MONO-A': true }, esquema: ESQUEMA });
     backend.gravacoes.length = 0;
+    // Só as datas num formato anterior (o servidor devolve no máximo 1000 linhas por consulta: nada de baixar todos os dias)
+    backend.listarDias = async () => { throw new Error('não deve baixar todos os dias'); };
     assert.equal(await ApiClient.atualizarFormatoGravado(), true);
     assert.deepEqual(backend.gravacoes, ['dia:2026-10-16', 'dia:2026-11-11', 'cadastro'], 'o dia que já estava no formato atual não é regravado');
     assert.equal(backend.docs.get('dia:2026-10-16').resultado.out[0].r, 'SIM-MONO-A');

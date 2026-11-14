@@ -21,7 +21,7 @@ set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-4000-e000-000000000001","role":"authenticated"}', true);
 select is(public.perfil_atual(), 'operador'::perfil_acesso, 'nas regras da escala, o administrador conta como operador');
 select is(public.administrador_atual(), true, 'e é reconhecido como administrador');
-select lives_ok($$ select public.salvar_dia('2099-01-01', '{"esquema":10}', (select coalesce(max(versao), 0) from public.dias where data = '2099-01-01')) $$,
+select lives_ok($$ select public.salvar_dia('2099-01-01', '{"esquema":99}', (select coalesce(max(versao), 0) from public.dias where data = '2099-01-01')) $$,
   'administrador grava a escala');
 select isnt(public.registrar_historico('2099-01-01', 'mod', 'Alteração do administrador'), null, 'administrador registra no histórico');
 select isnt(public.registrar_solicitacao(current_date, 1000, 'Aluno 1000', 'Voo Local', 'manha', null, 'Coordenação', null, true), null,

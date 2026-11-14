@@ -322,7 +322,7 @@ export const ApiClient = {
     if (this.readOnly) return false;
     const cadastro = await this.backend.ler('cadastro');
     if (!precisaMigrar(cadastro)) return false;
-    for (const { data } of await this.backend.listarDias('0001-01-01', '9999-12-31')) {
+    for (const data of await this.backend.diasEmFormatoAntigo(ESQUEMA)) {
       const dia = await this.backend.ler(`dia:${data}`);
       if (!precisaMigrar(dia)) continue;
       if (!await this.backend.gravar(`dia:${data}`, migrarDia(dia))) throw new Error(`A atualização dos dados não terminou (dia ${data}).`);

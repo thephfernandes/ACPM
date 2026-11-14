@@ -40,6 +40,14 @@ describe('Backend local: escala por data, cadastro e histórico', () => {
     await assert.rejects(backendLocal.ler('dia:amanhã'), /documento desconhecido/);
   });
 
+  it('as datas guardadas num formato anterior (a atualização do formato lê só essas)', async () => {
+    localStorage.setItem('acpm4_dia_2026-11-10', JSON.stringify({ esquema: 17 }));
+    localStorage.setItem('acpm4_dia_2026-11-11', JSON.stringify({ esquema: 18 }));
+    localStorage.setItem('acpm4_dia_2026-11-12', JSON.stringify({ v: 1 }));
+    localStorage.setItem('acpm4_dia_2026-11-13', '{corrompido');
+    assert.deepEqual(await backendLocal.diasEmFormatoAntigo(18), ['2026-11-10', '2026-11-12', '2026-11-13']);
+  });
+
   it('lista as datas de um período em ordem e acha o dia anterior com escala', async () => {
     for (const d of ['2026-11-12', '2026-10-30', '2026-11-01', '2026-11-30', '2026-12-01']) await backendLocal.gravar(`dia:${d}`, { d });
     localStorage.setItem('acpm3', '{}');

@@ -75,6 +75,12 @@ export const backendLocal = {
     } catch (e) { return false; }
   },
 
+  // As datas guardadas num formato anterior (a atualização do formato lê só essas); o dia ilegível também
+  async diasEmFormatoAntigo(esquema) {
+    const versao = c => (c && typeof c.esquema === 'number' ? Math.floor(c.esquema) : 0);
+    return datasGuardadas().filter(d => versao(lerJson(PREFIXO_DIA + d)) < esquema);
+  },
+
   async listarDias(de, ate) {
     return datasGuardadas()
       .filter(d => d >= de && d <= ate)

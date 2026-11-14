@@ -77,6 +77,13 @@ export function criarBackendSupabase(cliente, { aoConflito = () => {}, aoErro = 
       return data;
     },
 
+    // As datas gravadas num formato anterior (a atualização do formato lê só essas)
+    async diasEmFormatoAntigo(esquema) {
+      const { data, error } = await cliente.rpc('dias_em_formato_antigo', { p_esquema: esquema });
+      if (error) throw erroComCodigo(error);
+      return data || [];
+    },
+
     async diaAnterior(data) {
       await gravacoesConcluidas();
       const { data: anterior, error } = await cliente.from('dias').select('data, conteudo')

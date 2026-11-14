@@ -121,6 +121,9 @@ function clienteFalso(documentos = {}, { atraso = 0, dias = {} } = {}) {
           return { data: null, error: { code: e.code, message: e.message } };
         }
       }
+      if (nome === 'dias_em_formato_antigo') {
+        return { data: [...tabelaDias].filter(([, d]) => esquema(d.conteudo) < args.p_esquema).map(([data]) => data).sort(), error: null };
+      }
       if (nome === 'situacao_das_missoes') return { data: [...situacaoPorMissao(resultados).values()].map(({ id, ...r }) => r), error: null };
       if (nome === 'listar_contas') return { data: contas.map(({ senha, ...c }) => c), error: null };
       if (nome === 'criar_conta') {
@@ -295,6 +298,14 @@ describe('Backend Supabase: escala por data e histórico', () => {
     ]);
     assert.deepEqual(await backend.diaAnterior('2026-11-12'), { data: '2026-11-01', conteudo: { d: '2026-11-01' } });
     assert.equal(await backend.diaAnterior('2026-10-30'), null);
+  });
+
+  it('as datas num formato anterior vêm do servidor (dias_em_formato_antigo), sem baixar os dias', async () => {
+    const dias = { '2026-11-10': { conteudo: { esquema: 17 }, versao: 1 }, '2026-11-11': { conteudo: { esquema: 18 }, versao: 1 }, '2026-11-12': { conteudo: {}, versao: 1 } };
+    const cliente = clienteFalso({}, { dias });
+    const backend = criarBackendSupabase(cliente);
+    assert.deepEqual(await backend.diasEmFormatoAntigo(18), ['2026-11-10', '2026-11-12']);
+    assert.deepEqual(cliente.chamadas.at(-1), ['dias_em_formato_antigo', { p_esquema: 18 }]);
   });
 
   it('histórico: registra pela função (com o que reverter), lista por data e importa', async () => {

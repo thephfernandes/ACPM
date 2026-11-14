@@ -57,9 +57,11 @@ function consultar(linhas, url) {
     const comparar = (a, b, [coluna, sentido]) => (a[coluna] < b[coluna] ? -1 : a[coluna] > b[coluna] ? 1 : 0) * (sentido === 'desc' ? -1 : 1);
     resultado = [...resultado].sort((a, b) => criterios.reduce((r, c) => r || comparar(a, b, c), 0));
   }
-  const limite = url.searchParams.get('limit');
-  return limite ? resultado.slice(0, Number(limite)) : resultado;
+  // Como no Supabase, uma consulta devolve no máximo 1000 linhas
+  const limite = Math.min(Number(url.searchParams.get('limit') || LINHAS_POR_CONSULTA), LINHAS_POR_CONSULTA);
+  return resultado.slice(0, limite);
 }
+const LINHAS_POR_CONSULTA = 1000;
 
 // Um servidor pode atender vários contextos do navegador (ex.: operador e gestor vendo os mesmos dados)
 // agora: o relógio do servidor para o prazo da agenda (o mesmo instante do relógio fixo das páginas)
@@ -96,9 +98,14 @@ export function criarSupabaseFalso({ documentos = {}, dias = {}, historico: hist
 
   // Versão do formato do conteúdo (campo esquema); o servidor não aceita voltar a um formato mais antigo
   const esquema = conteudo => (conteudo && typeof conteudo.esquema === 'number' ? Math.floor(conteudo.esquema) : 0);
-  const salvar = (mapa, chave, conteudo, versaoLida) => {
+  const STATUS = ['Pendente', 'Confirmado', 'Atrasado', 'Em Voo', 'Cancelado', 'Pousou'];
+  const statusValidos = conteudo => !conteudo || !Object.hasOwn(conteudo, 'fStatus') || (conteudo.fStatus && typeof conteudo.fStatus === 'object' &&
+    !Array.isArray(conteudo.fStatus) && Object.entries(conteudo.fStatus).every(([fKey, st]) => /^\d+_\d+_\d+$/.test(fKey) && STATUS.includes(st)));
+  const salvar = (mapa, chave, conteudo, versaoLida, { formatoMinimo = 0 } = {}) => {
     const atual = mapa.get(chave);
-    if (atual && esquema(conteudo) < esquema(atual.conteudo)) return [409, { code: 'PT409', message: `${chave} está num formato mais novo` }];
+    if (esquema(conteudo) < Math.max(atual ? esquema(atual.conteudo) : 0, formatoMinimo)) {
+      return [409, { code: 'PT409', message: `${chave} está num formato mais antigo que o dos dados; recarregue a página`, hint: 'formato' }];
+    }
     const versaoAtual = atual ? atual.versao : 0;
     if (versaoLida !== versaoAtual) return [409, { code: 'PT409', message: `${chave} foi alterado por outra pessoa` }];
     mapa.set(chave, { conteudo, versao: versaoAtual + 1 });
@@ -245,10 +252,19 @@ export function criarSupabaseFalso({ documentos = {}, dias = {}, historico: hist
       if (!operador) return responder(403, { code: '42501', message: 'somente operadores podem alterar a escala' });
       if (funcao === 'salvar_documento') {
         // Depois da conversão (o cadastro existe), os documentos da fase 2 ficam só como cópia
-        if (args.p_chave !== 'cadastro' && banco.has('cadastro')) return responder(409, { code: 'PT409', message: `${args.p_chave} é da versão anterior do app` });
+        if (args.p_chave !== 'cadastro' && banco.has('cadastro')) return responder(409, { code: 'PT409', message: `${args.p_chave} é da versão anterior do app`, hint: 'formato' });
         return responder(...salvar(banco, args.p_chave, args.p_conteudo, args.p_versao_lida));
       }
-      if (funcao === 'salvar_dia') return responder(...salvar(tabelaDias, args.p_data, args.p_conteudo, args.p_versao_lida));
+      if (funcao === 'salvar_dia') {
+        // Um dia não nasce num formato mais antigo que o do cadastro, e só leva os status da lista
+        const cadastro = banco.get('cadastro');
+        if (!statusValidos(args.p_conteudo)) return responder(400, { code: '23514', message: 'status de voo fora da lista' });
+        return responder(...salvar(tabelaDias, args.p_data, args.p_conteudo, args.p_versao_lida, { formatoMinimo: cadastro ? esquema(cadastro.conteudo) : 0 }));
+      }
+      if (funcao === 'dias_em_formato_antigo') {
+        if (!operador) return responder(403, { code: '42501', message: 'somente operadores atualizam o formato dos dados' });
+        return responder(200, [...tabelaDias].filter(([, d]) => esquema(d.conteudo) < args.p_esquema).map(([data]) => data).sort());
+      }
       if (funcao === 'registrar_resultado') {
         try {
           const r = validarRegistro({ aluno: args.p_aluno, curso: args.p_curso, missao: args.p_missao, resultado: args.p_resultado, data: args.p_data, voo: args.p_voo });
