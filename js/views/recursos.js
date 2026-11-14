@@ -1,7 +1,9 @@
 // Aba Recursos: janelas de operação e a frota numa tabela só: disponível ou em manutenção, horas desde a última
 // revisão de 50 horas, saldo até a revisão e o que o avião voa na escala do dia. A tabela mostra uma categoria ou
-// todas, e cada categoria recolhe e abre.
+// todas, e cada categoria recolhe e abre. Embaixo, a ordem dos aviões no hangar.
 import { WIN, NI, AIRCRAFT_EQ_TYPES, SIM_EQ_TYPES, REVISAO_H } from '../config.js';
+import { normalizarHangar } from '../hangar.js';
+import { FROTA_INICIAL } from '../frota.js';
 import { S, RES } from '../state.js';
 import { $ } from '../dom.js';
 import { hm, fmtH, esc } from '../format.js';
@@ -92,4 +94,31 @@ export function rRec() {
   $('#wins').innerHTML = WIN.map((w, i) => `<label class="janela${S.win[i] ? '' : ' off'}"><input type="checkbox" class="sw" data-a="win" data-i="${i}"${S.win[i] ? ' checked' : ''}><b>${w}</b> <small>${i == NI ? 'noturno' : (i + 1) + 'º'}</small></label>`).join('');
   rHorarios();
   rRevisao();
+  rHangar();
+}
+
+// A ordem dos aviões no hangar, da frente para o fundo, com o que cada um voa na escala da data; os botões aparecem com
+// o mouse ou o foco (como no Rodízio)
+export function rHangar() {
+  const lista = $('#hangar');
+  if (!lista) return;
+  const frota = S.frota || FROTA_INICIAL;
+  const hangar = normalizarHangar(S.hangar, frota);
+  const voos = (RES && RES.out) || [];
+  lista.innerHTML = hangar.map((r, i) => {
+    const tipo = (frota.find(f => f.reg === r) || {}).tipo || '';
+    const naEscala = voos.filter(o => o.r === r).length;
+    const situacao = S.av[r] === false ? '<span class="tag fb">manutenção</span>'
+      : naEscala ? `<span class="tag grp">${naEscala} ${naEscala === 1 ? 'voo' : 'voos'} nesta data</span>` : '';
+    const botao = (acao, icone, rotulo, desligado) =>
+      `<button class="x" data-act="hangar-${acao}" data-id="${esc(r)}" aria-label="${rotulo}" title="${rotulo}"${desligado ? ' disabled' : ''}><svg class="ico"><use href="#${icone}"/></svg></button>`;
+    return `<li data-id="${esc(r)}">
+        <span class="pos">${i + 1}º</span>
+        <b>${esc(r)}</b> <small>${esc(tipo)}</small>
+        ${situacao}
+        <span class="acoes edit-only">
+          ${botao('subir', 'i-cima', `Subir ${r}`, i === 0)}${botao('descer', 'i-baixo', `Descer ${r}`, i === hangar.length - 1)}${botao('frente', 'i-topo', `Pôr ${r} na frente do hangar`, i === 0)}
+        </span>
+      </li>`;
+  }).join('');
 }

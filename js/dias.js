@@ -6,6 +6,10 @@ import { blank } from './rules.js';
 import { filasDoDiaSeguinte } from './rodizio.js';
 import { FROTA_INICIAL, normalizarFrota } from './frota.js';
 import { normalizarHorarios } from './horarios.js';
+import { normalizarHangar } from './hangar.js';
+import { normalizarLimites } from './limites.js';
+import { normalizarFixos, normalizarAprovacao } from './fixos.js';
+import { CRITERIOS_PADRAO, normalizarCriterios } from './criterios.js';
 
 // jan: disponibilidade do aluno (só quando o pedido tem uma)
 const CAMPOS_DO_PEDIDO = ['fly', 'mis', 'eq', 'p1', 'p2', 'nb', 'ss', 'pr', 'jan'];
@@ -18,17 +22,25 @@ const avDaFrota = frota => Object.fromEntries(frota.map(f => [f.reg, true]));
 // filas: filas do rodízio (cheque, MLTE, noturno e C172) no início do dia
 // importadas: solicitações da agenda já importadas para a demanda do dia
 // fObs: o detalhe do status de cada voo (motivo do cancelamento, novo horário do atraso)
-export const diaPadrao = () => ({ win: WIN.map(() => true), av: avDaFrota(FROTA_INICIAL), ins: {}, pedidos: {}, fStatus: {}, fObs: {}, horas: {}, filas: {}, importadas: [] });
+// hangar: a ordem dos aviões no hangar, da frente para o fundo (sem ela, a ordem da frota)
+// fixos e aprovacao: a escala aprovada (os voos fixos e quem aprovou), que vale só para a própria data
+// criterios: os critérios da compactação (os buracos e os horários), que continuam na data seguinte
+export const diaPadrao = () => ({ win: WIN.map(() => true), av: avDaFrota(FROTA_INICIAL), ins: {}, pedidos: {}, fStatus: {}, fObs: {}, horas: {}, filas: {}, hangar: normalizarHangar(null, FROTA_INICIAL), fixos: {}, aprovacao: null, criterios: { ...CRITERIOS_PADRAO }, importadas: [] });
 
 export function separar(estado) {
   return {
     cadastro: {
       nid: estado.nid,
       // O nível A01–A09 de antes da fase 4 fica só como cópia, em quem já o tinha
-      ins: estado.ins.map(({ id, nm, lv, kg, hab }) => ({ id, nm, ...(lv === undefined ? {} : { lv }), kg, hab: [...(hab || [])] })),
+      ins: estado.ins.map(({ id, nm, lv, kg, hab, horasExternas }) => ({
+        id, nm, ...(lv === undefined ? {} : { lv }), kg, hab: [...(hab || [])],
+        // Horas de voo fora do app (fase 11), por mês ('AAAA-MM'; 'AAAA-00': antes deste mês, no ano)
+        ...(horasExternas && Object.keys(horasExternas).length ? { horasExternas: { ...horasExternas } } : {})
+      })),
       stu: estado.stu.map(({ id, nm, kg, bl }) => ({ id, nm, kg, bl: [...(bl || [])] })),
       ...(Array.isArray(estado.frota) ? { frota: estado.frota.map(f => ({ ...f })) } : {}),
-      ...(estado.horarios ? { horarios: structuredClone(estado.horarios) } : {})
+      ...(estado.horarios ? { horarios: structuredClone(estado.horarios) } : {}),
+      ...(estado.limites ? { limites: { ...estado.limites } } : {})
     },
     dia: {
       win: [...estado.win],
@@ -42,6 +54,10 @@ export function separar(estado) {
       fObs: structuredClone(estado.fObs || {}),
       horas: { ...(estado.horas || {}) },
       filas: structuredClone(estado.filas || {}),
+      hangar: [...(estado.hangar || [])],
+      fixos: structuredClone(estado.fixos || {}),
+      aprovacao: estado.aprovacao ? { ...estado.aprovacao } : null,
+      criterios: normalizarCriterios(estado.criterios),
       importadas: [...(estado.importadas || [])]
     }
   };
@@ -57,6 +73,7 @@ export function juntar(cadastro, dia = diaPadrao()) {
     schemaVer: 4,
     ...(Array.isArray(cadastro.frota) ? { frota } : {}),
     ...(cadastro.horarios ? { horarios: normalizarHorarios(cadastro.horarios) } : {}),
+    ...(cadastro.limites ? { limites: normalizarLimites(cadastro.limites) } : {}),
     win: Array.isArray(dia.win) ? [...dia.win] : WIN.map(() => true),
     av: { ...avDaFrota(frota), ...(dia.av || {}) },
     lim: { ...DEFAULT_LIM },
@@ -74,16 +91,20 @@ export function juntar(cadastro, dia = diaPadrao()) {
     fObs: structuredClone(dia.fObs || {}),
     horas: { ...(dia.horas || {}) },
     filas: structuredClone(dia.filas || {}),
+    hangar: normalizarHangar(dia.hangar, frota),
+    fixos: normalizarFixos(dia.fixos),
+    aprovacao: normalizarAprovacao(dia.aprovacao),
+    criterios: normalizarCriterios(dia.criterios),
     importadas: [...(dia.importadas || [])]
   };
 }
 
-// Nova data: começa com a disponibilidade e a demanda do dia anterior, sem status dos voos (nem os detalhes) nem escala gerada; as horas
+// Nova data: começa com a disponibilidade, a demanda, a ordem do hangar e os critérios da compactação do dia anterior, sem status dos voos (nem os detalhes) nem escala gerada; as horas
 // até a revisão e as filas do rodízio já contam os voos do dia anterior (instrutores: o cadastro, para as filas)
 export function diaParaCopiar(anterior, instrutores = []) {
   if (!anterior || !anterior.ins || !anterior.pedidos) return diaPadrao();
-  const { win, av, ins, pedidos } = structuredClone(anterior);
-  return { win, av, ins, pedidos, fStatus: {}, fObs: {}, horas: horasDoDiaSeguinte(anterior), filas: filasDoDiaSeguinte(anterior, instrutores), importadas: [] };
+  const { win, av, ins, pedidos, hangar = null, criterios } = structuredClone(anterior);
+  return { win, av, ins, pedidos, fStatus: {}, fObs: {}, horas: horasDoDiaSeguinte(anterior), filas: filasDoDiaSeguinte(anterior, instrutores), hangar: hangar || normalizarHangar(null, FROTA_INICIAL), fixos: {}, aprovacao: null, criterios: normalizarCriterios(criterios), importadas: [] };
 }
 
 // Horas desde a última revisão no início do dia seguinte: as do dia mais os voos dele que não foram cancelados

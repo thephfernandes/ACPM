@@ -30,6 +30,7 @@
   <symbol id="i-lista" viewBox="0 0 24 24"><path d="M9 6h12M9 12h12M9 18h12"/><path d="M4 6h.01M4 12h.01M4 18h.01"/></symbol>
   <symbol id="i-decolagem" viewBox="0 0 24 24"><path d="M2 22h20"/><path d="M6.36 17.4 4 17l-2-4 1.1-.55a2 2 0 0 1 1.8 0l.17.1a2 2 0 0 0 1.8 0L8 12 5 6l.9-.45a2 2 0 0 1 2.09.2l4.02 3a2 2 0 0 0 2.1.2l4.19-2.06a2.41 2.41 0 0 1 1.73-.17L21 7a1.4 1.4 0 0 1 .87 1.99l-.38.76c-.23.46-.6.84-1.07 1.08L7.58 17.2a2 2 0 0 1-1.22.18Z"/></symbol>
   <symbol id="i-pouso" viewBox="0 0 24 24"><path d="M2 22h20"/><path d="M3.77 10.77 2 9l2-4.5 1.1.55c.55.28.9.84.9 1.45s.35 1.17.9 1.45L8 8.5l3-6 1.05.53a2 2 0 0 1 1.09 1.52l.72 5.4a2 2 0 0 0 1.09 1.52l4.4 2.2c.42.22.78.55 1.01.96l.6 1.03c.49.88-.06 1.98-1.06 2.1l-1.18.15c-.47.06-.95-.02-1.37-.24L4.29 11.15a2 2 0 0 1-.52-.38Z"/></symbol>
+  <symbol id="i-cadeado" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></symbol>
   <symbol id="i-painel" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9h5M15 9h2M7 13h5M15 13h2M7 17h5M15 17h2"/></symbol>
   <symbol id="i-sair" viewBox="0 0 24 24"><path d="M15 4h4a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-4"/><path d="M10 17l5-5-5-5"/><path d="M15 12H3"/></symbol>
   <symbol id="i-conta" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="10" r="3"/><path d="M6.5 18.5a6.5 6.5 0 0 1 11 0"/></symbol>
@@ -166,6 +167,11 @@
       </table>
     </div>
     <p class="h">A data seguinte começa com estas horas mais os voos do dia que não foram cancelados. Avião sem as horas informadas fica sem o controle da revisão.</p>
+    <div class="pn">
+      <h3>Ordem no hangar</h3>
+      <p class="h">Da frente para o fundo. A escala tira primeiro os aviões da frente e junta os voos nos que já saíram, para não deixar avião parado no meio do dia; a data seguinte começa com esta ordem.</p>
+      <ol class="fila hangar" id="hangar"></ol>
+    </div>
   </section>
 
   <!-- INSTRUTORES: disponibilidade do dia e cadastro -->
@@ -194,9 +200,10 @@
     </div>
     <div class="vista-cadastro">
       <div class="tw"><table class="cadastro">
-        <thead><tr><th>Nome</th><th>Peso (kg)</th><th>Habilitações</th><th></th></tr></thead>
+        <thead><tr><th>Nome</th><th class="so-dados">CANAC</th><th>Peso (kg)</th><th>Habilitações</th><th></th></tr></thead>
         <tbody id="inst"></tbody>
       </table></div>
+      <div class="pn limites-lei" id="limites-lei"></div>
     </div>
   </section>
 
@@ -209,7 +216,7 @@
       <button class="btn edit-only" data-act="adds">+ Novo aluno</button>
     </div>
     <div class="tw"><table class="cadastro alunos">
-      <thead><tr><th>Nome</th><th>Peso (kg)</th><th>Não escalar com</th><th></th></tr></thead>
+      <thead><tr><th>Nome</th><th class="so-dados">CANAC</th><th>Peso (kg)</th><th>Não escalar com</th><th></th></tr></thead>
       <tbody id="alu"></tbody>
     </table></div>
   </section>
@@ -282,7 +289,7 @@
 
   <!-- ESCALA DO DIA -->
   <section id="s-esc" class="on">
-    <h2>Escala do dia <span class="atualizada" id="escala-atualizada" role="status" hidden><svg class="ico" aria-hidden="true"><use href="#i-relogio"/></svg><span id="escala-atualizada-texto"></span></span></h2>
+    <h2>Escala do dia <span class="atualizada" id="escala-atualizada" role="status" hidden><svg class="ico" aria-hidden="true"><use href="#i-relogio"/></svg><span id="escala-atualizada-texto"></span></span><span class="selo-aprovada" id="selo-aprovada" hidden></span></h2>
     <div class="bar">
       <div class="seg" role="group" aria-label="Como ver a escala">
         <button type="button" data-tl="lista" class="on"><svg class="ico"><use href="#i-lista"/></svg>Lista</button>
@@ -297,6 +304,14 @@
       <button class="btn sec" id="btn-share-link" title="Copiar link compartilhável da escala (abre bloqueado como Gestor)"><svg class="ico"><use href="#i-compartilhar"/></svg>Compartilhar</button>
       <button class="btn sec" id="exp" title="Exportar o CSV para o lançamento no portal">CSV</button>
       <button class="btn sec" id="pdf" title="Emitir o PDF da escala para impressão">PDF</button>
+    </div>
+
+    <!-- Como a escala é montada: os critérios da compactação (fase 13: o que pesa mais nos buracos do dia e até onde os
+         horários mudam) e a aprovação (fase 12) -->
+    <div class="bar compactacao" id="compactacao" hidden>
+      <span class="criterios" id="criterios"></span>
+      <span class="cresce"></span>
+      <span class="aprovacao" id="aprovacao"></span>
     </div>
 
     <div id="out">
@@ -380,7 +395,8 @@
         <li><b>Instrutores:</b> em <i>Disponibilidade do dia</i>, desligue quem não vem e confira as janelas de cada um.</li>
         <li><b>Demanda:</b> clique em <i>Importar pedidos da agenda</i> (o botão diz quantos pedidos da secretaria ainda não estão na demanda) e ajuste o que precisar: missão, recurso, horários preferidos, disponibilidade, duração e prioridade. Para um aluno que não está na lista, use <i>Pôr um aluno na demanda</i>.</li>
         <li><b>Escala:</b> ela já está pronta. Confira as missões que não entraram (caixa vermelha, com o motivo) e os avisos (caixa amarela), ajuste o que for preciso e baixe o <i>CSV</i> (para o lançamento no portal) e o <i>PDF</i>.</li>
-        <li><b>Durante o dia:</b> atualize o status de cada voo (Pendente, Confirmado, Atrasado, Em Voo ou Cancelado). <i>Atrasado</i> pede a nova decolagem e <i>Cancelado</i>, o motivo; o detalhe aparece embaixo do status, e um clique nele permite alterar. Se o atraso invadir outro voo do mesmo avião, instrutor ou aluno, a escala avisa. Voo cancelado não conta nas horas do avião, no rodízio nem no BI.</li>
+        <li><b>Aprove a escala</b> quando ela estiver fechada (por exemplo, no fim do dia, para o dia seguinte): <i>Aprovar escala</i>, na barra da Escala, fixa os voos. Depois disso, uma alteração não tira ninguém do lugar: um pedido novo entra em volta dos voos fixos (com o cadeado), e o voo que ficar impossível (o instrutor que não vem, o avião que entra em manutenção) aparece numa caixa vermelha de conflitos, no mesmo lugar, até ser resolvido. <i>Sugestões</i>, em cada conflito, mostra o que pode voar no lugar sem mexer nos outros voos: outro avião do mesmo tipo (primeiro um que já saiu, depois o da frente do hangar), outro instrutor (habilitado, livre, dentro do peso e dos limites da lei; quem voa com o tanque cheio vem antes, e a sugestão diz quando é preciso reduzir o combustível), os dois, ou um horário mais tarde no mesmo dia (na escala de hoje, só os que ainda não passaram). <i>Aplicar</i> muda o voo, que continua fixo, e o histórico desfaz; na turma de Ground, a mudança vale para a turma inteira. Por último, <i>Cancelar o voo</i> abre o pedido do motivo, já marcado pelo conflito. O selo ao lado do título diz quando e quem aprovou. <i>Reabrir</i> solta os voos, e a escala volta a ser refeita inteira a cada alteração.</li>
+        <li><b>Durante o dia:</b> atualize o status de cada voo (Pendente, Confirmado, Atrasado, Em Voo ou Cancelado). <i>Atrasado</i> pede a nova decolagem e <i>Cancelado</i>, o motivo; o detalhe aparece embaixo do status, e um clique nele permite alterar. Se o atraso invadir outro voo do mesmo avião, instrutor ou aluno, a escala avisa. Voo cancelado não conta nas horas do avião, no rodízio nem no BI. Os status Em Voo e Atrasado também fixam o voo, mesmo sem a escala aprovada.</li>
       </ol>
       <p class="manual-destaque"><b>Não existe botão de gerar nem de salvar.</b> Toda alteração, em qualquer aba, refaz a escala na hora e fica gravada. Ao lado do título da Escala aparece a hora da última atualização (por exemplo, “Atualizada às 10:42”).</p>
       <p class="manual-destaque">Uma data que você só abriu para consultar não é gravada. Ela passa a contar (no BI, nas horas dos aviões e no rodízio da data seguinte) quando você altera alguma coisa nela ou baixa o CSV ou o PDF.</p>
@@ -393,7 +409,8 @@
         <li><b>Operador:</b> altera tudo e opera a escala.</li>
         <li><b>Administrador:</b> faz tudo o que o Operador faz e também cria e exclui contas (em <i>Usuários</i>, no menu da conta).</li>
         <li><b>Gestor:</b> consulta tudo (escala, BI, histórico, PDF e CSV), sem alterar nada.</li>
-        <li><b>Secretaria:</b> registra os pedidos de voo na Agenda (o app abre para ela nessa aba) e consulta a Escala; as outras abas ela não vê.</li>
+        <li><b>Secretaria:</b> registra os pedidos de voo na Agenda (o app abre para ela nessa aba), consulta a Escala e, em Instrutores e Alunos, edita os dados pessoais (o resto ela só consulta); as outras abas ela não vê.</li>
+        <li><b>Painel (TV da recepção):</b> só vê o painel de partidas e chegadas de hoje (veja <a href="#manual-tv">TV da recepção</a>).</li>
       </ul>
       <p>Cada pessoa entra com a própria conta. No menu da conta (o seu nome, no canto direito do topo) ficam <i>Minha conta</i>, <i>Usuários</i> (só para o Administrador), o interruptor do tema claro ou escuro e <i>Sair</i>. Em <i>Minha conta</i> dá para trocar a senha (com pelo menos 12 caracteres) e o e-mail: o sistema manda um link para o e-mail atual e outro para o novo, e a troca vale depois que os dois forem abertos.</p>
       <p><i>Histórico</i> (no topo) mostra as alterações da data, com quem fez e a hora, numa gaveta ao lado, sem sair da aba; algumas podem ser revertidas por ali. <i>Compartilhar</i> (na barra da Escala) copia o link da escala da data; quem abre o link entra com a própria conta.</p>
@@ -431,18 +448,20 @@
       <ul class="manual-lista-curta" id="manual-janelas"></ul>
       <p><b>Horários de decolagem:</b> cada categoria (C152, C172, Simulador e PA-34) tem os seus horários de saída. O padrão são as janelas do dia, e o PA-34 sai de 30 em 30 minutos. Tire um horário pelo ✕, acrescente outro pelo campo de hora ou use um modelo (<i>Janelas do dia</i> ou <i>De 30 em 30 min</i>). Os pedidos da categoria vão para o horário mais próximo da lista nova. O voo noturno sai sempre às 17:30, e o Ground, nas janelas do dia.</p>
       <p><b>Aviões e simuladores:</b> desligado quer dizer indisponível (em manutenção). O avião marcado “Só Parafuso” só voa Parafuso. Para acrescentar um recurso à frota, use <i>+ Novo recurso</i>: a matrícula e a categoria (no C152, também “Só Parafuso”); o limite de peso e o controle das 50 horas vêm da categoria. <i>Retirar</i> (aparece ao passar o mouse na linha) tira um recurso da frota, com confirmação; o Histórico desfaz. A tabela mostra quanto cada avião voa na escala do dia e o saldo até a revisão de 50 horas. Escolha uma categoria para ver só a frota dela; um clique no nome da categoria recolhe ou abre as linhas.</p>
+      <p><b>Ordem no hangar:</b> os aviões da frente para o fundo, como estão guardados. A escala tira primeiro os da frente e junta os voos nos que já saíram; os do fundo só saem quando os da frente não dão conta. Use os botões que aparecem ao passar o mouse para subir, descer ou pôr um avião na frente. A data seguinte começa com a mesma ordem; ajuste quando o hangar for arrumado de outro jeito.</p>
       <p><b>Revisão de 50 horas:</b> informe as horas de cada avião desde a última revisão. A escala não passa das 50 horas: o avião para quando não tem saldo para mais um voo, e o aviso aparece na escala. Depois da revisão, clique em <i>Revisão feita</i> (aparece ao passar o mouse na linha) para zerar. A data seguinte começa com as horas desta data mais os voos dela que não foram cancelados. Avião sem as horas informadas fica sem esse controle.</p>
 
       <h4>Instrutores</h4>
       <p>Duas vistas, com a busca e o filtro por habilitação valendo nas duas:</p>
       <ul>
-        <li><b>Disponibilidade do dia:</b> uma linha por instrutor, com o interruptor de quem vem e as janelas do dia: azul-claro quando o instrutor está disponível, azul quando ele já tem voo ou aula na escala e listrado quando não vem. Clique numa janela para mudar; <i>Aplicar turno</i> marca várias de uma vez.</li>
-        <li><b>Cadastro:</b> nome, peso (em destaque quando falta) e as habilitações. <i>Editar habilitações</i> abre um painel ao lado com as 16 habilitações em grupos: Ground e simulador, Voo, Aviões e Checador.</li>
+        <li><b>Disponibilidade do dia:</b> uma linha por instrutor, com o interruptor de quem vem e as janelas do dia: azul-claro quando o instrutor está disponível, azul quando ele já tem voo ou aula na escala e listrado quando não vem. Clique numa janela para mudar; <i>Aplicar turno</i> marca várias de uma vez. A coluna <i>Mês</i> mostra as horas de voo do instrutor no mês com a escala desta data (em destaque a partir de 90% do limite).</li>
+        <li><b>Cadastro:</b> nome, CANAC, peso (em destaque quando falta) e as habilitações. <i>Editar habilitações</i> abre um painel ao lado com as 16 habilitações em grupos: Ground e simulador, Voo, Aviões e Checador, e as horas de voo do instrutor no mês, no semestre e no ano; ali também se informam as horas de voo feitas fora do app (neste mês e, no ano, antes deste mês). <i>Dados pessoais</i> abre os dados do instrutor (veja Alunos). Embaixo ficam os <b>limites da Lei do Aeronauta</b> (veja <a href="#manual-regras">Como a escala é montada</a>), que só o Administrador muda.</li>
       </ul>
       <p>O instrutor só recebe uma missão se tiver as habilitações que ela exige (veja a tabela em <a href="#manual-regras">Como a escala é montada</a>) e se estiver disponível durante o voo inteiro.</p>
 
       <h4>Alunos</h4>
-      <p>Nome e peso de cada aluno; o peso entra no limite de peso de cada avião (sem o peso, a escala avisa que não conferiu). Em <i>Não escalar com</i>, escolha os instrutores que não devem voar com o aluno.</p>
+      <p>Nome, CANAC e peso de cada aluno; o peso entra no limite de peso de cada avião (sem o peso, a escala avisa que não conferiu). Em <i>Não escalar com</i>, escolha os instrutores que não devem voar com o aluno.</p>
+      <p><b>Dados pessoais</b> (o botão na linha do aluno ou do instrutor): CPF, CANAC (o código da ANAC, 6 dígitos), nascimento, celular (com DDD) e e-mail. O app confere o CPF pelos dígitos verificadores e não aceita o mesmo CPF ou CANAC em dois alunos; deixar tudo vazio apaga os dados da pessoa. Só operadores, administradores e a secretaria veem esses dados: eles ficam fora da escala e não vão para o CSV, o PDF nem o link compartilhado, e o Histórico registra só quais campos mudaram, nunca os valores.</p>
 
       <h4 id="manual-aba-rodizio">Rodízio</h4>
       <p>Filas para dividir com justiça, entre os instrutores habilitados, os voos que remuneram melhor:</p>
@@ -460,18 +479,27 @@
         <li>Primeiro os <b>Grounds</b>, que definem a partir de que horário o voo do aluno pode começar.</li>
         <li>Depois os voos e simuladores, por <b>prioridade</b> (5 primeiro) e, empatados, na ordem do cadastro dos alunos.</li>
         <li>Para cada pedido, tenta a 1ª preferência, depois a 2ª e depois o próximo horário livre, entre os horários de decolagem da categoria, sempre dentro da disponibilidade do aluno e das janelas abertas.</li>
+        <li>O <b>avião</b>: o instrutor fica no mesmo avião durante o dia; fora isso, o voo vai para um avião que já saiu (o de menor folga até o voo, para não deixar buraco no meio do dia) e, quando precisa de outro, sai o da frente do <i>hangar</i> (a ordem em Recursos).</li>
       </ol>
       <p>Um voo só entra na escala quando tudo isto vale ao mesmo tempo:</p>
       <ul>
         <li><b>Recurso certo para a missão</b> (tabela abaixo), disponível e livre no horário.</li>
         <li><b>Instrutor disponível no dia e durante o voo inteiro</b>, livre e com as habilitações da missão; o instrutor marcado em <i>Não escalar com</i> para o aluno não entra.</li>
-        <li><b>Peso:</b> aluno mais instrutor dentro do limite do avião (<span id="manual-pesos"></span>). Sem o peso informado, a escala avisa que não conferiu.</li>
+        <li><b>Peso:</b> aluno mais instrutor dentro do limite do avião com os tanques cheios (<span id="manual-pesos"></span>). Sem o peso informado, a escala avisa que não conferiu.</li>
+        <li><b>Limites da Lei do Aeronauta</b> (Lei 13.475/2017 e RBAC 117): o instrutor não passa de 9h30 de voo nem de 11 h de jornada no dia (de 30 minutos antes do primeiro compromisso a 30 minutos depois do último; depois das 18:00, a hora vale 52m30s), de 100 h de voo no mês e de 960 h no ano, e tem 12 h de repouso entre um dia e o outro. As horas de voo contam só avião, das escalas gravadas sem os cancelados, mais as de fora do app; simulador e Ground contam na jornada. A partir de 90% do mês, do semestre ou do ano, a escala avisa. O Administrador pode mudar os valores (por exemplo, pelo acordo coletivo dos instrutores) em Instrutores › Cadastro.</li>
+        <li><b>Combustível:</b> o tanque cheio é o padrão (<span id="manual-combustivel"></span>; 1 galão = 6 lb). Quando nenhum instrutor cabe no limite com os tanques cheios, a escala pode pôr o voo com menos combustível, desde que o que fica dê o voo, 10 minutos de táxi e a reserva (30 minutos de dia; 45 à noite e em IFR). A coluna Peso mostra <i>reduzir N gal</i>, e a dica, o CSV e o PDF dizem quanto abastecer.</li>
         <li><b>Revisão de 50 horas:</b> o avião precisa ter saldo de horas para o voo.</li>
         <li><b>Horário:</b> os voos diurnos terminam até as 17:30; o voo noturno começa na janela das 17:30.</li>
         <li><b>Ground antes do voo:</b> se o aluno tem Ground e voo do mesmo tema no dia, o voo só começa depois do Ground.</li>
       </ul>
       <p>Entre os instrutores possíveis, a escolha segue esta ordem: um instrutor diferente daquele do voo anterior do aluno no dia (o aluno roda entre instrutores); o rodízio da categoria; quem tem menos habilitações (os mais versáteis ficam livres para as missões que só eles fazem); e quem tem menos horas no dia. Sempre que possível, cada instrutor fica no mesmo avião o dia todo, e o aluno troca de avião entre um voo e outro.</p>
       <p>Depois de montada, a escala <b>divide as horas do dia</b> entre os instrutores: voos e aulas passam de quem tem mais horas para quem tem menos, sempre que todas as regras continuam valendo (habilitação, disponibilidade durante todo o voo, horário livre, bloqueios do aluno e peso), e o aluno não repete o instrutor no dia. Os voos do rodízio ficam com quem a fila escolheu, e a turma de Ground muda de instrutor inteira. Nenhuma missão sai da escala por causa disso.</p>
+      <p>Por fim, a escala <b>fecha os buracos do dia</b> (a compactação): voos mudam de horário ou de instrutor, ou dois voos de mesma duração trocam de instrutor, sempre que isso diminui o tempo parado mais do que custa ao aluno sair da preferência dele. Dois controles embaixo da barra da Escala dizem como:</p>
+      <ul>
+        <li><b>Buracos</b>: <i>INVA</i> (o padrão) fecha primeiro os buracos dos instrutores; <i>Avião</i>, os dos aviões (menos tempo parado e menos saídas do hangar; parado 2 h ou mais, o avião volta para o hangar); <i>Maior buraco</i> ataca primeiro os maiores, de instrutor ou de avião (um buraco de 4 h pesa mais que quatro de 1 h).</li>
+        <li><b>Horários</b>: <i>Na disponibilidade</i> (o padrão) deixa o voo mudar para qualquer horário da categoria dentro da disponibilidade do aluno (manhã, tarde, noite ou o horário exato da Agenda; sem disponibilidade, qualquer horário); <i>Só 1ª e 2ª</i> só troca entre as duas preferências; <i>Não mudar</i> deixa os horários como a escala pôs, e só os instrutores podem trocar.</li>
+      </ul>
+      <p>Todas as regras continuam valendo (habilitação, disponibilidade, peso e combustível, limites da lei e o Ground antes do voo), a divisão das horas não piora, e a 1ª preferência pesa mais para quem tem mais prioridade. Ficam como estão os voos fixos e os que já têm status (Atrasado, Em Voo, Cancelado), o instrutor dos voos do rodízio, o Noturno, o Parafuso no C152 e o horário das turmas de Ground. O voo que mudou de horário fora das preferências aparece com <i>horário ajustado</i>, e o quadro ao lado do resumo mostra o tempo parado que sobra (dos instrutores e dos aviões) e as saídas do hangar. Os critérios ficam com a data, e a data seguinte começa com os mesmos; com a escala aprovada, eles só aparecem.</p>
       <p><b>Grounds</b> duram 1h30, numa sala só, e são dados em turma: alunos do mesmo Ground no mesmo horário ficam com o mesmo instrutor (o disponível com menos habilitações), e as horas contam uma vez só para ele.</p>
       <div class="tw">
         <table id="manual-missoes">
@@ -492,6 +520,17 @@
         <li><b>Histórico:</b> no topo, quem alterou o quê, e quando, em cada data.</li>
         <li><b>Rodízio:</b> a ordem das filas de cada categoria.</li>
       </ul>
+    </div>
+
+    <div class="pn" id="manual-tv">
+      <h3>TV da recepção</h3>
+      <p>A TV mostra o painel de partidas e chegadas de hoje, na tela toda, como nos aeroportos: o mesmo da visão <i>Painel</i> da Escala, com o aluno abreviado (o primeiro nome e a inicial do último) e, no cancelamento, só a categoria do motivo.</p>
+      <ol>
+        <li>Um Administrador cria a conta da TV em <i>Usuários</i>, com o perfil <i>Painel (TV da recepção)</i>. Essa conta não vê mais nada do app.</li>
+        <li>No navegador da TV, abra o endereço do app com <code>painel.html</code> no fim (o mesmo endereço, trocando o final) e entre uma vez com a conta da TV. Se a TV abrir o app comum, ela vai direto para o painel.</li>
+        <li>Deixe o navegador em tela cheia. O painel busca as mudanças a cada minuto, recarrega sozinho de madrugada e mantém a tela acesa. Sem conexão por mais de 3 minutos, mostra desde quando.</li>
+      </ol>
+      <p>O painel mostra a escala de hoje que já foi gravada (a escala é gravada a cada alteração do operador ou quando ele exporta o CSV ou o PDF).</p>
     </div>
 
     <div class="pn" id="manual-faq">
@@ -549,6 +588,10 @@
 
 <!-- HABILITAÇÕES DE UM INSTRUTOR: painel lateral aberto pelo cadastro -->
 <aside class="gaveta" id="painel-instrutor" aria-labelledby="painel-instrutor-titulo" hidden></aside>
+<!-- Dados pessoais de um aluno ou instrutor (js/views/dados-pessoais.js) -->
+<aside class="gaveta" id="painel-dados" aria-labelledby="painel-dados-titulo" hidden></aside>
+<!-- Sugestões para um conflito na escala aprovada (js/views/reparo.js) -->
+<aside class="gaveta" id="painel-reparo" aria-labelledby="painel-reparo-titulo" hidden></aside>
 <!-- Detalhe do status do voo: o motivo do cancelamento ou a nova decolagem do atraso (js/views/dialogo-status.js) -->
 <dialog class="dlg" id="dlg-status" aria-labelledby="dlg-status-titulo">
   <form id="form-status" novalidate>

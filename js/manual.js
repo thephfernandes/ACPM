@@ -1,6 +1,6 @@
 // Partes do manual geradas das regras do código (missões, janelas, pesos e rodízio): quando uma regra muda, o
 // manual muda junto. O texto explicativo fica em index.html (seção Manual).
-import { MIS, WIN, NI, DEFAULT_LIM, GROUND_DURATION_MIN } from './config.js';
+import { MIS, WIN, NI, DEFAULT_LIM, GROUND_DURATION_MIN, COMBUSTIVEL } from './config.js';
 import { HABILITACOES, exigencias } from './habilitacoes.js';
 import { CATEGORIAS_DO_RODIZIO } from './rodizio.js';
 
@@ -37,4 +37,7 @@ export const missoesDoManual = () => Object.entries(MIS).map(([missao, regra]) =
 
 export const janelasDoManual = () => WIN.map((w, i) => (i === NI ? `${w} (noturno)` : w));
 export const pesosDoManual = () => Object.entries(DEFAULT_LIM).map(([tipo, kg]) => [tipo, `${kg} kg`]);
+// Tanque e autonomia de cada avião (o limite de peso vale com os tanques cheios)
+export const combustivelDoManual = () => Object.entries(COMBUSTIVEL).map(([tipo, { galoes, autonomiaMin }]) =>
+  `${tipo}: ${galoes} gal, ${Math.floor(autonomiaMin / 60)}h${autonomiaMin % 60 ? String(autonomiaMin % 60).padStart(2, '0') : ''}`);
 export const rodizioDoManual = () => CATEGORIAS_DO_RODIZIO.map(c => c.nome);

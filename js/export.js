@@ -61,7 +61,8 @@ export async function pdf() {
     }
     // Status com o detalhe (o novo horário do atraso ou o motivo do cancelamento)
     const status = textoDoStatus((S.fStatus && S.fStatus[o.fKey]) || o.status || 'Confirmado', S.fObs && S.fObs[o.fKey]);
-    body.push([`${hm(o.a)}-${hm(o.b)}`, o.s, o.mis, o.r, o.ins, HT(o), o.kg ? o.kg + ' kg' : '-', o.tag, status]);
+    const pesoComCombustivel = o.kg ? `${o.kg} kg${o.comb ? ` · abastecer ${o.comb.abastecerGal} gal` : ''}` : '-';
+    body.push([`${hm(o.a)}-${hm(o.b)}`, o.s, o.mis, o.r, o.ins, HT(o), pesoComCombustivel, o.tag, status]);
   });
 
   doc.autoTable({ startY: 33, head: [['Horário','Aluno','Missão','Equipamento','Instrutor','Duração','Peso tripulação','Encaixe','Status']], body, styles: { fontSize: 9 }, headStyles: H });

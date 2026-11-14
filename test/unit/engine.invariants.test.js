@@ -88,10 +88,13 @@ describe('Invariantes do motor de alocação', () => {
     }
   }));
 
-  it('peso da tripulação dentro do limite do equipamento', () => emTodos(({ out }) => {
+  it('peso da tripulação dentro do limite do equipamento (acima dele, só com menos combustível que ainda dá o voo)', () => emTodos(({ out }) => {
     for (const o of out.filter(v => !v.isGround)) {
       assert.equal(o.limKg, DEFAULT_LIM[o.eqType] || 0);
-      if (o.limKg && o.stuKg && o.insKg) assert.ok(o.stuKg + o.insKg <= o.limKg, `${o.fKey}: ${o.stuKg + o.insKg} kg > ${o.limKg} kg`);
+      if (!o.limKg || !o.stuKg || !o.insKg) continue;
+      const kg = o.stuKg + o.insKg;
+      if (!o.comb) assert.ok(kg <= o.limKg, `${o.fKey}: ${kg} kg > ${o.limKg} kg sem reduzir o combustível`);
+      else assert.ok(kg > o.limKg && o.comb.abastecerGal >= o.comb.minimoGal, `${o.fKey}: combustível ${JSON.stringify(o.comb)}`);
     }
   }));
 

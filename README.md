@@ -80,6 +80,7 @@ mais antigo do que o guardado. Nunca apague campos num passo: mantenha o que o p
 | Caminho | Conteúdo |
 |---|---|
 | `index.html` | Marcação das oito abas |
+| `painel.html`, `js/painel.js` | TV da recepção: o painel de partidas e chegadas de hoje na tela toda |
 | `css/app.css` | Estilos e temas claro/escuro |
 | `js/config.js` | Janelas, missões, limites de peso e a frota inicial |
 | `js/frota.js` | A frota no cadastro (matrícula, tipo e "Só Parafuso"): validação de um recurso novo e as matrículas de cada tipo |
@@ -88,6 +89,9 @@ mais antigo do que o guardado. Nunca apague campos num passo: mantenha o que o p
 | `js/rodizio.js` | Filas do rodízio (cheque, MLTE, noturno e C172) e a rotação de uma data para a seguinte |
 | `js/agenda.js` | Prazo da agenda de solicitações (13:00 do dia anterior) e a importação para a demanda |
 | `js/csv.js` | CSV da escala agrupado por avião, para o lançamento no portal do aeroclube |
+| `js/status.js` | Status do voo com detalhes: o novo horário do atraso, o motivo do cancelamento e o atraso que invade outro voo |
+| `js/quadro.js` | As linhas do painel de partidas e chegadas (Escala e TV da recepção) |
+| `js/dados-pessoais.js` | Dados pessoais de alunos e instrutores: validação (CPF, CANAC, nascimento, celular e e-mail) e formatos |
 | `js/perfis.js` | Perfis de acesso e o que cada um pode fazer na tela |
 | `js/rules.js` | Regras das missões (Ground School, precedência, disponibilidade do aluno) |
 | `js/engine.js` | Motor de alocação (função pura) |

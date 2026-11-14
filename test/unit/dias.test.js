@@ -24,10 +24,10 @@ describe('Separar e juntar', () => {
   it('o cadastro não tem dados do dia e o dia não tem nomes nem pesos', () => {
     const estado = normalizado(goldens.exemplo.estado);
     const { cadastro, dia } = separar(estado);
-    assert.deepEqual(Object.keys(cadastro).sort(), ['frota', 'horarios', 'ins', 'nid', 'stu']);
+    assert.deepEqual(Object.keys(cadastro).sort(), ['frota', 'horarios', 'ins', 'limites', 'nid', 'stu']);
     assert.deepEqual(Object.keys(cadastro.ins[0]).sort(), ['hab', 'id', 'kg', 'lv', 'nm']);
     assert.deepEqual(Object.keys(cadastro.stu[0]).sort(), ['bl', 'id', 'kg', 'nm']);
-    assert.deepEqual(Object.keys(dia).sort(), ['av', 'fObs', 'fStatus', 'filas', 'horas', 'importadas', 'ins', 'pedidos', 'win']);
+    assert.deepEqual(Object.keys(dia).sort(), ['aprovacao', 'av', 'criterios', 'fObs', 'fStatus', 'filas', 'fixos', 'hangar', 'horas', 'importadas', 'ins', 'pedidos', 'win']);
     assert.deepEqual(Object.keys(dia.ins[estado.ins[0].id]).sort(), ['aw', 'on']);
     const pedido = dia.pedidos[estado.stu[0].id];
     assert.equal('nm' in pedido || 'kg' in pedido, false);
@@ -51,6 +51,49 @@ describe('Separar e juntar', () => {
     const junto = juntar(cadastro, dia);
     assert.deepEqual(junto.ins.map(x => x.id), [1]);
     assert.deepEqual(junto.stu.map(s => s.id), [1000]);
+  });
+
+  it('os limites dos instrutores e as horas de voo fora do app ficam no cadastro; as horas passadas não são gravadas', () => {
+    const estado = normalizado({ ...estadoSintetico(), ins: [instrutor(1, 9, { horasExternas: { '2026-11': 12, '2026-00': 300 } })], stu: [aluno(1000)] });
+    estado.limites = { ...estado.limites, vooMesH: 90 };
+    estado.horasDosInstrutores = { 1: { mes: 3, semestre: 4, ano: 5, fimAnterior: null } };
+    const { cadastro, dia } = separar(estado);
+    assert.deepEqual(cadastro.limites.vooMesH, 90);
+    assert.deepEqual(cadastro.ins[0].horasExternas, { '2026-11': 12, '2026-00': 300 });
+    assert.equal(JSON.stringify(dia).includes('horasDosInstrutores'), false);
+    const junto = juntar(cadastro, dia);
+    assert.deepEqual([junto.limites.vooMesH, junto.ins[0].horasExternas], [90, { '2026-11': 12, '2026-00': 300 }]);
+  });
+
+  it('a escala aprovada (os voos fixos e quem aprovou) vai e volta com o dia', () => {
+    const estado = normalizado({ ...estadoSintetico(), stu: [aluno(1000)] });
+    estado.fixos = { '1000_0_1': { a: 390, b: 450, r: 'PR-VOB', insId: 1 } };
+    estado.aprovacao = { em: '2026-11-10T21:05:00.000Z', por: 'Rayane' };
+    const { cadastro, dia } = separar(estado);
+    assert.deepEqual([dia.fixos, dia.aprovacao], [estado.fixos, estado.aprovacao]);
+    assert.deepEqual([juntar(cadastro, dia).fixos, juntar(cadastro, dia).aprovacao], [estado.fixos, estado.aprovacao]);
+  });
+
+  it('os critérios da compactação vão e voltam com o dia; sem eles, os do padrão', () => {
+    const estado = normalizado({ ...estadoSintetico(), stu: [aluno(1000)] });
+    estado.criterios = { buracos: 'aviao', horarios: 'preferencias' };
+    const { cadastro, dia } = separar(estado);
+    assert.deepEqual(dia.criterios, estado.criterios);
+    assert.deepEqual(juntar(cadastro, dia).criterios, estado.criterios);
+    assert.deepEqual(juntar(cadastro, { ...dia, criterios: undefined }).criterios, { buracos: 'inva', horarios: 'disponibilidade' });
+    assert.deepEqual(diaPadrao().criterios, { buracos: 'inva', horarios: 'disponibilidade' });
+  });
+
+  it('a ordem do hangar vai e volta com o dia; sem ela, a ordem da frota (só os aviões)', () => {
+    const estado = normalizado({ ...estadoSintetico(), stu: [aluno(1000)] });
+    const frente = ['PR-VOB', 'PP-ABP'];
+    estado.hangar = [...frente, ...estado.hangar.filter(r => !frente.includes(r))];
+    const { cadastro, dia } = separar(estado);
+    assert.deepEqual(dia.hangar, estado.hangar);
+    assert.deepEqual(juntar(cadastro, dia).hangar, estado.hangar);
+    const semOrdem = juntar(cadastro, { ...dia, hangar: undefined }).hangar;
+    assert.equal(semOrdem[0], 'PP-LJV', 'o primeiro avião da frota');
+    assert.ok(!semOrdem.some(r => r.startsWith('SIM-')), 'simuladores não ficam no hangar');
   });
 
   it('os detalhes do status (motivo do cancelamento, novo horário do atraso) vão e voltam com o dia', () => {
@@ -82,10 +125,13 @@ describe('Nova data', () => {
     estado.av['PR-BTB'] = false;
     estado.fStatus = { '1000_0_1': 'Cancelado' };
     estado.fObs = { '1000_0_1': { motivo: 'Meteorologia' } };
+    estado.criterios = { buracos: 'maior', horarios: 'fixos' };
     const anterior = { ...separar(estado).dia, resultado: { out: [{ fKey: '1000_0_1' }], al: [], tot: 1 } };
     const novo = diaParaCopiar(anterior);
-    assert.deepEqual(Object.keys(novo).sort(), ['av', 'fObs', 'fStatus', 'filas', 'horas', 'importadas', 'ins', 'pedidos', 'win']);
-    assert.deepEqual([novo.fStatus, novo.fObs], [{}, {}]);
+    assert.deepEqual(Object.keys(novo).sort(), ['aprovacao', 'av', 'criterios', 'fObs', 'fStatus', 'filas', 'fixos', 'hangar', 'horas', 'importadas', 'ins', 'pedidos', 'win']);
+    assert.deepEqual([novo.fStatus, novo.fObs, novo.fixos, novo.aprovacao], [{}, {}, {}, null], 'a data nova começa sem status, sem voos fixos e sem aprovação');
+    assert.deepEqual(novo.hangar, anterior.hangar, 'a ordem do hangar continua a da data anterior');
+    assert.deepEqual(novo.criterios, anterior.criterios, 'os critérios da compactação continuam os da data anterior');
     assert.equal(novo.av['PR-BTB'], false);
     assert.deepEqual(novo.pedidos[1000], anterior.pedidos[1000]);
     novo.pedidos[1000].extra[0].p1 = 7;

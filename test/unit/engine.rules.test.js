@@ -5,7 +5,8 @@ import { runAllocationEngine, sumUniqueOperationalHours, consolidateTimelineSlot
 import { hm } from '../../js/format.js';
 import { aluno, apenas, cenario, instrutor, missaoExtra, GROUND_C152 } from '../helpers/montar.js';
 
-const alocar = opts => runAllocationEngine(cenario(opts));
+// As regras da alocação, sem a compactação que vem depois (fase 13; ela tem os testes dela em compactar.test.js)
+const alocar = opts => runAllocationEngine(cenario(opts), { compactar: false });
 const resumo = o => ({ s: o.s, w: o.w, tag: o.tag });
 const SO_PP_LJV = apenas('C152', 'PP-LJV');
 
@@ -59,9 +60,9 @@ describe('Voos: janelas preferidas e encaixe', () => {
 
   // Intencional (Gabriel, PR #2): o aluno não voa o dia inteiro com o mesmo instrutor.
   // O avião acompanha o instrutor, então a troca de instrutor também troca o avião.
-  it('sessão seguinte troca de instrutor (e de avião) quando há alternativa', () => {
+  it('sessão seguinte troca de instrutor quando há alternativa; o avião é o que já saiu (fase 10: menos aviões fora do hangar)', () => {
     const { out } = alocar({ ins: [instrutor(1, 1), instrutor(2, 1)], stu: [aluno(1000, { nb: 3, ss: 2, p1: 0, p2: 2 })] });
-    assert.deepEqual(out.map(o => [o.r, o.insId]), [['PP-LJV', 1], ['PR-BTB', 2]]);
+    assert.deepEqual(out.map(o => [o.r, o.insId]), [['PP-LJV', 1], ['PP-LJV', 2]]);
   });
 
   it('o instrutor fica no mesmo avião ao longo do dia', () => {
@@ -181,10 +182,16 @@ describe('Habilitações exigidas (os instrutores migrados fazem o mesmo que os 
 });
 
 describe('Peso da tripulação', () => {
-  it('aluno + instrutor acima do limite é rejeitado', () => {
-    const { out, al } = alocar({ ins: [instrutor(1, 1, { kg: 80 })], stu: [aluno(1000, {}, { kg: 100 })] });
+  it('aluno + instrutor acima do limite, mesmo com o mínimo de combustível, é rejeitado', () => {
+    const { out, al } = alocar({ ins: [instrutor(1, 1, { kg: 100 })], stu: [aluno(1000, {}, { kg: 120 })] });
     assert.equal(out.length, 0);
-    assert.deepEqual(al, [{ t: 'err', s: 'Aluno 1000', m: 'Rejeitado: peso aluno + instrutor acima do limite de 170 kg do C152.' }]);
+    assert.deepEqual(al, [{ t: 'err', s: 'Aluno 1000', m: 'Rejeitado: peso aluno + instrutor acima do limite de 170 kg do C152, mesmo com o mínimo de combustível.' }]);
+  });
+
+  it('um pouco acima do limite: o voo sai com menos combustível (fase 10)', () => {
+    const { out, al } = alocar({ ins: [instrutor(1, 1, { kg: 80 })], stu: [aluno(1000, {}, { kg: 100 })] });
+    assert.deepEqual(al, []);
+    assert.deepEqual([out[0].kg, out[0].limKg, out[0].comb.reduzirGal], [180, 170, 4]);
   });
 
   it('escolhe um instrutor mais leve que respeite o limite', () => {

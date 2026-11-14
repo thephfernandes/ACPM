@@ -1,12 +1,16 @@
 // Backend local: os documentos da escala ficam no localStorage deste navegador (modo sem login).
 // cadastro e dia:AAAA-MM-DD são o formato por data (fase 3); estado, escala, historico e bi, o da fase 2.
 import { prazoDaAgendaPermite } from '../agenda.js';
+import { gravarDadosPessoais } from '../dados-pessoais.js';
+import { acumularHoras } from '../limites.js';
+import { hojeISO } from '../format.js';
 
 export const CHAVES_LOCAIS = { cadastro: 'acpm4_cadastro', estado: 'acpm3', escala: 'acpm3_res', historico: 'acpm3_audit', bi: 'acpm3_bi' };
 export const CHAVE_LEGADA = 'acpm2';
 const PREFIXO_DIA = 'acpm4_dia_';
 const CHAVE_HISTORICO = 'acpm4_historico';
 const CHAVE_AGENDA = 'acpm4_agenda';
+const CHAVE_DADOS_PESSOAIS = 'acpm4_dados_pessoais';
 const DOCUMENTO_DIA = /^dia:(\d{4}-\d{2}-\d{2})$/;
 
 const chaveLocal = documento => {
@@ -141,6 +145,25 @@ export const backendLocal = {
     if (!textoObrigatorio(por, 80)) throw erroDaAgenda('23514', 'informe quem cancelou');
     Object.assign(solicitacao, { cancelada_em: agora.toISOString(), cancelada_por: por.trim() });
     localStorage.setItem(CHAVE_AGENDA, JSON.stringify(lista));
+  },
+
+  // As horas de voo de cada instrutor antes da data (limites da lei), com a mesma conta do servidor
+  async horasDosInstrutores(data) {
+    const dias = datasGuardadas().filter(d => d < data && d >= `${String(+data.slice(0, 4) - 1)}-12-31`)
+      .map(d => ({ data: d, conteudo: lerJson(PREFIXO_DIA + d) })).filter(d => d.conteudo);
+    return acumularHoras(dias, data);
+  },
+
+  // Dados pessoais neste navegador (fora do cadastro), com a mesma regra do servidor
+  async listarDadosPessoais(tipo) {
+    return Object.fromEntries(Object.entries(lerJson(CHAVE_DADOS_PESSOAIS) || {})
+      .filter(([chave]) => chave.startsWith(`${tipo}:`))
+      .map(([chave, dados]) => [Number(chave.slice(tipo.length + 1)), dados]));
+  },
+
+  async salvarDadosPessoais(tipo, id, dados, { autor = null, agora = new Date() } = {}) {
+    const tabela = gravarDadosPessoais(lerJson(CHAVE_DADOS_PESSOAIS) || {}, tipo, id, dados, { hoje: hojeISO(), autor, agora: agora.toISOString() });
+    localStorage.setItem(CHAVE_DADOS_PESSOAIS, JSON.stringify(tabela));
   },
 
   async importarHistorico(data, entradas) {

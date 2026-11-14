@@ -112,3 +112,29 @@ describe('Páginas e alternância', () => {
     assert.deepEqual(telasDoPainel([], [], 16).map(t => [t.quadro, t.linhas]), [['partidas', []], ['chegadas', []]]);
   });
 });
+
+describe('O quadro da TV da recepção (o mesmo que o servidor entrega)', async () => {
+  const { nomeCurto, quadroDoDia } = await import('../../js/quadro.js');
+
+  it('o aluno abreviado: o primeiro nome e a inicial do último; um nome só fica inteiro', () => {
+    assert.deepEqual(['Maria Silva Santos', 'João', '  Ana   Paula  ', '', 'Aluno 12'].map(nomeCurto), ['Maria S.', 'João', 'Ana P.', '', 'Aluno 12']);
+  });
+
+  it('do dia gravado: os voos em ordem, só com o que o quadro mostra; do detalhe, o novo horário e a categoria do motivo', () => {
+    const dia = {
+      fStatus: { '1000_0_1': 'Atrasado', '1001_0_1': 'Cancelado' },
+      fObs: { '1000_0_1': { novoInicio: 640 }, '1001_0_1': { motivo: 'Outro', texto: 'Aluno com febre' } },
+      resultado: { out: [
+        voo('1000_0_1', 610, { s: 'Maria Silva Santos', kg: 140, stuId: 1000 }),
+        voo('1001_0_1', 390, { s: 'João', r: 'PP-ABP', eqType: 'C172', mis: 'IFR' })
+      ] }
+    };
+    const quadro = quadroDoDia(dia);
+    assert.deepEqual(quadro.voos.map(v => [v.fKey, v.a, v.s]), [['1001_0_1', 390, 'João'], ['1000_0_1', 610, 'Maria S.']]);
+    assert.deepEqual(Object.keys(quadro.voos[0]).sort(), ['a', 'b', 'classKey', 'eqType', 'fKey', 'ins', 'isGround', 'mis', 'r', 's', 'status']);
+    assert.deepEqual(quadro.fStatus, dia.fStatus);
+    assert.deepEqual(quadro.fObs, { '1000_0_1': { novoInicio: 640 }, '1001_0_1': { motivo: 'Outro' } });
+    assert.deepEqual(quadroDoDia({ pedidos: {} }), { voos: null, fStatus: {}, fObs: {} }, 'dia sem escala gravada');
+    assert.deepEqual(quadroDoDia(null), { voos: null, fStatus: {}, fObs: {} });
+  });
+});

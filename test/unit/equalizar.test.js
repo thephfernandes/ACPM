@@ -58,6 +58,18 @@ describe('Divisão igual das horas entre os instrutores', () => {
     assert.equal(out.find(o => o.stuId === 1001).insId, 2, 'o voo no C152 passa para quem tinha menos horas');
   });
 
+  it('entre as passagens válidas, a que deixa menos tempo parado (fase 10): o voo vai para quem já voa no horário vizinho', () => {
+    // O instrutor 1 (menos habilitações) fica com 06:30, 08:20 e 10:10; o 2 voa às 12:40 e o 3, às 16:20 (alunos que
+    // não voam com o 1). Para dividir as horas, o voo das 10:10 passa para o 2 (que voa logo depois), e não o das 06:30
+    const { out } = escala({
+      ins: [instrutor(1, 1), instrutor(2, 9), instrutor(3, 9)],
+      stu: [aluno(1000, { p1: 390, p2: -1 }), aluno(1001, { p1: 500, p2: -1 }), aluno(1002, { p1: 610, p2: -1 }),
+        aluno(1003, { p1: 760, p2: -1 }, { bl: [1] }), aluno(1004, { p1: 980, p2: -1 }, { bl: [1] })]
+    });
+    const instrutorDe = stuId => out.find(o => o.stuId === stuId).insId;
+    assert.deepEqual([1000, 1001, 1002, 1003, 1004].map(instrutorDe), [1, 1, 2, 2, 3]);
+  });
+
   it('o aluno com duas missões no dia não fica com o mesmo instrutor nas duas', () => {
     const { out } = escala({
       ins: [instrutor(1, 1), instrutor(2, 9)],

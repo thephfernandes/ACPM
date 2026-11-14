@@ -303,7 +303,7 @@ test.describe('Alunos', () => {
   test('cadastra, bloqueia instrutor e exclui aluno com confirmação', async ({ page }) => {
     await abrirSintetico(page);
     await irPara(page, 'alu');
-    await expect(page.locator('#s-alu thead th')).toHaveText(['Nome', 'Peso (kg)', 'Não escalar com', '']);
+    await expect(page.locator('#s-alu thead th')).toHaveText(['Nome', 'CANAC', 'Peso (kg)', 'Não escalar com', '']);
     await page.locator('[data-act="adds"]').click();
     const linha = page.locator('#alu .cd');
     await expect(linha).toHaveCount(1);

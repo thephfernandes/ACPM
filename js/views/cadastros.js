@@ -1,10 +1,15 @@
 // Abas Instrutores e Alunos. Os instrutores têm duas visões: a disponibilidade do dia (uma grade com as janelas e os
-// voos de cada um na escala) e o cadastro (nome, peso e habilitações, editadas num painel lateral).
-import { WIN, PRE, T } from '../config.js';
+// voos de cada um na escala) e o cadastro (nome, CANAC, peso e habilitações, editadas num painel lateral). Os dados
+// pessoais (CPF, CANAC, nascimento, celular e e-mail) abrem noutro painel, só para quem pode vê-los (.so-dados).
+import { WIN, PRE, T, AIRCRAFT_EQ_TYPES } from '../config.js';
 import { HABILITACOES, nomeDaHabilitacao } from '../habilitacoes.js';
-import { esc } from '../format.js';
-import { S, RES, insBy } from '../state.js';
+import { esc, hm } from '../format.js';
+import { S, RES, DATA, insBy, isGestor } from '../state.js';
 import { $ } from '../dom.js';
+import { canacDe } from './dados-pessoais.js';
+import { normalizarLimites, LIMITES_DA_LEI, comHorasExternas } from '../limites.js';
+import { ApiClient } from '../storage.js';
+import { gerenciaContas } from '../perfis.js';
 
 const ROTULO = new Map(HABILITACOES.map(h => [h.id, h.curto]));
 // No cadastro, todas na ordem do painel; na grade do dia, só as que mais distinguem o instrutor
@@ -45,6 +50,20 @@ function ocupacaoDosInstrutores() {
 }
 
 const atributos = x => `data-k="i" data-id="${x.id}" data-hab="${x.hab.join(' ')}" data-nm="${esc(x.nm.toLowerCase())}"`;
+
+// Limites da lei (fase 11): as horas de voo do instrutor com a escala desta data (as de antes, as de fora do app e as de
+// hoje, só voo em avião) no mês, no semestre e no ano
+function horasComAEscala(x) {
+  const passadas = (S.horasDosInstrutores || {})[x.id] || { mes: 0, semestre: 0, ano: 0, fimAnterior: null };
+  const hoje = [...new Map(((RES && RES.out) || []).filter(o => o.insId === x.id && AIRCRAFT_EQ_TYPES.includes(o.eqType)).map(o => [o.classKey || o.fKey, o])).values()]
+    .reduce((total, o) => total + o.h, 0);
+  const somar = h => Math.round((h + hoje) * 10) / 10;
+  return { mes: somar(passadas.mes), semestre: somar(passadas.semestre), ano: somar(passadas.ano), fimAnterior: passadas.fimAnterior };
+}
+const horasTexto = h => String(h).replace('.', ',');
+const perto = (h, limite) => limite !== null && h >= 0.9 * limite;
+// O Administrador muda os limites (neste navegador, o Operador)
+export const podeEditarLimites = () => (ApiClient.perfil ? gerenciaContas(ApiClient.perfil) : !isGestor());
 const SEM_INSTRUTORES = 'Nenhum instrutor cadastrado. Clique em “+ Novo instrutor” acima para cadastrar.';
 
 function linhaDoDia(x, ocupacao) {
@@ -58,25 +77,37 @@ function linhaDoDia(x, ocupacao) {
     <td><label class="alvo"><input type="checkbox" class="sw" data-f="on"${x.on ? ' checked' : ''} aria-label="${esc(x.nm)} vem no dia"></label></td>
     ${celulas}
     <td class="voos">${voos.size || ''}</td>
+    ${colunaDoMes(x)}
     <td><select data-f="pre" class="edit-only" aria-label="Aplicar um turno a ${esc(x.nm)}"><option value="">Aplicar turno…</option>${Object.keys(PRE).map(k => `<option>${k}</option>`).join('')}</select></td>
     <td class="habs-resumo" title="${esc(resumoDasHabilitacoes(x))}">${esc(resumoNaGrade(x))}</td>
   </tr>`;
 }
 
+function colunaDoMes(x) {
+  const limites = normalizarLimites(S.limites);
+  const h = horasComAEscala(x);
+  const titulo = [`${horasTexto(h.mes)} h de voo no mês${limites.vooMesH === null ? '' : ` (limite ${limites.vooMesH} h)`}`,
+    `${horasTexto(h.ano)} h no ano${limites.vooAnoH === null ? '' : ` (limite ${limites.vooAnoH} h)`}`,
+    h.fimAnterior === null || h.fimAnterior === undefined ? '' : `ontem até as ${hm(h.fimAnterior)}`].filter(Boolean).join('; ');
+  const atencao = perto(h.mes, limites.vooMesH) || perto(h.ano, limites.vooAnoH) || perto(h.semestre, limites.vooSemestreH);
+  return `<td class="mes${atencao ? ' perto' : ''}" title="${esc(titulo)}">${horasTexto(h.mes)} h</td>`;
+}
+
 export function linhaDoCadastro(x) {
   return `<tr class="cd" ${atributos(x)}>
     <td><input class="nm" data-f="nm" value="${esc(x.nm)}" aria-label="Nome do instrutor"></td>
+    <td class="c-canac so-dados">${esc(canacDe('instrutor', x.id))}</td>
     <td><input type="number" min="0" max="200" data-f="kg" value="${x.kg || ''}" placeholder="sem peso" aria-label="Peso de ${esc(x.nm)} em kg"${x.kg ? '' : ' class="falta"'}></td>
     <td><span class="habs-resumo">${esc(resumoDasHabilitacoes(x)) || 'Nenhuma'}</span></td>
-    <td class="acoes"><button class="btn quiet edit-only" data-act="editar-habs" data-id="${x.id}">Editar habilitações</button><button class="x edit-only" data-act="deli" aria-label="Excluir ${esc(x.nm)}">✕</button></td>
+    <td class="acoes"><button type="button" class="btn quiet so-dados" data-dados="instrutor:${x.id}" aria-label="Dados pessoais de ${esc(x.nm)}">Dados pessoais</button><button class="btn quiet edit-only" data-act="editar-habs" data-id="${x.id}">Editar habilitações</button><button class="x edit-only" data-act="deli" aria-label="Excluir ${esc(x.nm)}">✕</button></td>
   </tr>`;
 }
 
 // A grade do dia depende da escala: é refeita junto com ela
 export function rInsDia() {
-  $('#inst-dia-cab').innerHTML = `<tr><th>Instrutor</th><th>Hoje</th>${WIN.map(w => `<th class="jan">${w}</th>`).join('')}<th>Voos</th><th>Turno</th><th>Habilitações</th></tr>`;
+  $('#inst-dia-cab').innerHTML = `<tr><th>Instrutor</th><th>Hoje</th>${WIN.map(w => `<th class="jan">${w}</th>`).join('')}<th>Voos</th><th title="Horas de voo no mês com a escala desta data (limites da Lei do Aeronauta)">Mês</th><th>Turno</th><th>Habilitações</th></tr>`;
   if (!S.ins.length) {
-    $('#inst-dia').innerHTML = `<tr><td colspan="${WIN.length + 5}" class="h">${SEM_INSTRUTORES}</td></tr>`;
+    $('#inst-dia').innerHTML = `<tr><td colspan="${WIN.length + 6}" class="h">${SEM_INSTRUTORES}</td></tr>`;
     return;
   }
   const ocupacao = ocupacaoDosInstrutores();
@@ -105,6 +136,7 @@ export function atualizarLinhaDoCadastro(x) {
   kg.classList.toggle('falta', !x.kg);
   kg.setAttribute('aria-label', `Peso de ${x.nm} em kg`);
   linha.querySelector('[data-act="deli"]').setAttribute('aria-label', `Excluir ${x.nm}`);
+  linha.querySelector('[data-dados]').setAttribute('aria-label', `Dados pessoais de ${x.nm}`);
   linha.querySelector('.habs-resumo').textContent = resumoDasHabilitacoes(x) || 'Nenhuma';
   const titulo = $('#painel-instrutor-titulo');
   if (titulo && !$('#painel-instrutor').hidden && +$('#painel-instrutor').dataset.id === x.id) titulo.querySelector('small').textContent = x.nm;
@@ -113,7 +145,8 @@ export function atualizarLinhaDoCadastro(x) {
 
 export function rIns() {
   mostrarVistaDosInstrutores(vistaDosInstrutores);
-  $('#inst').innerHTML = S.ins.length ? S.ins.map(linhaDoCadastro).join('') : `<tr><td colspan="4" class="h">${SEM_INSTRUTORES}</td></tr>`;
+  rLimites();
+  $('#inst').innerHTML = S.ins.length ? S.ins.map(linhaDoCadastro).join('') : `<tr><td colspan="5" class="h">${SEM_INSTRUTORES}</td></tr>`;
   rInsDia();
   rPainelDoInstrutor();
 }
@@ -132,7 +165,41 @@ export function rPainelDoInstrutor() {
     <div class="habs-painel" data-k="i" data-id="${x.id}">
       ${GRUPOS_DE_HABILITACAO.map(([titulo, ids]) => `<fieldset><legend>${titulo}</legend>${ids.map(h =>
         `<label class="hab"><input type="checkbox" class="sw" data-f="hab" data-h="${h}"${x.hab.includes(h) ? ' checked' : ''}>${esc(nomeDaHabilitacao(h))}</label>`).join('')}</fieldset>`).join('')}
+      ${horasDoInstrutor(x)}
     </div>`;
+}
+
+// As horas de voo do instrutor (limites da lei) e as de fora do app: neste mês e, no ano, antes deste mês
+const MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+function horasDoInstrutor(x) {
+  const limites = normalizarLimites(S.limites);
+  const h = horasComAEscala(x);
+  const de = (valor, limite) => `${horasTexto(valor)} h${limite === null ? '' : ` de ${limite} h`}`;
+  const externas = x.horasExternas || {};
+  const mes = MESES[+DATA.slice(5, 7) - 1];
+  return `<fieldset class="horas-ins"><legend>Horas de voo (limites da lei)</legend>
+      <p>No mês: ${de(h.mes, limites.vooMesH)} · No semestre: ${de(h.semestre, limites.vooSemestreH)} · No ano: ${de(h.ano, limites.vooAnoH)} <small>(com a escala desta data)</small></p>
+      <label>Fora do app, neste mês (${mes}) <input type="number" min="0" max="999" step="0.1" data-f="ext-mes" value="${externas[DATA.slice(0, 7)] ?? ''}"></label>
+      <label>Fora do app, neste ano, antes de ${mes} <input type="number" min="0" max="2000" step="0.1" data-f="ext-ano" value="${externas[`${DATA.slice(0, 4)}-00`] ?? ''}"></label>
+    </fieldset>`;
+}
+
+// Os limites da lei, no cadastro dos instrutores: só o Administrador muda (neste navegador, o Operador); vazio é sem limite
+const CAMPOS_DOS_LIMITES = [
+  ['vooPorJornadaMin', 'Voo por jornada (h)', 60], ['jornadaMin', 'Jornada (h)', 60], ['vooMesH', 'Voo no mês (h)', 1],
+  ['vooSemestreH', 'Voo no semestre (h)', 1], ['vooAnoH', 'Voo no ano (h)', 1], ['repousoMin', 'Repouso entre jornadas (h)', 60]
+];
+export function rLimites() {
+  const quadro = $('#limites-lei');
+  if (!quadro) return;
+  const limites = normalizarLimites(S.limites);
+  const desligado = podeEditarLimites() ? '' : ' disabled';
+  quadro.innerHTML = `<h3>Limites da Lei do Aeronauta</h3>
+    <p class="h">Lei 13.475/2017 e RBAC 117 (Apêndice A): a escala não põe um instrutor além destes limites e avisa a partir de 90% do mês, do semestre e do ano. As horas de voo contam só avião (simulador e Ground contam na jornada). A jornada vai de 30 minutos antes do primeiro compromisso a 30 minutos depois do último. Vazio é sem limite; só o Administrador muda.</p>
+    <div class="limites-grade">
+      ${CAMPOS_DOS_LIMITES.map(([chave, rotulo, divisor]) => `<label>${rotulo} <input type="number" min="0" step="0.5" data-limite="${chave}" data-divisor="${divisor}" value="${limites[chave] === null ? '' : String(limites[chave] / divisor)}"${desligado}></label>`).join('')}
+    </div>
+    <button type="button" class="btn quiet" data-limites-padrao${desligado}>Voltar aos valores da lei</button>`;
 }
 
 export function abrirPainelDoInstrutor(id) {
@@ -158,14 +225,15 @@ function naoEscalarCom(s) {
 
 const linhaDoAluno = s => `<tr class="cd" data-k="s" data-id="${s.id}" data-nm="${esc(s.nm.toLowerCase())}">
   <td><input class="nm" data-f="nm" value="${esc(s.nm)}" aria-label="Nome do aluno"></td>
+  <td class="c-canac so-dados">${esc(canacDe('aluno', s.id))}</td>
   <td><input type="number" min="0" max="200" data-f="kg" value="${s.kg || ''}" placeholder="sem peso" aria-label="Peso de ${esc(s.nm)} em kg"${s.kg ? '' : ' class="falta"'}></td>
   <td><div class="bl">${naoEscalarCom(s)}</div></td>
-  <td class="acoes"><button class="x edit-only" data-act="dels" aria-label="Excluir ${esc(s.nm)}">✕</button></td>
+  <td class="acoes"><button type="button" class="btn quiet so-dados" data-dados="aluno:${s.id}" aria-label="Dados pessoais de ${esc(s.nm)}">Dados pessoais</button><button class="x edit-only" data-act="dels" aria-label="Excluir ${esc(s.nm)}">✕</button></td>
 </tr>`;
 
 export const rAlu = () => {
   $('#alu').innerHTML = S.stu.length ? S.stu.map(linhaDoAluno).join('')
-    : '<tr><td colspan="4" class="h">Nenhum aluno cadastrado. Clique em “+ Novo aluno” acima para cadastrar.</td></tr>';
+    : '<tr><td colspan="5" class="h">Nenhum aluno cadastrado. Clique em “+ Novo aluno” acima para cadastrar.</td></tr>';
 };
 
 // Atualiza a linha do aluno no lugar. "Não escalar com" é refeito só quando muda, e o foco volta para o seletor
@@ -179,6 +247,7 @@ export function atualizarLinhaDoAluno(s, { naoEscalar = false } = {}) {
   kg.classList.toggle('falta', !s.kg);
   kg.setAttribute('aria-label', `Peso de ${s.nm} em kg`);
   linha.querySelector('[data-act="dels"]').setAttribute('aria-label', `Excluir ${s.nm}`);
+  linha.querySelector('[data-dados]').setAttribute('aria-label', `Dados pessoais de ${s.nm}`);
   if (!naoEscalar) return;
   linha.querySelector('.bl').innerHTML = naoEscalarCom(s);
   linha.querySelector('[data-f="bl"]').focus();

@@ -99,7 +99,7 @@ describe('Horários por categoria: formato 12 dos dados', async () => {
     const novo = migrarCadastro({ nid: 1000, ins: [], stu: [], frota: [], esquema: 11 });
     assert.ok(ESQUEMA >= 12);
     assert.deepEqual(novo.horarios, HORARIOS_INICIAIS);
-    assert.deepEqual(Object.keys(novo), ['nid', 'ins', 'stu', 'frota', 'horarios', 'esquema']);
+    assert.deepEqual(Object.keys(novo), ['nid', 'ins', 'stu', 'frota', 'horarios', 'limites', 'esquema']);
     const proprios = { ...HORARIOS_INICIAIS, C152: [420] };
     assert.deepEqual(migrarCadastro({ nid: 1000, ins: [], stu: [], frota: [], horarios: proprios, esquema: 11 }).horarios, proprios);
   });

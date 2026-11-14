@@ -144,7 +144,7 @@ test.describe('Menu da conta', () => {
     expect(await itensDoMenu(page)).toEqual(['Minha conta', 'Usuários', 'Tema escuro', 'Sair']);
     await page.locator('#btn-usuarios').click();
     await expect(page.locator('#usuarios')).toBeVisible();
-    await expect(page.locator('#lista-contas tbody tr')).toHaveCount(5);
+    await expect(page.locator('#lista-contas tbody tr')).toHaveCount(6);
   });
 });
 
@@ -155,25 +155,27 @@ test.describe('Usuários (administrador)', () => {
     await expect(page.locator('#usuario')).toHaveText('Admin de Teste · Administrador');
     await abrirMinhaConta(page);
     const linhas = page.locator('#lista-contas tbody tr');
-    await expect(linhas).toHaveCount(5);
+    await expect(linhas).toHaveCount(6);
     await expect(page.locator('#lista-contas tr', { hasText: 'admin@teste.acpm' }).locator('[data-act="excluir-conta"]')).toBeDisabled();
 
     await page.locator('#nc-nome').fill('Maria Secretaria');
     await page.locator('#nc-email').fill('Maria@Teste.ACPM');
+    // A conta da TV da recepção também se cria aqui
+    await expect(page.locator('#nc-perfil option')).toHaveText(['Operador', 'Gestor', 'Secretaria', 'Administrador', 'Painel (TV da recepção)']);
     await page.locator('#nc-perfil').selectOption('secretaria');
     await page.locator('#nc-gerar').click();
     const senha = await page.locator('#nc-senha').inputValue();
     expect(senha.length).toBeGreaterThanOrEqual(12);
     await page.locator('#form-nova-conta [type="submit"]').click();
     await expect(page.locator('#nc-msg')).toContainText('Conta criada para maria@teste.acpm');
-    await expect(linhas).toHaveCount(6);
+    await expect(linhas).toHaveCount(7);
     expect(servidor.contasCriadas.map(c => [c.email, c.perfil, c.nome, c.senha])).toEqual([['maria@teste.acpm', 'secretaria', 'Maria Secretaria', senha]]);
 
     const excluir = page.locator('#lista-contas tr', { hasText: 'maria@teste.acpm' }).locator('[data-act="excluir-conta"]');
     await excluir.click();
     await expect(excluir).toHaveText('Confirmar exclusão');
     await excluir.click();
-    await expect(linhas).toHaveCount(5);
+    await expect(linhas).toHaveCount(6);
     expect(servidor.contasCriadas).toEqual([]);
   });
 

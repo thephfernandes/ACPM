@@ -15,55 +15,58 @@
     "Aluno 05 | [Confirmado] | ✕",
     "Aluno 06 | [Confirmado] | ✕",
     "Aluno 07 | [Confirmado] | ✕",
-    "08:20–10:20 2 h | Aluno 12 | Navegação | PR-VOB C152 | Instrutor 13 | 158 / 170 kg | [Confirmado] | ✕",
-    "08:20–10:20 2 h | Aluno 16 | Voo Solo | PR-VOC C152 | Instrutor 05 | 159 / 170 kg | [Confirmado] | ✕",
-    "08:20–09:20 1 h | Aluno 17 | Navegação | PR-THI C152 | Instrutor 04 | 142 / 170 kg | [Confirmado] | ✕",
+    "08:20–10:20 2 h | Aluno 12 | Navegação | PR-TBT C152 | Instrutor 13 | 158 / 170 kg | [Confirmado] | ✕",
+    "08:20–10:20 2 h | Aluno 16 | Voo Solo | PR-THI C152 | Instrutor 05 | 159 / 170 kg | [Confirmado] | ✕",
+    "08:20–09:20 1 h | Aluno 17 | Navegação | PP-LJV C152 | Instrutor 04 | 142 / 170 kg | [Confirmado] | ✕",
     "08:30–10:30 2 h | Aluno 01 | Multimotor | PR-VOM PA-34 | Instrutor 09 | 118 / 250 kg | [Confirmado] | ✕",
     "10:10 · 3º tempo 5 decolagens e aulas",
-    "10:10–11:10 1 h 2ª preferência | Aluno 02 | Voo Local | PR-IGU C152 | Instrutor 37 | 169 / 170 kg | [Confirmado] | ✕",
-    "10:10–11:10 1 h 2ª preferência | Aluno 03 | Voo Local | PR-MLB C152 | Instrutor 01 | 125 / 170 kg | [Confirmado] | ✕",
-    "10:10–11:10 1 h 2ª preferência | Aluno 04 | Voo Local | PR-TBT C152 | Instrutor 10 | 140 / 170 kg | [Confirmado] | ✕",
+    "10:10–11:10 1 h 2ª preferência | Aluno 02 | Voo Local | PR-BTB C152 | Instrutor 37 | 169 / 170 kg | [Confirmado] | ✕",
+    "10:10–11:10 1 h 2ª preferência | Aluno 03 | Voo Local | PR-IGU C152 | Instrutor 01 | 125 / 170 kg | [Confirmado] | ✕",
+    "10:10–11:10 1 h 2ª preferência | Aluno 04 | Voo Local | PR-MLB C152 | Instrutor 10 | 140 / 170 kg | [Confirmado] | ✕",
     "10:10–11:10 1 h | Aluno 08 | Parafuso | PR-JPL C152 | Instrutor 15 | 151 / 170 kg | [Confirmado] | ✕",
-    "10:10–11:10 1 h | Aluno 20 | Voo Local | PR-BTB C152 | Instrutor 28 | 139 / 170 kg | [Confirmado] | ✕",
-    "11:30 · 4º tempo 1 decolagem ou aula",
-    "11:30–12:30 1 h | Aluno 14 | IFR | PP-AJS C172 | Instrutor 08 | 152 / 222 kg | [Confirmado] | ✕",
+    "10:10–11:10 1 h | Aluno 20 | Voo Local | PP-LJV C152 | Instrutor 28 | 139 / 170 kg | [Confirmado] | ✕",
     "12:40 · 5º tempo 2 decolagens e aulas",
     "12:40–14:40 2 h | Aluno 10 | Voo Local | PP-LJV C152 | Instrutor 19 | 168 / 170 kg | [Confirmado] | ✕",
-    "12:40–14:40 2 h | Aluno 19 | Voo Solo | PR-VOI C152 | Instrutor 23 | 150 / 170 kg | [Confirmado] | ✕",
+    "12:40–14:40 2 h | Aluno 19 | Voo Solo | PR-BTB C152 | Instrutor 23 | 150 / 170 kg | [Confirmado] | ✕",
+    "16:20 · 8º tempo 1 decolagem ou aula",
+    "16:20–17:20 1 h horário ajustado | Aluno 14 | IFR | PP-ABP C172 | Instrutor 08 | 152 / 222 kg | [Confirmado] | ✕",
     "17:30 · 9º tempo (noturno) 2 decolagens e aulas",
-    "17:30–18:30 1 h | Aluno 01 | Noturno | PP-ABP C172 | Instrutor 07 | 129 / 222 kg | [Confirmado] | ✕",
-    "17:30–18:30 1 h | Aluno 15 | Noturno | PP-AJS C172 | Instrutor 08 | 156 / 222 kg | [Confirmado] | ✕"
+    "17:30–18:30 1 h | Aluno 01 | Noturno | PP-AJS C172 | Instrutor 07 | 129 / 222 kg | [Confirmado] | ✕",
+    "17:30–18:30 1 h | Aluno 15 | Noturno | PP-ABP C172 | Instrutor 08 | 156 / 222 kg | [Confirmado] | ✕"
   ],
   "mapa": [
     {
-      "rotulo": "PP-ABP C172 · 1 h",
+      "rotulo": "PP-ABP C172 · 2 h",
+      "barras": [
+        "16:20–17:20 · Aluno 14 / IFR · Instrutor 08",
+        "17:30–18:30 · Aluno 15 / Noturno · Instrutor 08"
+      ]
+    },
+    {
+      "rotulo": "PP-AJS C172 · 1 h",
       "barras": [
         "17:30–18:30 · Aluno 01 / Noturno · Instrutor 07"
       ]
     },
     {
-      "rotulo": "PP-AJS C172 · 2 h",
+      "rotulo": "PP-LJV C152 · 4 h",
       "barras": [
-        "11:30–12:30 · Aluno 14 / IFR · Instrutor 08",
-        "17:30–18:30 · Aluno 15 / Noturno · Instrutor 08"
-      ]
-    },
-    {
-      "rotulo": "PP-LJV C152 · 2 h",
-      "barras": [
+        "08:20–09:20 · Aluno 17 / Navegação · Instrutor 04",
+        "10:10–11:10 · Aluno 20 / Voo Local · Instrutor 28",
         "12:40–14:40 · Aluno 10 / Voo Local · Instrutor 19"
       ]
     },
     {
-      "rotulo": "PR-BTB C152 · 1 h",
+      "rotulo": "PR-BTB C152 · 3 h",
       "barras": [
-        "10:10–11:10 · Aluno 20 / Voo Local · Instrutor 28"
+        "10:10–11:10 · Aluno 02 / Voo Local · Instrutor 37",
+        "12:40–14:40 · Aluno 19 / Voo Solo · Instrutor 23"
       ]
     },
     {
       "rotulo": "PR-IGU C152 · 1 h",
       "barras": [
-        "10:10–11:10 · Aluno 02 / Voo Local · Instrutor 37"
+        "10:10–11:10 · Aluno 03 / Voo Local · Instrutor 01"
       ]
     },
     {
@@ -75,37 +78,19 @@
     {
       "rotulo": "PR-MLB C152 · 1 h",
       "barras": [
-        "10:10–11:10 · Aluno 03 / Voo Local · Instrutor 01"
-      ]
-    },
-    {
-      "rotulo": "PR-TBT C152 · 1 h",
-      "barras": [
         "10:10–11:10 · Aluno 04 / Voo Local · Instrutor 10"
       ]
     },
     {
-      "rotulo": "PR-THI C152 · 1 h",
-      "barras": [
-        "08:20–09:20 · Aluno 17 / Navegação · Instrutor 04"
-      ]
-    },
-    {
-      "rotulo": "PR-VOB C152 · 2 h",
+      "rotulo": "PR-TBT C152 · 2 h",
       "barras": [
         "08:20–10:20 · Aluno 12 / Navegação · Instrutor 13"
       ]
     },
     {
-      "rotulo": "PR-VOC C152 · 2 h",
+      "rotulo": "PR-THI C152 · 2 h",
       "barras": [
         "08:20–10:20 · Aluno 16 / Voo Solo · Instrutor 05"
-      ]
-    },
-    {
-      "rotulo": "PR-VOI C152 · 2 h",
-      "barras": [
-        "12:40–14:40 · Aluno 19 / Voo Solo · Instrutor 23"
       ]
     },
     {

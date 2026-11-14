@@ -168,7 +168,7 @@ nav#nav button.on { color: #fff; border-bottom-color: var(--ye); }
 .aba-selo.erro { background: #E5484D; color: #fff; }
 
 /* A Secretaria trabalha na agenda: só a Agenda e a Escala (que ela consulta) */
-body[data-perfil="secretaria"] #nav button:not([data-t="age"]):not([data-t="esc"]),
+body[data-perfil="secretaria"] #nav button:not([data-t="age"]):not([data-t="esc"]):not([data-t="ins"]):not([data-t="alu"]),
 body[data-perfil="secretaria"] .aba-sep,
 body[data-perfil="secretaria"] #btn-open-log,
 body[data-perfil="secretaria"] #btn-share-link { display: none !important; }
@@ -200,6 +200,8 @@ h3 { font: 600 15px 'Barlow Semi Condensed', sans-serif; margin: 10px 0 6px; col
 
 /* Regras de Somente Visualização Estrita para o Perfil Gestor e Links Compartilhados */
 body[data-role="gestor"] .edit-only { display: none !important; }
+/* Dados pessoais: só operadores, administradores e a secretaria (que no resto entra como consulta) */
+body[data-role="gestor"]:not([data-perfil="secretaria"]) .so-dados { display: none !important; }
 body[data-role="gestor"] #s-rec .janela,
 body[data-role="gestor"] #s-ins .cel,
 body[data-role="gestor"] main label.alvo,
@@ -299,9 +301,9 @@ input[type=number] { width: 88px; }
 
 /* Escala: resumo numa linha, erros e avisos agrupados, uma linha por voo e o mapa como outra visão */
 .resumo { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 10px; margin: 0 0 12px; }
-.resumo .st { display: flex; gap: 22px; margin: 0; background: var(--pn); border: 1px solid var(--ln); border-radius: 8px; padding: 8px 16px; }
-.resumo .st div { border: 0; padding: 0; background: transparent; font: 400 12.5px 'Barlow', sans-serif; }
-.resumo .st strong { font: 700 22px 'Barlow Semi Condensed', sans-serif; line-height: 1.05; }
+.resumo .st, .resumo .parado { display: flex; gap: 22px; margin: 0; background: var(--pn); border: 1px solid var(--ln); border-radius: 8px; padding: 8px 16px; }
+.resumo .st div, .resumo .parado div { border: 0; padding: 0; background: transparent; font: 400 12.5px 'Barlow', sans-serif; }
+.resumo .st strong, .resumo .parado strong { font: 700 22px 'Barlow Semi Condensed', sans-serif; line-height: 1.05; }
 details.caixa { flex: 1; min-width: 280px; border-radius: 8px; padding: 9px 14px; font-size: 14px; }
 details.caixa summary { cursor: pointer; font-weight: 600; }
 details.caixa ul { margin: 6px 0 2px; padding-left: 18px; }
@@ -379,8 +381,12 @@ table.fids-tabela { width: 100%; min-width: 860px; border-collapse: collapse; fo
 .fids-Cancelado .f-obs { color: #FF7B7B; }
 .fids-EmVoo .f-obs { color: #74D7FF; }
 .fids-nada td { color: #DCE7FF; font-weight: 600; }
-.fids:fullscreen { --fids-fs: 2.6vh; --fids-linha: 5.4vh; overflow: hidden; border: 0; border-radius: 0; }
-.fids:fullscreen .fids-topo, .fids:fullscreen table.fids-tabela { min-width: 0; }
+.fids-relogio .fids-aviso { color: #FFC233; }
+.fids-relogio .fids-aviso:empty { display: none; }
+/* Na tela toda (tela cheia na Escala ou a TV da recepção, painel.html): letras e linhas crescem com a tela */
+.fids:fullscreen, .fids.inteiro { --fids-fs: 2.6vh; --fids-linha: 5.4vh; overflow: hidden; border: 0; border-radius: 0; }
+.fids:fullscreen .fids-topo, .fids:fullscreen table.fids-tabela, .fids.inteiro .fids-topo, .fids.inteiro table.fids-tabela { min-width: 0; }
+.fids.inteiro { position: fixed; inset: 0; box-shadow: none; }
 /* A hora da última atualização da escala: discreta, com um relógio, ao lado do título */
 .atualizada { display: inline-flex; align-items: center; gap: 4px; margin-left: 10px; vertical-align: middle; font: 400 13px 'Barlow', sans-serif; color: var(--mu); }
 .atualizada .ico { width: 14px; height: 14px; vertical-align: 0; }
@@ -426,7 +432,7 @@ table.frota .acoes-frota { white-space: nowrap; text-align: right; }
   #s-esc .flt-rotulo, #flt-esc-q { flex: 1 1 140px; min-width: 0; }
   .flt-rotulo select { flex: 1; min-width: 0; }
   .bar .cresce { display: none; }
-  .resumo .st { width: 100%; justify-content: space-between; gap: 8px; }
+  .resumo .st, .resumo .parado { width: 100%; justify-content: space-between; gap: 8px; }
   details.caixa { min-width: 0; flex-basis: 100%; }
   .tabela-escala { overflow: visible; border: 0; background: transparent; }
   .tabela-escala table { min-width: 0; }
@@ -517,7 +523,53 @@ dialog.dlg .motivos legend { padding: 0 4px; font-weight: 600; }
 dialog.dlg .campo { display: flex; flex-direction: column; gap: 4px; margin: 10px 0; font-weight: 600; }
 dialog.dlg .campo[hidden] { display: none; }
 dialog.dlg .campo small { font-weight: 400; }
-dialog.dlg .dlg-acoes { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
+dialog.dlg .dlg-acoes, .form-dados .dlg-acoes { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
+/* Painel dos dados pessoais */
+.form-dados { display: flex; flex-direction: column; gap: 10px; overflow-y: auto; }
+.campo-dado { display: flex; flex-direction: column; gap: 4px; }
+.campo-dado label { font-weight: 600; }
+.campo-dado input[aria-invalid="true"] { border-color: var(--er); }
+.campo-dado .erro-campo:empty { display: none; }
+td.c-canac { font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--mu); }
+/* Escala aprovada (fase 12) */
+.aprovacao { display: inline-flex; align-items: center; gap: 8px; }
+.aprovacao:empty { display: none; }
+.selo-aprovada { display: inline-flex; align-items: center; gap: 6px; margin-left: 10px; padding: 2px 10px; border-radius: 14px; background: var(--ok-bg); color: var(--ok); font: 600 13px 'Barlow', sans-serif; vertical-align: middle; }
+.selo-aprovada[hidden] { display: none; }
+.ico.fixo { width: 14px; height: 14px; margin-left: 4px; vertical-align: -2px; color: var(--ok); }
+details.caixa.conflitos { background: var(--er-bg); border: 1px solid var(--er); }
+details.caixa.conflitos summary { color: var(--er); }
+.tabela-escala tr.em-conflito td:first-child { box-shadow: inset 3px 0 0 var(--er); }
+details.caixa.conflitos .btn.quiet { padding: 1px 8px; margin-left: 4px; font-size: 13.5px; }
+/* Compactação (fase 13): os critérios do dia, o tempo parado e a aprovação numa segunda linha da barra da Escala; no
+   celular, cada controle ocupa a linha, com o rótulo em cima */
+.bar.compactacao { margin-top: -2px; }
+.bar.compactacao[hidden] { display: none; }
+.criterios { display: inline-flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; }
+@media (max-width: 600px) {
+  .criterios, .criterios .flt-rotulo { display: flex; flex-direction: column; align-items: stretch; width: 100%; gap: 4px; }
+  #s-esc .criterios .flt-rotulo { flex: none; }
+  .criterios { gap: 10px; }
+  .criterios .seg button { flex: 1; justify-content: center; padding: 6px 6px; }
+}
+.bar.compactacao .seg button:disabled { cursor: default; opacity: .75; }
+.bar.compactacao .seg button.on:disabled { opacity: 1; }
+.resumo .parado strong { display: block; color: var(--ink); font-variant-numeric: tabular-nums; }
+/* Sugestões para um conflito (fase 12): a gaveta com as opções, a melhor primeiro */
+.motivo-conflito { margin: 0; padding: 8px 12px; border-radius: 8px; background: var(--er-bg); color: var(--er); }
+.opcoes-reparo { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; overflow-y: auto; }
+.opcoes-reparo li { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; border: 1px solid var(--ln); border-radius: 8px; background: var(--pn2); }
+.opcoes-reparo li.cancelar { background: transparent; border-style: dashed; }
+.opcoes-reparo .btn { flex: none; }
+/* Limites da lei (fase 11) */
+td.mes { white-space: nowrap; font-variant-numeric: tabular-nums; }
+td.mes.perto { color: var(--wa); font-weight: 700; }
+.limites-lei { margin-top: 12px; }
+.limites-grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px 14px; margin: 8px 0 10px; }
+.limites-grade label { display: flex; flex-direction: column; gap: 4px; font-weight: 600; }
+.horas-ins { display: grid; gap: 8px; }
+.horas-ins p { margin: 0; }
+.horas-ins label { display: flex; flex-direction: column; gap: 4px; font-weight: 600; }
 
 .stu-cell {
   display: flex;
@@ -555,6 +607,7 @@ dialog.dlg .dlg-acoes { display: flex; justify-content: flex-end; gap: 8px; marg
 .tag.fb { background: var(--wa-bg); color: var(--wa); }
 .tag.grp { background: var(--ok-bg); color: var(--ok); }
 .tag.er { background: var(--er-bg); color: var(--er); }
+.tag.comb { background: var(--wa-bg); color: var(--wa); cursor: help; }
 /* Interruptor (é uma caixa de seleção com outra aparência) */
 input.sw {
   -webkit-appearance: none; appearance: none; width: 32px; height: 18px; border-radius: 9px; margin: 0; flex: none;
@@ -1127,3 +1180,16 @@ body[data-backend="supabase"] #btn-bi-clr { display: none !important; }
   .horarios-lista { flex-basis: 100%; }
 }
 
+
+/* ==========================================================================
+   TV DA RECEPÇÃO (painel.html): o painel na tela toda; antes do login, um cartão para entrar
+   ========================================================================== */
+body.tela-painel { min-height: 100vh; background: #07122B; overflow: hidden; }
+.login-painel {
+  width: min(380px, calc(100vw - 32px)); margin: 12vh auto 0; display: flex; flex-direction: column; gap: 10px;
+  padding: 22px 24px; background: var(--pn); color: var(--ink); border-radius: 10px; box-shadow: 0 12px 32px rgba(0,0,0,.4);
+}
+.login-painel[hidden] { display: none; }
+.login-painel h1 { margin: 0; font: 700 22px 'Barlow Semi Condensed', sans-serif; }
+.login-painel label { display: flex; flex-direction: column; gap: 4px; font-weight: 600; }
+.login-logo { height: 44px; width: auto; align-self: flex-start; }

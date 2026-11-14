@@ -2,7 +2,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { MIS } from '../../js/config.js';
-import { missoesDoManual, quemPodeDar, janelasDoManual, pesosDoManual, rodizioDoManual } from '../../js/manual.js';
+import { missoesDoManual, quemPodeDar, janelasDoManual, pesosDoManual, combustivelDoManual, rodizioDoManual } from '../../js/manual.js';
 
 describe('Manual', () => {
   it('quem pode dar cada missão, com os rótulos da grade de habilitações (e o que o avião acrescenta)', () => {
@@ -25,6 +25,10 @@ describe('Manual', () => {
     assert.equal(linha('Ground Navegação').obs, 'Aula de 1h30, em turma; antes do primeiro voo de Navegação do aluno no dia');
     assert.equal(linha('Parafuso').obs, 'No C152, sempre num avião marcado “Só Parafuso” em Recursos (que só voa Parafuso)');
     assert.equal(linha('Noturno').obs, 'Só na janela das 17:30');
+  });
+
+  it('tanque e autonomia de cada avião (fase 10)', () => {
+    assert.deepEqual(combustivelDoManual(), ['C152: 26 gal, 4h', 'C172: 53 gal, 6h', 'PA-34: 93 gal, 4h30']);
   });
 
   it('janelas, limites de peso e categorias do rodízio', () => {

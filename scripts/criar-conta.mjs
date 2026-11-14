@@ -1,15 +1,15 @@
 // Cria uma conta (e-mail e senha) com perfil de acesso, direto no banco de um projeto Supabase.
 // O cadastro aberto fica desligado: contas novas são criadas pelo administrador com este script.
 //
-// Uso: SUPABASE_DB_PASSWORD=... SENHA_NOVA=... node scripts/criar-conta.mjs <email> <operador|gestor|secretaria|administrador> "<nome>"
+// Uso: SUPABASE_DB_PASSWORD=... SENHA_NOVA=... node scripts/criar-conta.mjs <email> <operador|gestor|secretaria|administrador|painel> "<nome>"
 //   Conexão: SUPABASE_DB_URL (sem a senha) ou o pooler do projeto vinculado (supabase/.temp/pooler-url).
 //   A senha nova chega por variável de ambiente (lida pelo próprio psql): não aparece na linha de comando.
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 
 const [email, perfil, nome = ''] = process.argv.slice(2);
-if (!email || !['operador', 'gestor', 'secretaria', 'administrador'].includes(perfil)) {
-  console.error('Uso: node scripts/criar-conta.mjs <email> <operador|gestor|secretaria|administrador> "<nome>"');
+if (!email || !['operador', 'gestor', 'secretaria', 'administrador', 'painel'].includes(perfil)) {
+  console.error('Uso: node scripts/criar-conta.mjs <email> <operador|gestor|secretaria|administrador|painel> "<nome>"');
   process.exit(2);
 }
 if (!process.env.SUPABASE_DB_PASSWORD || !process.env.SENHA_NOVA) {

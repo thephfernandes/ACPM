@@ -6,7 +6,7 @@ import { backendLocal } from './backends/local.js';
 import { setRole } from './actions.js';
 import { $, mostrarAviso, avisoAberto, fecharAviso } from './dom.js';
 import { amanhaISO, esc } from './format.js';
-import { ROTULOS, operaEscala, gerenciaContas } from './perfis.js';
+import { ROTULOS, operaEscala, gerenciaContas, soPainel } from './perfis.js';
 import { retornoDoLink } from './retorno-do-link.js';
 
 
@@ -105,6 +105,12 @@ export async function iniciarSessaoSupabase(projeto) {
     $('#sem-acesso').hidden = false;
     $('#sem-acesso-email').textContent = sessao.user.email;
     $('#btn-sair-sem-acesso').onclick = () => sair(cliente);
+    return false;
+  }
+
+  // A conta da TV da recepção só vê o painel: vai direto para ele (a sessão é a mesma)
+  if (soPainel(perfil.perfil)) {
+    window.location.replace(`painel.html${window.location.search}`);
     return false;
   }
 

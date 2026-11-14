@@ -2,7 +2,7 @@
   {
     "rotulo": "Instrutor 01 1 h",
     "barras": [
-      "10:10–11:10 · PR-MLB / Aluno 03 · Voo Local"
+      "10:10–11:10 · PR-IGU / Aluno 03 · Voo Local"
     ]
   },
   {
@@ -14,26 +14,26 @@
   {
     "rotulo": "Instrutor 04 1 h",
     "barras": [
-      "08:20–09:20 · PR-THI / Aluno 17 · Navegação"
+      "08:20–09:20 · PP-LJV / Aluno 17 · Navegação"
     ]
   },
   {
     "rotulo": "Instrutor 05 2 h",
     "barras": [
-      "08:20–10:20 · PR-VOC / Aluno 16 · Voo Solo"
+      "08:20–10:20 · PR-THI / Aluno 16 · Voo Solo"
     ]
   },
   {
     "rotulo": "Instrutor 07 1 h",
     "barras": [
-      "17:30–18:30 · PP-ABP / Aluno 01 · Noturno"
+      "17:30–18:30 · PP-AJS / Aluno 01 · Noturno"
     ]
   },
   {
     "rotulo": "Instrutor 08 2 h",
     "barras": [
-      "11:30–12:30 · PP-AJS / Aluno 14 · IFR",
-      "17:30–18:30 · PP-AJS / Aluno 15 · Noturno"
+      "16:20–17:20 · PP-ABP / Aluno 14 · IFR",
+      "17:30–18:30 · PP-ABP / Aluno 15 · Noturno"
     ]
   },
   {
@@ -45,7 +45,7 @@
   {
     "rotulo": "Instrutor 10 1 h",
     "barras": [
-      "10:10–11:10 · PR-TBT / Aluno 04 · Voo Local"
+      "10:10–11:10 · PR-MLB / Aluno 04 · Voo Local"
     ]
   },
   {
@@ -57,7 +57,7 @@
   {
     "rotulo": "Instrutor 13 2 h",
     "barras": [
-      "08:20–10:20 · PR-VOB / Aluno 12 · Navegação"
+      "08:20–10:20 · PR-TBT / Aluno 12 · Navegação"
     ]
   },
   {
@@ -75,19 +75,19 @@
   {
     "rotulo": "Instrutor 23 2 h",
     "barras": [
-      "12:40–14:40 · PR-VOI / Aluno 19 · Voo Solo"
+      "12:40–14:40 · PR-BTB / Aluno 19 · Voo Solo"
     ]
   },
   {
     "rotulo": "Instrutor 28 1 h",
     "barras": [
-      "10:10–11:10 · PR-BTB / Aluno 20 · Voo Local"
+      "10:10–11:10 · PP-LJV / Aluno 20 · Voo Local"
     ]
   },
   {
     "rotulo": "Instrutor 37 1 h",
     "barras": [
-      "10:10–11:10 · PR-IGU / Aluno 02 · Voo Local"
+      "10:10–11:10 · PR-BTB / Aluno 02 · Voo Local"
     ]
   }
 ]

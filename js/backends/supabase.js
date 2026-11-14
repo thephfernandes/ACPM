@@ -160,6 +160,27 @@ export function criarBackendSupabase(cliente, { aoConflito = () => {}, aoErro = 
       if (error) throw Object.assign(new Error(error.message), { code: error.code });
     },
 
+    // As horas de voo de cada instrutor antes da data (limites da lei): o servidor soma as escalas guardadas
+    async horasDosInstrutores(data) {
+      const { data: horas, error } = await cliente.rpc('horas_dos_instrutores', { p_data: data });
+      if (error) throw erroComCodigo(error);
+      return horas || {};
+    },
+
+    // Dados pessoais: o servidor decide quem lê e grava (operadores e secretaria) e valida tudo; o campo do erro vem na
+    // dica (hint)
+    async listarDadosPessoais(tipo) {
+      const { data, error } = await cliente.from('dados_pessoais')
+        .select('id_cadastro, cpf, canac, nascimento, celular, email, atualizado_em, atualizado_por').eq('tipo', tipo);
+      if (error) throw erroComCodigo(error);
+      return Object.fromEntries(data.map(({ id_cadastro, ...dados }) => [id_cadastro, Object.fromEntries(Object.entries(dados).filter(([, v]) => v !== null))]));
+    },
+
+    async salvarDadosPessoais(tipo, id, dados) {
+      const { error } = await cliente.rpc('salvar_dados_pessoais', { p_tipo: tipo, p_id: id, p_dados: dados });
+      if (error) throw Object.assign(erroComCodigo(error), { campo: error.hint || null });
+    },
+
     async importarHistorico(data, entradas) {
       const { data: importadas, error } = await cliente.rpc('importar_historico', { p_data: data, p_entradas: entradas });
       if (error) throw new Error(error.message);

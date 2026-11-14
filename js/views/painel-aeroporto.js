@@ -1,7 +1,7 @@
 // Painel no estilo dos aeroportos (fase 8), como os painéis da INFRAERO: o quadro de Partidas (todas as do dia) e o de
 // Chegadas (as que ainda não pousaram) se alternam página a página a cada 10 segundos, com o relógio e a página no
 // canto. O operador pode deixar um quadro só, pausar a troca e abrir em tela cheia (para um monitor ou TV). Só mostra:
-// o status muda na Lista e no mapa. A tela da recepção (fase 9) usa o mesmo painel.
+// o status muda na Lista e no mapa. A TV da recepção (painel.html) usa o mesmo painel, na tela toda e sem os botões.
 import { hm, esc, hojeISO, rotuloDaData } from '../format.js';
 import { quadroDePartidas, quadroDeChegadas, minutoDoQuadro, telasDoPainel } from '../quadro.js';
 
@@ -13,8 +13,9 @@ const QUADROS = {
 };
 const COLUNAS = ['Horário', 'Missão', 'Modelo', 'Aeronave', 'Aluno', 'Instrutor', 'Previsto', 'Observação'];
 
-// modo: 'alternar' (os dois quadros) ou um quadro só; tela: a posição na sequência; fonte: de onde vêm as linhas
-const estado = { modo: 'alternar', tela: 0, pausado: false, fonte: null, relogio: null, ultimaTroca: 0 };
+// modo: 'alternar' (os dois quadros) ou um quadro só; tela: a posição na sequência; fonte: de onde vêm as linhas;
+// seletor: onde está o painel; inteiro: na tela toda (a TV), com as linhas que couberem
+const estado = { modo: 'alternar', tela: 0, pausado: false, fonte: null, relogio: null, ultimaTroca: 0, seletor: '#out .fids', inteiro: false };
 
 const MODELOS = { 'Sim. Mono': 'SIM MONO', 'Sim. Multi': 'SIM MULTI' };
 const classeDoModelo = modelo => modelo.replace(/[^A-Za-z0-9]/g, '');
@@ -34,9 +35,10 @@ function linhaHtml(l) {
 
 // Quantas linhas cabem: na página, 12; em tela cheia, as que couberem na altura da tela
 function porPagina() {
-  const cheia = document.fullscreenElement && document.fullscreenElement.classList.contains('fids');
-  if (!cheia) return POR_PAGINA;
-  const linha = parseFloat(getComputedStyle(document.fullscreenElement).getPropertyValue('--fids-linha')) || 48;
+  const cheia = document.fullscreenElement && document.fullscreenElement.classList.contains('fids') ? document.fullscreenElement : null;
+  const quadro = cheia || (estado.inteiro && document.querySelector(estado.seletor));
+  if (!quadro) return POR_PAGINA;
+  const linha = parseFloat(getComputedStyle(quadro).getPropertyValue('--fids-linha')) || 48;
   return Math.max(8, Math.floor((innerHeight * 0.8) / linha));
 }
 
@@ -52,8 +54,9 @@ function quadroHtml() {
   const telas = telasAgora();
   estado.tela = estado.tela % telas.length;
   const tela = telas[estado.tela];
-  const { titulo, icone, vazio } = QUADROS[tela.quadro];
-  const { data } = estado.fonte();
+  const { titulo, icone } = QUADROS[tela.quadro];
+  const { data, semEscala = false, aviso = null } = estado.fonte();
+  const vazio = semEscala ? 'A escala de hoje ainda não foi publicada.' : QUADROS[tela.quadro].vazio;
   const hoje = hojeISO();
   const agora = new Date();
   const linhas = tela.linhas.length
@@ -65,7 +68,7 @@ function quadroHtml() {
       <img class="fids-logo" src="img/acpm-aguia.png" alt="ACPM">
       <div class="fids-nome"><h3 class="fids-titulo">${titulo}</h3>${data === hoje ? '' : `<small class="fids-data">${esc(rotuloDaData(data, hoje).dia)}</small>`}</div>
       <svg class="fids-aviao" aria-hidden="true"><use href="#${icone}"/></svg>
-      <div class="fids-relogio"><b>${hm(agora.getHours() * 60 + agora.getMinutes())}</b><small>página ${tela.pagina}/${tela.paginas}</small></div>
+      <div class="fids-relogio"><b>${hm(agora.getHours() * 60 + agora.getMinutes())}</b><small>página ${tela.pagina}/${tela.paginas}</small>${aviso === null ? '' : `<small class="fids-aviso">${esc(aviso)}</small>`}</div>
     </div>
     <table class="fids-tabela">
       <caption class="sr">${titulo}${tela.paginas > 1 ? `, página ${tela.pagina} de ${tela.paginas}` : ''}</caption>
@@ -79,6 +82,8 @@ const botaoDoModo = (modo, rotulo) => `<button type="button" data-fids="${modo}"
 // O painel da Escala: os botões (os dois quadros ou um só, pausar e tela cheia) e o quadro
 export function painelDaEscala(fonte) {
   estado.fonte = fonte;
+  estado.seletor = '#out .fids';
+  estado.inteiro = false;
   ligarRelogio();
   return `<div class="fids-controles">
       <div class="seg" role="group" aria-label="Quadros do painel">
@@ -91,9 +96,22 @@ export function painelDaEscala(fonte) {
 }
 
 function redesenhar() {
-  const quadro = document.querySelector('#out .fids');
-  if (quadro) quadro.innerHTML = quadroHtml();
+  const quadro = document.querySelector(estado.seletor);
+  if (quadro && estado.fonte) quadro.innerHTML = quadroHtml();
 }
+
+// A TV da recepção: o painel na tela toda, sem os botões (alterna sempre). atualizarPainel redesenha na hora (dados novos)
+export function painelNaTela(elemento, fonte) {
+  estado.fonte = fonte;
+  estado.seletor = `#${elemento.id}`;
+  estado.inteiro = true;
+  elemento.classList.add('fids', 'inteiro');
+  elemento.setAttribute('role', 'region');
+  elemento.setAttribute('aria-label', 'Painel de partidas e chegadas');
+  elemento.innerHTML = quadroHtml();
+  ligarRelogio();
+}
+export const atualizarPainel = redesenhar;
 
 // O relógio do painel: a cada segundo, a hora; a cada 10 segundos, a próxima página (se não estiver pausado). Para
 // sozinho quando o painel sai da tela
@@ -101,7 +119,7 @@ function ligarRelogio() {
   if (estado.relogio) return;
   estado.ultimaTroca = Date.now();
   estado.relogio = setInterval(() => {
-    if (!document.querySelector('#out .fids') || !estado.fonte) {
+    if (!document.querySelector(estado.seletor) || !estado.fonte) {
       clearInterval(estado.relogio);
       estado.relogio = null;
       return;

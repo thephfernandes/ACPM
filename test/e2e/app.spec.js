@@ -141,7 +141,7 @@ test.describe('Aplicação', () => {
       expect(texto, antigo).not.toContain(antigo);
     }
     await expect(manual.locator('h3')).toHaveText(['Primeiros passos: a rotina do operador', 'Perfis de acesso', 'As abas',
-      'Como a escala é montada', 'Para o gestor', 'Perguntas frequentes']);
+      'Como a escala é montada', 'Para o gestor', 'TV da recepção', 'Perguntas frequentes']);
     // As abas na ordem do app, sem números, com os nomes novos dos botões e das vistas
     await expect(manual.locator('#manual-abas h4')).toHaveText(['Escala', 'Demanda', 'Agenda', 'Recursos', 'Instrutores', 'Alunos', 'Rodízio', 'BI']);
     for (const novo of ['menu da conta', 'Pôr um aluno na demanda', 'Disponibilidade do dia', 'Editar habilitações', 'Não escalar com',

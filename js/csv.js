@@ -23,7 +23,11 @@ function observacoes(o, status, detalhe, revisao) {
   if (o.limKg) {
     if (!o.stuKg) notas.push(`Peso do aluno não informado: limite de ${o.limKg} kg do ${o.eqType} não verificado`);
     else if (!o.insKg) notas.push(`Peso do instrutor não informado: limite de ${o.limKg} kg do ${o.eqType} não verificado`);
-    else {
+    else if (o.comb) {
+      // Acima do limite com os tanques cheios: o voo sai com menos combustível (fase 10)
+      const { abastecerGal, reduzirGal, minimoGal } = o.comb;
+      notas.push(`Peso aluno + instrutor: ${o.stuKg + o.insKg} kg (limite do ${o.eqType} com os tanques cheios: ${o.limKg} kg) · combustível: abastecer até ${abastecerGal} gal (${reduzirGal} a menos); o voo, o táxi e a reserva pedem ${minimoGal} gal`);
+    } else {
       const total = o.stuKg + o.insKg;
       notas.push(`Peso aluno + instrutor: ${total} kg (limite do ${o.eqType}: ${o.limKg} kg) · ${total <= o.limKg ? 'dentro do envelope' : 'ACIMA DO LIMITE'}`);
     }

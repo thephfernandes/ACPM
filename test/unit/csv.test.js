@@ -52,6 +52,11 @@ describe('CSV da escala por avião', () => {
     assert.match(obs({ k: 'Cancelado' }, {}), /^Status: Cancelado · /);
   });
 
+  it('observações: acima do limite com os tanques cheios, quanto abastecer e quanto o voo pede (fase 10)', () => {
+    const obs = linhasDoCsv(escala([voo('PR-BTB', 'C152', 390, { stuKg: 100, comb: { reduzirGal: 4, abastecerGal: 22, minimoGal: 11, autonomiaMin: 203 } })]))[0][5];
+    assert.equal(obs, 'Peso aluno + instrutor: 180 kg (limite do C152 com os tanques cheios: 170 kg) · combustível: abastecer até 22 gal (4 a menos); o voo, o táxi e a reserva pedem 11 gal');
+  });
+
   it('observações: avião que para para a revisão de 50 horas naquele dia', () => {
     const res = { ...escala([voo('PR-BTB', 'C152', 390), voo('PR-VOB', 'C152', 390)]), revisao: { 'PR-BTB': { inicio: 49, voadas: 1, fim: 50, paraAs: 450 }, 'PR-VOB': { inicio: 10, voadas: 1, fim: 11, paraAs: null } } };
     const [btb, vob] = linhasDoCsv(res);

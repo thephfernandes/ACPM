@@ -4,6 +4,7 @@ import { describe, it, beforeEach, afterEach } from 'node:test';
 import { FROTA_INICIAL } from '../../js/frota.js';
 import { HORARIOS_INICIAIS } from '../../js/horarios.js';
 import assert from 'node:assert/strict';
+import { LIMITES_DA_LEI } from '../../js/limites.js';
 import { ApiClient } from '../../js/storage.js';
 import { backendLocal } from '../../js/backends/local.js';
 import { simularNavegador } from '../helpers/navegador.js';
@@ -260,7 +261,7 @@ describe('Formato dos dados guardados (versões)', () => {
     assert.equal(backend.docs.get('dia:2026-10-16').resultado.out[0].r, 'SIM-MONO-A');
     assert.equal(backend.docs.get('dia:2026-11-11').av['SIM-MLTE-D'], false);
     const fase3 = cadastroFase3();
-    assert.deepEqual(backend.docs.get('cadastro'), { ...fase3, ins: fase3.ins.map(x => ({ ...x, hab: habilitacoesDoNivel(x.lv) })), frota: FROTA_INICIAL, horarios: HORARIOS_INICIAIS, esquema: ESQUEMA });
+    assert.deepEqual(backend.docs.get('cadastro'), { ...fase3, ins: fase3.ins.map(x => ({ ...x, hab: habilitacoesDoNivel(x.lv) })), frota: FROTA_INICIAL, horarios: HORARIOS_INICIAIS, limites: LIMITES_DA_LEI, esquema: ESQUEMA });
 
     backend.gravacoes.length = 0;
     assert.equal(await ApiClient.atualizarFormatoGravado(), false, 'já atualizado');

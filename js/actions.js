@@ -8,7 +8,7 @@ import { rBI } from './views/bi.js';
 import { renderAuditPanel, rOut } from './views/escala.js';
 import { rDem } from './views/demanda.js';
 import { rIns, rInsDia, rAlu } from './views/cadastros.js';
-import { rRec, rRevisao } from './views/recursos.js';
+import { rRec, rRevisao, rHangar } from './views/recursos.js';
 import { podeEditarAgenda, rAgenda } from './views/agenda.js';
 import { atualizarSelosDaEscala, atualizarSeloDaAgenda, lerPedidosDaData } from './views/selos.js';
 
@@ -121,11 +121,11 @@ export async function historicoParaPainel(data) {
 let pedidoDeData = 0;
 export async function carregarData(data) {
   const pedido = ++pedidoDeData;
-  const { estado, escala } = await ApiClient.carregarDia(data);
+  const { estado, escala, horasBase, horasDosInstrutores } = await ApiClient.carregarDia(data);
   const historico = await historicoParaPainel(data);
   if (pedido !== pedidoDeData) return;
   abrirData(data);
-  setS(estado);
+  setS({ ...estado, horasBase, horasDosInstrutores });
   // Data sem escala gravada (por exemplo, uma data nova, copiada da anterior): a escala calculada aparece na hora
   // e é gravada junto com a primeira alteração
   setRES(escala || escalaCalculada());
@@ -182,6 +182,7 @@ export function refazerEscala() {
   setRES(escalaCalculada());
   syncBIHistoryForCurrentDate();
   rRevisao();
+  rHangar();
   rInsDia();
   rOut();
   renderAuditPanel();

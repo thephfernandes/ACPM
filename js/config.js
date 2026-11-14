@@ -72,8 +72,28 @@ export const MIS = {
 export const REVISAO_H = 50;
 export const MENOR_VOO_H = 1;
 
-// Limites máximos de peso implícitos ao equipamento (fixos na regra operacional)
+// Limites máximos de peso implícitos ao equipamento (fixos na regra operacional), aluno + instrutor com os tanques cheios
 export const DEFAULT_LIM = { 'C152': 170, 'C172': 222, 'PA-34': 250 };
+
+// Combustível (fase 10): o tanque (galões americanos) e a autonomia com ele cheio. Acima do limite de peso, o avião
+// pode sair com menos combustível (js/combustivel.js). 1 galão de gasolina de aviação = 6 lb = 2,72 kg
+export const COMBUSTIVEL = { C152: { galoes: 26, autonomiaMin: 240 }, C172: { galoes: 53, autonomiaMin: 360 }, 'PA-34': { galoes: 93, autonomiaMin: 270 } };
+export const KG_POR_GALAO = 6 * 0.45359237;
+// Táxi e espera antes da decolagem (minutos de consumo além do voo)
+export const TAXI_MIN = 10;
+
+// Compactação da escala (fase 13, js/compactar.js): o peso de cada parte no custo do dia, em minutos. INVA: o tempo
+// parado dos instrutores vale mais; Avião: o tempo parado dos aviões e as saídas do hangar; Maior buraco: cada buraco
+// (de instrutor ou de avião) vale o quadrado da duração dividido por 60 (1 h vale 60; 2 h, 240; 4 h, 960). A
+// preferência perdida pesa igual nos três: a 2ª vale 30 e outro horário 60, vezes a prioridade do pedido sobre 3
+export const PESOS_DA_COMPACTACAO = {
+  inva: { invaParado: 1, aviaoParado: 0.1, saida: 10 },
+  aviao: { invaParado: 0.1, aviaoParado: 1, saida: 60 },
+  maior: { quadrado: 1 / 60 },
+  preferencia: { p2: 30, outro: 60 }
+};
+// Até onde a busca vai (contagens, não tempo: a mesma escala dá sempre o mesmo resultado)
+export const LIMITES_DA_COMPACTACAO = { movimentos: 200, verificacoes: 20000, avaliacoes: 200000 };
 
 export const PRE = {
   'Dia inteiro': [0,1,2,3,4,5,6,7],

@@ -1,6 +1,7 @@
 // Migrações do formato dos dados guardados: cada versão transforma a anterior sem perder nada.
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import { LIMITES_DA_LEI } from '../../js/limites.js';
 import { ESQUEMA, migrarCadastro, migrarDia, precisaMigrar, renomearSimulador } from '../../js/migracoes.js';
 import { FROTA_INICIAL } from '../../js/frota.js';
 import { HORARIOS_INICIAIS } from '../../js/horarios.js';
@@ -46,8 +47,8 @@ describe('Migrações do formato dos dados', () => {
     const cadastro = { nid: 1003, ins: [{ id: 1, nm: 'Instrutor 01', lv: 3, kg: 70 }], stu: [{ id: 1000, nm: 'Aluno 1000', kg: 60, bl: [1] }] };
     const novo = migrarCadastro(structuredClone(cadastro));
     assert.equal(novo.esquema, ESQUEMA);
-    // Desde as versões 11 e 12, o cadastro também guarda a frota e os horários de decolagem
-    assert.deepEqual({ ...novo, ins: null }, { ...cadastro, ins: null, frota: FROTA_INICIAL, horarios: HORARIOS_INICIAIS, esquema: ESQUEMA });
+    // Desde as versões 11, 12 e 15, o cadastro também guarda a frota, os horários de decolagem e os limites da lei
+    assert.deepEqual({ ...novo, ins: null }, { ...cadastro, ins: null, frota: FROTA_INICIAL, horarios: HORARIOS_INICIAIS, limites: LIMITES_DA_LEI, esquema: ESQUEMA });
     assert.equal(migrarCadastro(null), null);
   });
 
@@ -95,6 +96,34 @@ describe('Migrações do formato dos dados', () => {
     assert.deepEqual(migrarDia(dia), { ...dia, esquema: ESQUEMA });
     assert.deepEqual(migrarCadastro({ nid: 1000, ins: [], stu: [], esquema: 12 }).ins, []);
     assert.ok(ESQUEMA >= 13);
+  });
+
+  it('versão 14: os dias guardam a ordem dos aviões no hangar', () => {
+    const dia = { hangar: ['PR-VOB'], esquema: 13 };
+    assert.deepEqual(migrarDia(dia), { ...dia, esquema: ESQUEMA });
+    assert.ok(ESQUEMA >= 14);
+  });
+
+  it('versão 15: o cadastro ganha os limites da Lei do Aeronauta, antes de "esquema"', async () => {
+    const { LIMITES_DA_LEI } = await import('../../js/limites.js');
+    const novo = migrarCadastro({ nid: 1000, ins: [], stu: [], frota: [], horarios: {}, esquema: 14 });
+    assert.deepEqual(novo.limites, LIMITES_DA_LEI);
+    assert.deepEqual(Object.keys(novo), ['nid', 'ins', 'stu', 'frota', 'horarios', 'limites', 'esquema']);
+    const proprios = { ...LIMITES_DA_LEI, vooMesH: 90 };
+    assert.deepEqual(migrarCadastro({ nid: 1000, ins: [], stu: [], limites: proprios, esquema: 14 }).limites, proprios);
+    assert.ok(ESQUEMA >= 15);
+  });
+
+  it('versão 16: os dias guardam a escala aprovada (os voos fixos e quem aprovou)', () => {
+    const dia = { fixos: { '1000_0_1': { a: 390, b: 450, r: 'PR-VOB', insId: 1 } }, aprovacao: null, esquema: 15 };
+    assert.deepEqual(migrarDia(dia), { ...dia, esquema: ESQUEMA });
+    assert.ok(ESQUEMA >= 16);
+  });
+
+  it('versão 17: os dias guardam os critérios da compactação', () => {
+    const dia = { criterios: { buracos: 'aviao', horarios: 'fixos' }, esquema: 16 };
+    assert.deepEqual(migrarDia(dia), { ...dia, esquema: ESQUEMA });
+    assert.ok(ESQUEMA >= 17);
   });
 
   it('os nomes novos são os da frota cadastrada, na mesma ordem', () => {
