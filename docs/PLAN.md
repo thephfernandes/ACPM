@@ -262,6 +262,17 @@ A full review of the app (engine, data and security, usability and accessibility
    - **Limits**: names up to 80 characters, history descriptions up to 500; `?data=` must be a real date (otherwise tomorrow opens, with a notice).
    - **The local share link is gone**: it put names, weights and hours in the URL. Without the server "Compartilhar" explains that the schedule stays in this browser; an old `share=` link is not read and shows a notice.
    - 7 database checks; applied to the preview.
+2. [x] **Data that isn't lost** (branch `revisao-2`, on top of `revisao-1`).
+   - **History after the save**: a history entry shows "gravando…" without Reverter and is registered only after the write that carries the change; a refused change stays "não gravada" and never reaches the server. The cadastro is written before the day, and the day only if the cadastro was written.
+   - **Conflicts**: after one, the screen becomes read-only with the banner. A refusal because of the data format (migration `formato_e_status_do_dia`: refusals carry the hint `formato`) says the app was updated and asks to reload.
+   - **No connection**: writes (cadastro, day, history) retry by themselves with backoff (2 s up to 30 s, and at once when the browser reports it is back online); the banner counts the changes waiting, with no Reload button; closing the page with changes waiting asks for confirmation. A permanent refusal (no permission, invalid data) says why and doesn't retry. In local mode, a full browser storage is reported.
+   - **Expired session**: a 401 keeps the change and opens one sign-in dialog for the same account; the changes are written after it.
+   - **Server rules** (migration `formato_e_status_do_dia`): a day can't be created in a format older than the cadastro's (an old tab no longer creates old days); a day only takes listed statuses; `dias_em_formato_antigo` lists the outdated days, so the format upgrade no longer downloads every day (a query returns at most 1000 rows; the test server now enforces that too).
+   - **Extra missions** are numbered per student (after the student's missions and anything the day still keeps for a removed one), so adding one no longer rewrites the shared cadastro (which caused 409s between people on different dates).
+   - **Answers that arrive after a date change**: the Agenda import is cancelled with a notice; a course result goes to the flight date's history.
+   - **Legal hours and course results unavailable**: the date opens and a persistent banner says what isn't being checked, with "Tentar de novo"; meanwhile "Aprovar escala" (without the hours), "Usar" and the result selector (without the results) are disabled.
+   - **Personal data** (migration `dados_pessoais_versionados`): the drawer reads the person when it opens and won't save without that read; `salvar_dados_pessoais` takes the version read and refuses a stale save (PT409), works only for people in the cadastro and writes the history entry itself (field names only, so the secretaria's edits are logged too); saving the cadastro deletes the personal data of anyone no longer in it. The 3-argument function stays, so the app still in production keeps saving personal data until this PR is live (applied to production before the merge, 2026-11-14); **a migration after the merge drops it** (with PR 7).
+   - 21 new database checks; applied to the preview.
 
 ### Phase 16: Later (nice to have)
 - [ ] Track instructor and student currency: last flight, medical/CMA expiry. The engine then checks these too (the course phase is Phase 14).
