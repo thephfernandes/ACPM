@@ -53,7 +53,7 @@ describe('CSV da escala por avião', () => {
     const obs = (fStatus, fObs) => linhasDoCsv(escala([voo('PR-BTB', 'C152', 610, { fKey: 'k', stuKg: 0 })]), fStatus, fObs)[0][5];
     assert.match(obs({ k: 'Atrasado' }, { k: { novoInicio: 640 } }), /^Status: Atrasado: nova decolagem 10:40 · /);
     assert.match(obs({ k: 'Cancelado' }, { k: { motivo: 'Meteorologia' } }), /^Status: Cancelado: Meteorologia · /);
-    assert.match(obs({ k: 'Cancelado' }, { k: { motivo: 'Outro', texto: 'Pista interditada' } }), /^Status: Cancelado: Pista interditada · /);
+    assert.match(obs({ k: 'Cancelado' }, { k: { motivo: 'Outro', texto: 'Aluno com febre' } }), /^Status: Cancelado: Outro · /, 'o texto livre não sai do app');
     assert.match(obs({ k: 'Cancelado' }, {}), /^Status: Cancelado · /);
   });
 

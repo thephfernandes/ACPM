@@ -5,7 +5,7 @@ import { isGroundMission } from '../rules.js';
 import { categoriaDoTipo, nomeDoRecurso } from '../categorias.js';
 import { textoDoDetalhe, classeDoStatus } from '../status.js';
 import { validarReversao } from '../reversoes.js';
-import { linhasDoQuadro } from '../quadro.js';
+import { linhasDoQuadro, quadroDoDia } from '../quadro.js';
 import { painelDaEscala } from './painel-aeroporto.js';
 import { atualizarPainelDeReparo } from './reparo.js';
 import { resultadoNaEscala } from './etapas.js';
@@ -428,10 +428,11 @@ function tabela(voos) {
   return h + '</tbody></table></div>';
 }
 
-// Painel: partidas e chegadas no estilo dos aeroportos, com os voos dos filtros (js/views/painel-aeroporto.js)
+// Painel: partidas e chegadas no estilo dos aeroportos, com os voos dos filtros (js/views/painel-aeroporto.js). Feito para
+// um monitor ou uma TV: as mesmas reduções da TV da recepção (o aluno abreviado e só a categoria do motivo)
 function painelDoDia(voos) {
-  const fStatus = S.fStatus || {}, fObs = S.fObs || {}, data = DATA;
-  return `<div class="painel-dia">${painelDaEscala(() => ({ linhas: linhasDoQuadro(voos, fStatus, fObs), data }))}</div>`;
+  const quadro = quadroDoDia({ resultado: { out: voos }, fStatus: S.fStatus, fObs: S.fObs });
+  return `<div class="painel-dia">${painelDaEscala(() => ({ linhas: linhasDoQuadro(quadro.voos || [], quadro.fStatus, quadro.fObs), data: DATA }))}</div>`;
 }
 
 // A escala é refeita a cada alteração (save em actions.js): aqui ela só é desenhada, na visão escolhida na barra

@@ -87,6 +87,9 @@ describe('Status do voo: a lista e os detalhes', () => {
     assert.equal(textoDoStatus('Cancelado', { motivo: 'Outro', texto: 'Pista interditada' }), 'Cancelado: Pista interditada');
     assert.equal(textoDoStatus('Cancelado', { motivo: 'Outro' }), 'Cancelado: Outro');
     assert.equal(textoDoStatus('Cancelado', undefined), 'Cancelado');
+    // No CSV, no PDF e no que sai do app, só a categoria do motivo (o texto livre pode ter dados pessoais)
+    assert.equal(textoDoStatus('Cancelado', { motivo: 'Outro', texto: 'Aluno com febre' }, { textoLivre: false }), 'Cancelado: Outro');
+    assert.equal(textoDoStatus('Atrasado', { novoInicio: 640 }, { textoLivre: false }), 'Atrasado: nova decolagem 10:40');
     assert.equal(textoDoStatus('Em Voo', undefined), 'Em Voo');
     assert.deepEqual([textoDoDetalhe('Atrasado', { novoInicio: 640 }), textoDoDetalhe('Cancelado', { motivo: 'Outro', texto: 'Pista interditada' }),
       textoDoDetalhe('Cancelado', { motivo: 'Aluno ausente' }), textoDoDetalhe('Em Voo', { motivo: 'Aluno ausente' })],

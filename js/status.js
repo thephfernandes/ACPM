@@ -70,9 +70,10 @@ export function textoDoDetalhe(status, detalhe) {
   return '';
 }
 
-// O status com o detalhe, como aparece no CSV, no PDF e no painel
-export function textoDoStatus(status, detalhe) {
-  const texto = textoDoDetalhe(status, detalhe);
+// O status com o detalhe, como aparece no CSV, no PDF e no painel. textoLivre: false deixa só a categoria do motivo (o
+// que sai do app: o texto livre pode ter dados pessoais)
+export function textoDoStatus(status, detalhe, { textoLivre = true } = {}) {
+  const texto = textoDoDetalhe(status, textoLivre || !detalhe ? detalhe : { ...detalhe, texto: undefined });
   return texto ? `${status}: ${texto}` : status;
 }
 

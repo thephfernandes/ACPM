@@ -60,7 +60,8 @@ export async function pdf() {
       body.push([{ content: `${WLB(o.w)}  -  ${out.filter(x => x.w === o.w).length} lançamento(s) iniciando`, colSpan: 9, styles: { fillColor: [222, 230, 238], fontStyle: 'bold' } }]);
     }
     // Status com o detalhe (o novo horário do atraso ou o motivo do cancelamento)
-    const status = textoDoStatus((S.fStatus && S.fStatus[o.fKey]) || o.status || 'Confirmado', S.fObs && S.fObs[o.fKey]);
+    // Só a categoria do motivo: o PDF sai do app (o texto livre pode ter dados pessoais)
+    const status = textoDoStatus((S.fStatus && S.fStatus[o.fKey]) || o.status || 'Confirmado', S.fObs && S.fObs[o.fKey], { textoLivre: false });
     const pesoComCombustivel = o.kg ? `${o.kg} kg${o.comb ? ` · abastecer ${o.comb.abastecerGal} gal` : ''}` : '-';
     body.push([`${hm(o.a)}-${hm(o.b)}`, o.s, o.mis, o.r, o.ins, HT(o), pesoComCombustivel, o.tag, status]);
   });

@@ -260,6 +260,18 @@ test.describe('Painel: partidas e chegadas como no aeroporto', () => {
   };
   const titulo = page => page.locator('#out .fids .fids-titulo');
   const linhas = page => page.locator('#out .fids tbody tr:not(.fids-vazia)');
+
+  test('como na TV da recepção: o aluno abreviado e, no cancelamento, só a categoria do motivo', async ({ page }) => {
+    const estado = { ...dia(), fObs: { '1000_0_1': { novoInicio: 660 }, '1002_0_1': { motivo: 'Outro', texto: 'Aluno com febre' } } };
+    estado.stu = estado.stu.map(s => (s.id === 1001 ? { ...s, nm: 'Maria Silva Santos' } : s));
+    await abrir(page, { estado });
+    await abrirPainel(page);
+    await page.locator('#out [data-fids="partidas"]').click();
+    await expect(page.locator('#out .fids')).toContainText('Maria S.');
+    await expect(page.locator('#out .fids')).not.toContainText('Silva Santos');
+    await expect(page.locator('#out .fids')).toContainText('Cancelado · Outro');
+    await expect(page.locator('#out .fids')).not.toContainText('febre');
+  });
   const coluna = (page, classe) => linhas(page).locator(classe);
 
   test('Partidas: o quadro do aeroporto com todas as partidas, pelo horário previsto; atraso, cancelamento e Ground sem nomes', async ({ page }) => {
