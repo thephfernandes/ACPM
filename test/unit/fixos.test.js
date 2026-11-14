@@ -4,7 +4,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { runAllocationEngine } from '../../js/engine.js';
-import { aluno, cenario, instrutor, apenas, GROUND_C152 } from '../helpers/montar.js';
+import { aluno, cenario, instrutor, apenas, missaoExtra, GROUND_C152 } from '../helpers/montar.js';
 
 const pino = o => ({ a: o.a, b: o.b, r: o.r, insId: o.insId, ...(o.isGround ? { classKey: o.classKey } : {}) });
 const fixarTudo = out => Object.fromEntries(out.map(o => [o.fKey, pino(o)]));
@@ -148,6 +148,67 @@ describe('Voos fixos conferidos de novo', () => {
 
   it('o voo fixo cancelado não é conferido', () => {
     assert.deepEqual(conflitoDe(fixado({ nb: 2 }, { fStatus: { '1000_0_1': 'Cancelado' } })), { conflito: undefined, codigos: undefined });
+  });
+});
+
+// Revisão de 14/11: a turma de Ground fixa
+describe('Turma de Ground fixa', () => {
+  const TURMA = { a: 390, b: 480, r: 'SALA-GROUND', insId: 1, classKey: 'GND_Ground C152_0_1' };
+  const ground = (id, pedido = {}, extra = {}) => aluno(id, { ...GROUND_C152, p1: 390, p2: -1, ...pedido }, extra);
+
+  it('com o primeiro aluno cancelado, a turma continua ocupando a sala e o instrutor', () => {
+    const estado = {
+      ...cenario({ ins: [instrutor(1, 9)], stu: [ground(1000), ground(1001), aluno(1002, { mis: 'Ground PA-34', eq: 'Sala Ground', nb: 1.5, p1: 390, p2: -1 })] }),
+      fixos: { '1000_0_1': TURMA, '1001_0_1': TURMA }, fStatus: { '1000_0_1': 'Cancelado' }
+    };
+    const { out } = runAllocationEngine(estado);
+    assert.equal(doAluno(out, 1001).conflito, undefined);
+    assert.ok(doAluno(out, 1002).a >= 480, `a outra turma às ${doAluno(out, 1002).a}`);
+  });
+
+  it('turma fixa sem o instrutor: um aluno novo não entra nela', () => {
+    const estado = {
+      ...cenario({ ins: [instrutor(1, 9, { on: false }), instrutor(2, 9)], stu: [ground(1000), ground(1001)] }),
+      fixos: { '1000_0_1': TURMA }
+    };
+    const { out } = runAllocationEngine(estado);
+    assert.deepEqual(doAluno(out, 1000).conflitoCodigos, ['instrutor-indisponivel']);
+    const novo = doAluno(out, 1001);
+    assert.notEqual(novo.classKey, TURMA.classKey);
+    assert.deepEqual([novo.insId, novo.conflito], [2, undefined]);
+  });
+
+  it('a chave de uma turma nova não repete a de uma turma fixa', () => {
+    // A turma fixa foi passada para as 08:20 (a chave continua a do período 0); o aluno novo só pode às 06:30
+    const estado = {
+      ...cenario({ ins: [instrutor(1, 9)], stu: [ground(1000), ground(1001, { jan: 'h390' })] }),
+      fixos: { '1000_0_1': { ...TURMA, a: 500, b: 590 } }
+    };
+    const { out } = runAllocationEngine(estado);
+    assert.equal(doAluno(out, 1001).a, 390);
+    assert.notEqual(doAluno(out, 1001).classKey, doAluno(out, 1000).classKey);
+  });
+
+  it('o voo fixo que depende do Ground é um prazo: o Ground termina antes dele', () => {
+    // O voo está fixo às 08:20, mas o pedido ainda diz 12:40; o Ground prefere as 10:10
+    const voo = { a: 500, b: 560, r: 'PR-VOB', insId: 1 };
+    const estado = {
+      ...cenario({ ins: [instrutor(1, 9), instrutor(2, 9)], stu: [ground(1000, { p1: 610 }, { extra: [missaoExtra(1, { p1: 760, p2: -1 })] })] }),
+      fixos: { '1000_1_1': voo }
+    };
+    const { out, al } = runAllocationEngine(estado, { compactar: false });
+    const turma = out.find(o => o.isGround);
+    assert.ok(turma && turma.b <= 500, JSON.stringify({ turma, al }));
+  });
+
+  it('sem horário para o Ground antes do voo fixo, a rejeição diz por quê', () => {
+    const voo = { a: 390, b: 450, r: 'PR-VOB', insId: 1 };
+    const estado = {
+      ...cenario({ ins: [instrutor(1, 9), instrutor(2, 9)], stu: [ground(1000, { p1: 610 }, { extra: [missaoExtra(1, { p1: 390, p2: -1 })] })] }),
+      fixos: { '1000_1_1': voo }
+    };
+    const { al } = runAllocationEngine(estado);
+    assert.deepEqual(al, [{ t: 'err', s: 'Aluno 1000', m: 'Rejeitado: o Ground precisa terminar antes do voo fixo das 06:30, e não há horário para ele antes disso.' }]);
   });
 });
 

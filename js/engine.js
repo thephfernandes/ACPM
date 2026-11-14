@@ -321,7 +321,8 @@ export function runAllocationEngine(state, opcoes = {}) {
       const x = state.ins.find(i => i.id === insId);
       const status = (state.fStatus && state.fStatus[fKey]) || 'Confirmado';
       const tipo = ground ? GROUND_EQ_TYPE : d.eq;
-      const daMesmaTurma = ground && out.some(o => o.classKey === classKey && o.stuId !== stuId);
+      // A turma ocupa a sala e o instrutor pelo primeiro aluno dela que não foi cancelado
+      const daMesmaTurma = ground && out.some(o => o.classKey === classKey && o.stuId !== stuId && o.status !== 'Cancelado');
       // Conferido de novo com as regras do motor (revisão de 14/11): cada conflito com o texto e o código
       const conflito = [], conflitoCodigos = [];
       const marcar = (codigo, texto) => { conflito.push(texto); conflitoCodigos.push(codigo); };
@@ -378,9 +379,10 @@ export function runAllocationEngine(state, opcoes = {}) {
           if (categoria) voosNaCategoria[`${categoria}:${x.id}`] = (voosNaCategoria[`${categoria}:${x.id}`] || 0) + 1;
         }
         if (ground) {
-          // A turma fixa fica aberta: um aluno novo do mesmo Ground pode entrar nela
+          // A turma fixa fica aberta: um aluno novo do mesmo Ground pode entrar nela, se ela não está em conflito (sem o
+          // instrutor, por exemplo)
           const turmas = (openGroundClasses[d.mis] = openGroundClasses[d.mis] || []);
-          if (x && !turmas.some(c => c.classKey === classKey)) turmas.push({ classKey, mis: d.mis, w: T.indexOf(a), a, b, x, count: 0 });
+          if (x && !daMesmaTurma && !conflito.length && !turmas.some(c => c.classKey === classKey)) turmas.push({ classKey, mis: d.mis, w: T.indexOf(a), a, b, x, count: 0 });
           const turma = turmas.find(c => c.classKey === classKey);
           if (turma) turma.count++;
           const gRec = (stuGroundStatus[stuId] || []).find(g => g.mis === d.mis && g.allocatedEnd === null);
@@ -431,12 +433,16 @@ export function runAllocationEngine(state, opcoes = {}) {
 
       // Se o aluno também tem um voo dependente hoje com horário preferido, prioriza janelas que terminem antes do voo
       const dependentFlights = act.filter(other => other.stuId === stuId && doesGroundGateFlight(d.mis, other.ref));
-      const earliestFlightPrefMin = dependentFlights.reduce((minT, flt) => {
+      // O voo dependente que já está fixo (revisão de 14/11) é um prazo: o Ground termina antes dele
+      const prazoFixo = Math.min(Infinity, ...out.filter(o => o.stuId === stuId && o.fixo && !o.isGround && o.status !== 'Cancelado'
+        && doesGroundGateFlight(d.mis, { mis: o.mis, eq: o.eqType })).map(o => o.a));
+      const earliestFlightPrefMin = Math.min(prazoFixo, dependentFlights.reduce((minT, flt) => {
         const fp1 = minutoDaPreferencia(flt.ref.p1);
         return (fp1 >= 0 && fp1 < minT) ? fp1 : minT;
-      }, Infinity);
+      }, Infinity));
 
-      const candidateWins = [...new Set([...pf.filter(w => w >= 0), ...starts])].filter(w => starts.includes(w));
+      const semPrazo = [...new Set([...pf.filter(w => w >= 0), ...starts])].filter(w => starts.includes(w));
+      const candidateWins = semPrazo.filter(w => T[w] + durMin <= prazoFixo);
       // Prioriza janelas que terminam antes do voo preferido do aluno, mantendo a cascata Pref.1 -> Pref.2 -> Próximo livre
       candidateWins.sort((w1, w2) => {
         const ok1 = T[w1] + durMin <= earliestFlightPrefMin ? 0 : 1;
@@ -448,9 +454,11 @@ export function runAllocationEngine(state, opcoes = {}) {
       let chosenClass = null;
 
       // 1ª Tentativa: Unir-se a uma turma já aberta da mesma temática de Ground (mesmo horário e mesmo instrutor)
-      const orderedExisting = [...existingClasses].sort((c1, c2) => {
-        const inPref1 = pf.includes(c1.w) ? 0 : 1;
-        const inPref2 = pf.includes(c2.w) ? 0 : 1;
+      // A turma da 1ª preferência, depois a da 2ª, depois as outras
+      const ordemDaPreferencia = c => { const i = pf.indexOf(c.w); return i < 0 ? 2 : i; };
+      const orderedExisting = [...existingClasses].filter(c => c.b <= prazoFixo).sort((c1, c2) => {
+        const inPref1 = ordemDaPreferencia(c1);
+        const inPref2 = ordemDaPreferencia(c2);
         if (inPref1 !== inPref2) return inPref1 - inPref2;
         const okFlt1 = c1.b <= earliestFlightPrefMin ? 0 : 1;
         const okFlt2 = c2.b <= earliestFlightPrefMin ? 0 : 1;
@@ -509,7 +517,11 @@ export function runAllocationEngine(state, opcoes = {}) {
           );
 
           const pickedIns = f2[0];
-          const classKey = `GND_${d.mis}_${w}_${pickedIns.id}`;
+          // A chave da turma não repete a de outra (uma turma fixa passada para outro horário guarda a chave de antes)
+          const usadas = new Set([...out.map(o => o.classKey), ...Object.values(fixos).map(p => p.classKey).filter(Boolean)]);
+          const base = `GND_${d.mis}_${w}_${pickedIns.id}`;
+          let classKey = base;
+          for (let n = 2; usadas.has(classKey); n++) classKey = `${base}_${n}`;
           chosenClass = { classKey, mis: d.mis, w, a, b, x: pickedIns, count: 0 };
           (openGroundClasses[d.mis] = openGroundClasses[d.mis] || []).push(chosenClass);
 
@@ -561,6 +573,8 @@ export function runAllocationEngine(state, opcoes = {}) {
         let why;
         if (!state.ins.some(x => x.on && habilitado(x))) {
           why = `nenhum instrutor ativo habilitado para ministrar ${d.mis} (${descreverExigencias(d.mis, GROUND_EQ_TYPE)})`;
+        } else if (semPrazo.length && !candidateWins.length) {
+          why = `o Ground precisa terminar antes do voo fixo das ${hm(prazoFixo)}, e não há horário para ele antes disso`;
         } else if (!starts.length) {
           why = permitidas
             ? `não há horário habilitado na disponibilidade do aluno (${rotuloDaDisponibilidade(d.jan)}) para 01h30 de Ground`

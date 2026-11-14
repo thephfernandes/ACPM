@@ -415,6 +415,17 @@ describe('Ground School', () => {
     ]);
   });
 
+  // Revisão de 14/11
+  it('entre duas turmas abertas, a da 1ª preferência vem antes da da 2ª', () => {
+    // O 1000 abre a turma das 08:20 (instrutor 1); o 1001, que bloqueou o 1, a das 06:30 (instrutor 2)
+    const { out } = alocar({
+      ins: [instrutor(1, 1), instrutor(2, 1)],
+      stu: [aluno(1000, { ...GROUND_C152, p1: 500, p2: -1 }, { bl: [2] }), aluno(1001, { ...GROUND_C152, p1: 390, p2: -1 }, { bl: [1] }),
+        aluno(1002, { ...GROUND_C152, p1: 390, p2: 500 })]
+    });
+    assert.deepEqual([out.find(o => o.stuId === 1002).a, out.find(o => o.stuId === 1002).baseTag], [390, 'Pref. 1']);
+  });
+
   it('não termina depois das 17:30', () => {
     const { al } = alocar({ ins: [instrutor(1, 1)], stu: [aluno(1000, GROUND_C152)], janelasOff: [0, 1, 2, 3, 4, 5, 6] });
     assert.deepEqual(al, [{ t: 'err', s: 'Aluno 1000', m: 'Rejeitado: nenhuma janela diurna habilitada comporta 01h30 de Ground até 17:30.' }]);
