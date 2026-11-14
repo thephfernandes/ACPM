@@ -1,7 +1,7 @@
 // As dicas (revisão de 14/11): o balão que explica um termo da tela. Abre com o mouse parado no termo (depois de um
 // instante), na hora com o foco do teclado, e num toque no "?" ou na etiqueta; Esc, um toque fora e sair do termo
 // fecham. O texto vem do glossário.
-import { test, expect, abrir, abrirEscala } from './fixtures.js';
+import { test, expect, abrir, abrirEscala, irPara } from './fixtures.js';
 import { aluno, cenario, instrutor, apenas } from '../helpers/montar.js';
 import { GLOSSARIO } from '../../js/glossario.js';
 
@@ -57,6 +57,41 @@ test.describe('Dicas dos termos', () => {
   });
 });
 
+test.describe('Dicas com a tela travada', () => {
+  test('no Gestor, a dica aparece nos campos desligados (o status)', async ({ page }) => {
+    await abrir(page, { estado: diaComHorarioLivre(), url: './?role=gestor' });
+    await abrirEscala(page);
+    const status = page.locator('#out .st-sel').first();
+    await expect(status).toBeDisabled();
+    await status.hover();
+    await expect(dica(page)).toContainText(GLOSSARIO.status.texto);
+  });
+
+  test('na escala aprovada, os critérios ficam travados e a dica diz por quê; o clique não muda nada', async ({ page }) => {
+    await abrir(page, { estado: { ...diaComHorarioLivre(), aprovacao: { em: '2026-11-10T21:05:00.000Z', por: 'Rayane' } } });
+    await abrirEscala(page);
+    const aviao = page.locator('#criterios [data-valor="aviao"]');
+    await expect(aviao).toHaveAttribute('aria-disabled', 'true');
+    await aviao.hover();
+    await expect(dica(page)).toContainText(GLOSSARIO['criterios-travados'].texto);
+    // O Playwright não clica num botão com aria-disabled: o clique é forçado, e o app não muda nada
+    await aviao.click({ force: true });
+    await expect(aviao).toHaveAttribute('aria-pressed', 'false');
+  });
+});
+
+// Revisão de 14/11: os controles que aparecem com o mouse também aparecem com o foco na linha e no toque
+const opacidade = loc => loc.evaluate(el => getComputedStyle(el).opacity);
+test('o "+ missão" da Demanda aparece com o foco do teclado em qualquer campo da linha', async ({ page }) => {
+  await abrir(page, { estado: diaComHorarioLivre() });
+  await irPara(page, 'dem');
+  const linha = page.locator('#dem tr[data-id="1000"]');
+  await page.mouse.move(0, 0);
+  expect(await opacidade(linha.locator('.btn-add-mis'))).toBe('0');
+  await linha.locator('[data-f="pr"]').focus();
+  await expect.poll(() => opacidade(linha.locator('.btn-add-mis'))).toBe('1');
+});
+
 test.describe('Dicas no celular', () => {
   test.use({ viewport: { width: 360, height: 780 }, hasTouch: true });
 
@@ -71,5 +106,11 @@ test.describe('Dicas no celular', () => {
     expect(caixa.x + caixa.width).toBeLessThanOrEqual(360);
     await page.locator('#out .st').tap();
     await expect(dica(page)).toBeHidden();
+  });
+
+  test('na tela de toque, os controles que aparecem com o mouse ficam à vista', async ({ page }) => {
+    await abrir(page, { estado: diaComHorarioLivre() });
+    await irPara(page, 'dem');
+    expect(await opacidade(page.locator('#dem tr[data-id="1000"] .btn-add-mis'))).toBe('1');
   });
 });

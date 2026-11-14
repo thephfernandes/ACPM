@@ -198,21 +198,17 @@ section.on { display: block; }
 h2 { font: 600 20px 'Barlow Semi Condensed', sans-serif; margin: 18px 0 10px; }
 h3 { font: 600 15px 'Barlow Semi Condensed', sans-serif; margin: 10px 0 6px; color: var(--ink); }
 
+/* Os controles que aparecem com o mouse também aparecem com o foco em qualquer campo da linha (:focus-within) e em
+   telas de toque (pointer: coarse, como um notebook com tela de toque; revisão de 14/11) */
 /* Regras de Somente Visualização Estrita para o Perfil Gestor e Links Compartilhados */
 body[data-role="gestor"] .edit-only { display: none !important; }
 /* Dados pessoais: só operadores, administradores e a secretaria (que no resto entra como consulta) */
 body[data-role="gestor"]:not([data-perfil="secretaria"]) .so-dados { display: none !important; }
+/* Os campos do Gestor ficam desligados (js/somente-leitura.js; revisão de 14/11): sem tirar os cliques, as dicas
+   continuam aparecendo */
 body[data-role="gestor"] #s-rec .janela,
 body[data-role="gestor"] #s-ins .cel,
-body[data-role="gestor"] main label.alvo,
-body[data-role="gestor"] #painel-instrutor input,
-body[data-role="gestor"]:not([data-backend="supabase"]) #dt,
-body[data-role="gestor"] .st-sel,
-body[data-role="gestor"] main input:not(.flt-ctrl):not(.agenda-campo):not(.conta-campo):not(#onlyfly):not(#bi-dt):not(#dt),
-body[data-role="gestor"] main select:not(.flt-ctrl):not(.agenda-campo):not(.conta-campo) {
-  pointer-events: none !important;
-  cursor: default !important;
-}
+body[data-role="gestor"] main label.alvo { cursor: default !important; }
 body[data-role="gestor"]:not([data-backend="supabase"]) #dt,
 body[data-role="gestor"] .st-sel,
 body[data-role="gestor"] main input:not(.flt-ctrl):not(.agenda-campo):not(.conta-campo):not(#onlyfly):not(#bi-dt):not(#dt),
@@ -330,8 +326,8 @@ details.caixa.avisos summary { color: var(--wa); }
 .tabela-escala .st-sel.st-Cancelado { background: var(--er-bg); }
 /* Tirar da escala: aparece ao passar o mouse ou com o foco (em tela de toque, sempre) */
 .tabela-escala .acao .x { opacity: 0; transition: opacity .1s; }
-.tabela-escala tr:hover .acao .x, .tabela-escala .acao .x:focus-visible { opacity: 1; }
-@media (hover: none) { .tabela-escala .acao .x { opacity: 1; } }
+.tabela-escala tr:hover .acao .x, .tabela-escala tr:focus-within .acao .x { opacity: 1; }
+@media (hover: none), (pointer: coarse) { .tabela-escala .acao .x { opacity: 1; } }
 #out[data-vista="lista"] .mapa, #out[data-vista="mapa"] .tabela-escala { display: none; }
 #out[data-vista="painel"] .mapa, #out[data-vista="painel"] .tabela-escala, #out:not([data-vista="painel"]) .painel-dia { display: none; }
 
@@ -491,8 +487,8 @@ tr.on td:first-child { font-weight: 600; }
 #dem select:disabled { color: var(--mu); opacity: 1; }
 #s-dem tr.extra-row td:first-child { padding-left: 22px; }
 #s-dem .btn-add-mis, #s-dem .stu-cell .x { opacity: 0; transition: opacity .1s; }
-#s-dem tr:hover .btn-add-mis, #s-dem tr:hover .stu-cell .x, #s-dem .btn-add-mis:focus-visible, #s-dem .stu-cell .x:focus-visible { opacity: 1; }
-@media (hover: none) { #s-dem .btn-add-mis, #s-dem .stu-cell .x { opacity: 1; } }
+#s-dem tr:hover .btn-add-mis, #s-dem tr:hover .stu-cell .x, #s-dem tr:focus-within .btn-add-mis, #s-dem tr:focus-within .stu-cell .x { opacity: 1; }
+@media (hover: none), (pointer: coarse) { #s-dem .btn-add-mis, #s-dem .stu-cell .x { opacity: 1; } }
 /* Prioridade 5 em destaque */
 #s-dem tr.p5 [data-f="pr"] { background: var(--wa-bg); color: var(--wa); font-weight: 700; }
 #incluir-aluno { min-width: 240px; }
@@ -552,8 +548,8 @@ details.caixa.conflitos .btn.quiet { padding: 1px 8px; margin-left: 4px; font-si
   .criterios { gap: 10px; }
   .criterios .seg button { flex: 1; justify-content: center; padding: 6px 6px; }
 }
-.bar.compactacao .seg button:disabled { cursor: default; opacity: .75; }
-.bar.compactacao .seg button.on:disabled { opacity: 1; }
+.bar.compactacao .seg button[aria-disabled="true"] { cursor: default; opacity: .75; }
+.bar.compactacao .seg button.on[aria-disabled="true"] { opacity: 1; }
 .resumo .parado strong { display: block; color: var(--ink); font-variant-numeric: tabular-nums; }
 /* Sugestões para um conflito (fase 12): a gaveta com as opções, a melhor primeiro */
 .motivo-conflito { margin: 0; padding: 8px 12px; border-radius: 8px; background: var(--er-bg); color: var(--er); }
@@ -645,8 +641,8 @@ table.frota tr:hover input.horas, table.frota input.horas:focus { border-color: 
 .barra.wa i { background: #D9A400; }
 .barra.er i { background: var(--er); }
 table.frota .rev { opacity: 0; transition: opacity .1s; }
-table.frota tr:hover .rev, table.frota .rev:focus-visible { opacity: 1; }
-@media (hover: none) { table.frota .rev { opacity: 1; } }
+table.frota tr:hover .rev, table.frota tr:focus-within .rev { opacity: 1; }
+@media (hover: none), (pointer: coarse) { table.frota .rev { opacity: 1; } }
 
 /* Instrutores: a disponibilidade do dia numa grade; o cadastro numa tabela, com as habilitações num painel lateral */
 #s-ins[data-vista="dia"] .vista-cadastro, #s-ins[data-vista="cadastro"] .vista-dia { display: none; }
@@ -751,7 +747,7 @@ input.falta::placeholder { color: var(--wa); }
    da linha) */
 .fila .acoes { position: absolute; right: 0; top: 50%; transform: translateY(-50%); display: flex; gap: 2px; padding-left: 8px; background: var(--pn); opacity: 0; transition: opacity .1s; }
 .fila li:hover .acoes, .fila li:focus-within .acoes { opacity: 1; }
-@media (hover: none) { .fila .acoes { position: static; transform: none; margin-left: auto; opacity: 1; } }
+@media (hover: none), (pointer: coarse) { .fila .acoes { position: static; transform: none; margin-left: auto; opacity: 1; } }
 .fila .acoes .x { display: inline-flex; align-items: center; padding: 3px 5px; }
 
 /* Agenda de Solicitações */
@@ -1235,7 +1231,8 @@ body.tela-painel { min-height: 100vh; background: #07122B; overflow: hidden; }
   padding: 8px 10px; border: 1px solid var(--ln); border-radius: 6px;
   background: var(--pop-bg); color: var(--pop-txt);
   font-size: 12.5px; line-height: 1.45; box-shadow: 0 8px 24px rgba(0,0,0,.35);
-  pointer-events: auto;
+  /* Só texto: o clique passa para o que estiver embaixo */
+  pointer-events: none;
 }
 .dica[hidden] { display: none; }
 .dica strong { font-weight: 700; }

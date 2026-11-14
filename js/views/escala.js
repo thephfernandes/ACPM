@@ -302,8 +302,10 @@ function rCompactacao(out) {
   const criterios = normalizarCriterios(S.criterios);
   const travado = isGestor() || Boolean(S.aprovacao);
   // Cada critério e cada opção com a dica do glossário (revisão de 14/11)
+  // Travados, os botões ficam com aria-disabled (o foco e a dica continuam); na escala aprovada, a dica diz por quê
+  const dicaDa = id => (S.aprovacao && !isGestor() ? 'criterios-travados' : `criterio-${id}`);
   const grupo = (campo, rotulo, dica, opcoes) => `<span class="flt-rotulo"><span>${rotulo}</span><button type="button" class="dica-btn" data-dica="${dica}" aria-label="O que é ${rotulo}?" aria-expanded="false"></button> <span class="seg" role="group" aria-label="${rotulo}">${opcoes.map(([id, nome]) =>
-    `<button type="button" data-criterio="${campo}" data-valor="${id}" data-dica="criterio-${id}" aria-pressed="${criterios[campo] === id}"${criterios[campo] === id ? ' class="on"' : ''}${travado ? ' disabled' : ''}>${esc(nome)}</button>`).join('')}</span></span>`;
+    `<button type="button" data-criterio="${campo}" data-valor="${id}" data-dica="${dicaDa(id)}" aria-pressed="${criterios[campo] === id}"${criterios[campo] === id ? ' class="on"' : ''}${travado ? ' aria-disabled="true"' : ''}>${esc(nome)}</button>`).join('')}</span></span>`;
   $('#criterios').innerHTML = grupo('buracos', 'Buracos', 'buracos', OPCOES_DE_BURACOS) + grupo('horarios', 'Horários', 'horarios', OPCOES_DE_HORARIOS);
 }
 

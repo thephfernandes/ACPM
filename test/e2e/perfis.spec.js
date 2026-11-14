@@ -12,14 +12,17 @@ test.describe('Perfis de acesso', () => {
     await expect(page.locator('#out .st-sel').first()).toBeDisabled();
     await irPara(page, 'ins');
     await expect(page.locator('[data-act="addi"]')).toBeHidden();
-    // A grade do dia fica travada e as habilitações não abrem (o Gestor vê o resumo)
-    expect(await page.locator('#inst-dia .cel').first().evaluate(el => getComputedStyle(el).pointerEvents)).toBe('none');
+    // A grade do dia fica travada (os campos desligados: revisão de 14/11) e as habilitações não abrem (o Gestor vê o resumo)
+    await expect(page.locator('#inst-dia .cel input').first()).toBeDisabled();
+    await expect(page.locator('#inst-dia [data-f="on"]').first()).toBeDisabled();
     await page.locator('#s-ins [data-vista-ins="cadastro"]').click();
     await expect(page.locator('#inst [data-act="editar-habs"]').first()).toBeHidden();
     await expect(page.locator('#inst .habs-resumo').first()).toBeVisible();
 
     await page.locator('#role-sel').selectOption('operador');
     await expect(page.locator('[data-act="addi"]')).toBeVisible();
+    await page.locator('#s-ins [data-vista-ins="dia"]').click();
+    await expect(page.locator('#inst-dia .cel input').first()).toBeEnabled();
     await expect(page.locator('#dt')).toBeEnabled();
   });
 

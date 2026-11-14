@@ -119,7 +119,7 @@ test.describe('Dados pessoais (modo compartilhado)', () => {
     const { context, servidor, page, erros } = await entrar(browser, CONTAS.secretaria);
     await expect(page.locator('#nav button[data-t]:visible')).toHaveText(['Escala', 'Agenda', 'Instrutores', 'Alunos']);
     await irPara(page, 'alu');
-    expect(await page.locator('#alu tr[data-id="1000"] [data-f="kg"]').evaluate(el => getComputedStyle(el).pointerEvents)).toBe('none');
+    await expect(page.locator('#alu tr[data-id="1000"] [data-f="kg"]')).toBeDisabled();
     await page.locator('#alu tr[data-id="1000"] [data-dados]').click();
     await campo(page, 'CANAC').fill('123456');
     await salvar(page);

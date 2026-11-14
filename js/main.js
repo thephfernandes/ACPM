@@ -56,6 +56,7 @@ import { abrirAgenda, carregarMes, mudarMes, escolherDia, diaDaAgenda, lembrarRe
 import { ESQUEMA } from './migracoes.js';
 import { iniciarSessaoSupabase } from './sessao.js';
 import { iniciarDicas } from './dicas.js';
+import { iniciarSomenteLeitura } from './somente-leitura.js';
 
 const activeTimers = new WeakMap();
 
@@ -948,7 +949,7 @@ document.addEventListener('change', e => {
 // Critérios da compactação (fase 13): a escala é refeita com o critério novo (com a escala aprovada, não mudam)
 document.addEventListener('click', e => {
   const b = e.target.closest('[data-criterio]');
-  if (!b || b.disabled || isGestor() || S.aprovacao) return;
+  if (!b || b.getAttribute('aria-disabled') === 'true' || isGestor() || S.aprovacao) return;
   const campo = b.dataset.criterio, antes = normalizarCriterios(S.criterios);
   if (antes[campo] === b.dataset.valor) return;
   S.criterios = normalizarCriterios({ ...antes, [campo]: b.dataset.valor });
@@ -1239,8 +1240,9 @@ window.addEventListener('beforeunload', e => {
     if (savedTheme) document.documentElement.setAttribute('data-theme', savedTheme);
   } catch (e) {}
   mostrarTema();
-  // As dicas dos termos (revisão de 14/11)
+  // As dicas dos termos e a tela só de consulta do Gestor (revisão de 14/11)
   iniciarDicas();
+  iniciarSomenteLeitura();
 
   const amanha = amanhaISO();
   abrirData(amanha);
