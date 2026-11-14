@@ -123,7 +123,12 @@ export function criarSupabaseFalso({ documentos = {}, dias = {}, historico: hist
     });
     if (desconectado) return route.abort('internetdisconnected');
     if (req.method() === 'OPTIONS') return route.fulfill({ status: 204, headers: cors });
-    const conta = sessoes.get((req.headers().authorization || '').replace(/^Bearer /, ''));
+    const portador = (req.headers().authorization || '').replace(/^Bearer /, '');
+    const conta = sessoes.get(portador);
+    // Um token de sessão (JWT) que o servidor não conhece mais: sessão expirada
+    if (!conta && portador.split('.').length === 3 && url.pathname.startsWith('/rest/v1/')) {
+      return route.fulfill({ status: 401, headers: { ...cors, 'Content-Type': 'application/json' }, body: JSON.stringify({ code: 'PGRST301', message: 'JWT expired' }) });
+    }
     const comPerfil = conta && conta.perfil;
     const operador = conta && ['operador', 'administrador'].includes(conta.perfil);
     const veDados = conta && ['operador', 'administrador', 'secretaria'].includes(conta.perfil);
@@ -322,6 +327,8 @@ export function criarSupabaseFalso({ documentos = {}, dias = {}, historico: hist
     // Simula indisponibilidade do servidor nas próximas gravações
     // (503: fora do ar, o app tenta de novo; 400: recusa definitiva)
     falharGravacoes(n, status = 503) { falhasDeGravacao = n; statusDaFalha = status; },
+    // As sessões abertas expiram (quem estava conectado precisa entrar de novo)
+    expirarSessoes() { sessoes.clear(); },
     // Sem conexão: nenhuma requisição chega ao servidor até reconectar
     desconectar() { desconectado = true; },
     reconectar() { desconectado = false; },

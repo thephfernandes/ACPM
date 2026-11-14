@@ -129,6 +129,36 @@ test.describe('Modo compartilhado: gravação, conflitos e link da escala', () =
   });
 
   // Revisão de 14/11: sem conexão, as alterações esperam e são gravadas sozinhas
+  // Revisão de 14/11: a sessão que expira não perde a alteração nem vira "sem conexão"
+  test('sessão expirada: o app pede a senha de novo, sem perder a alteração, e grava depois do login', async ({ browser }) => {
+    const contexto = await novoContexto(browser);
+    const servidor = await instalarSupabaseFalso(contexto, comDados());
+    const page = await contexto.newPage();
+    const erros = vigiarErros(page, { statusEsperados: [400, 401] });
+    await entrar(page, CONTAS.operador);
+    const registradas = servidor.historico.length;
+
+    servidor.expirarSessoes();
+    await irPara(page, 'rec');
+    await page.locator('#eqs input[data-id="PR-BTB"]').uncheck();
+    const dialogo = page.locator('#dlg-sessao');
+    await expect(dialogo).toBeVisible();
+    await expect(dialogo).toContainText(CONTAS.operador.email);
+    await expect(page.locator('#aviso-sync')).toBeHidden();
+    await page.locator('#sessao-senha').fill('senha errada');
+    await page.locator('#sessao-entrar').click();
+    await expect(page.locator('#sessao-erro')).toHaveText('Senha incorreta.');
+    await page.locator('#sessao-senha').fill(CONTAS.operador.senha);
+    await page.locator('#sessao-entrar').click();
+    await expect(dialogo).toBeHidden();
+    await expect.poll(() => servidor.dias.get(AMANHA).conteudo.av['PR-BTB']).toBe(false);
+    await expect.poll(() => servidor.historico.length).toBe(registradas + 1);
+    await page.locator('#btn-open-log').click();
+    await expect(page.locator('#audit-log-list .audit-item').filter({ hasText: 'PR-BTB' }).locator('[data-act="rev-log"]')).toBeVisible();
+    expect(erros).toEqual([]);
+    await contexto.close();
+  });
+
   test('servidor fora do ar: o aviso conta as alterações esperando; a gravação tenta de novo sozinha e o aviso some', async ({ browser }) => {
     const contexto = await novoContexto(browser);
     const servidor = await instalarSupabaseFalso(contexto, comDados());

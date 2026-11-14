@@ -70,6 +70,37 @@ const AVISOS_DO_LINK = {
   invalido: 'Este link de confirmação expirou ou já foi usado. Se a troca de e-mail não foi concluída, peça de novo em Minha conta.'
 };
 
+// Sessão expirada (revisão de 14/11): um diálogo só, com a conta fixa, enquanto as alterações esperam. Devolve quando a
+// pessoa entrou de novo (as gravações continuam sozinhas)
+let novoLogin = null;
+function pedirNovoLogin(cliente) {
+  if (novoLogin) return novoLogin;
+  const dlg = $('#dlg-sessao'), form = $('#form-sessao'), senha = $('#sessao-senha'), erro = $('#sessao-erro');
+  const email = ApiClient.emailAtual;
+  $('#sessao-email').textContent = email;
+  erro.textContent = '';
+  senha.value = '';
+  novoLogin = new Promise(resolve => {
+    // Esc não fecha: sem entrar de novo, nada é gravado
+    dlg.oncancel = e => e.preventDefault();
+    form.onsubmit = async e => {
+      e.preventDefault();
+      erro.textContent = '';
+      const { error } = await cliente.auth.signInWithPassword({ email, password: senha.value });
+      if (error) {
+        erro.textContent = error.status === 400 ? 'Senha incorreta.' : 'Não foi possível entrar. Verifique a conexão e tente de novo.';
+        return;
+      }
+      dlg.close();
+      novoLogin = null;
+      resolve();
+    };
+  });
+  dlg.showModal();
+  senha.focus();
+  return novoLogin;
+}
+
 // Iniciais do primeiro e do último nome (ou a primeira letra do e-mail)
 const iniciais = nome => {
   const partes = nome.split(/[\s@.]+/).filter(Boolean);
@@ -113,6 +144,7 @@ export async function iniciarSessaoSupabase(projeto) {
   ApiClient.backend = criarBackendSupabase(cliente, {
     aoConflito: (documento, motivo) => travarAposConflito(motivo),
     aoErro: avisarFalhaDeGravacao,
+    aoSessaoExpirada: () => pedirNovoLogin(cliente),
     aoGravar: () => fecharAviso('espera')
   });
   $('#btn-share-link').title = 'Copiar o link da escala desta data (quem abrir entra com a própria conta)';

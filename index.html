@@ -617,6 +617,18 @@
     </div>
   </form>
 </dialog>
+<!-- Sessão expirada no modo compartilhado (js/sessao.js): entrar de novo com a mesma conta, sem perder as alterações -->
+<dialog class="dlg" id="dlg-sessao" aria-labelledby="dlg-sessao-titulo">
+  <form id="form-sessao" novalidate>
+    <h2 id="dlg-sessao-titulo">Entre de novo</h2>
+    <p class="h">A sua sessão expirou. Entre de novo com <b id="sessao-email"></b> para gravar as alterações que estão esperando (nada foi perdido).</p>
+    <label class="campo">Senha <input type="password" id="sessao-senha" autocomplete="current-password" required></label>
+    <p class="erro-campo" id="sessao-erro" role="alert"></p>
+    <div class="dlg-acoes">
+      <button type="submit" class="btn" id="sessao-entrar">Entrar</button>
+    </div>
+  </form>
+</dialog>
 <!-- Popup do voo no mapa da escala: fora do painel do mapa (que rola) para nunca ficar cortado -->
 <div class="tl-pop" id="tl-pop" role="dialog" aria-label="Detalhes do voo" hidden></div>
 

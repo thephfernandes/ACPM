@@ -258,6 +258,24 @@ describe('Backend Supabase', () => {
     assert.equal(backend.temGravacoesPendentes(), false);
   });
 
+  it('sessão expirada (401): a alteração espera o novo login (um pedido só) e é gravada depois, com o histórico', async () => {
+    const cliente = clienteFalso();
+    const pedidos = [];
+    let renovar;
+    const renovada = new Promise(r => { renovar = r; });
+    const backend = criarBackendSupabase(cliente, { aoSessaoExpirada: () => { pedidos.push('login'); return renovada; }, esperar: () => espera(1) });
+    await backend.ler('estado');
+    cliente.recusarProximas(2, { code: 'PGRST301', message: 'JWT expired' }, 401);
+    const gravacao = backend.gravar('estado', 'A');
+    const outra = backend.gravar('dia:2026-11-11', { v: 1 });
+    await espera(5);
+    assert.deepEqual(pedidos, ['login', 'login'], 'cada gravação pede (o app mostra um diálogo só)');
+    assert.equal(backend.temGravacoesPendentes(), true);
+    renovar();
+    assert.deepEqual([await gravacao, await outra], [true, true]);
+    assert.deepEqual(cliente.banco.get('estado'), { conteudo: 'A', versao: 1 });
+  });
+
   it('recusa definitiva (sem permissão, dado inválido): avisa e não tenta de novo', async () => {
     const cliente = clienteFalso();
     const erros = [];

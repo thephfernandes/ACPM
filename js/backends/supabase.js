@@ -7,6 +7,8 @@
 // - Sem conexão ou com o servidor fora do ar, a alteração não se perde: a gravação avisa por aoErro e tenta de novo
 //   sozinha, esperando cada vez mais (e na hora em que a conexão volta); aoGravar avisa quando der certo. Uma recusa
 //   definitiva (sem permissão, dado inválido) avisa por aoErro com definitivo: true e não tenta de novo
+// - Sessão expirada (401): a alteração espera o novo login (aoSessaoExpirada devolve quando a pessoa entrou de novo) e é
+//   gravada depois
 const DOCUMENTO_DIA = /^dia:(\d{4}-\d{2}-\d{2})$/;
 
 // Sem resposta (status 0), servidor fora do ar (5xx), tempo esgotado (408) ou muitas requisições (429): vale tentar de novo
@@ -24,7 +26,9 @@ const esperaPadrao = tentativa => new Promise(resolve => {
 
 const erroComCodigo = error => Object.assign(new Error(error.message), { code: error.code || String(error.status || '') });
 
-export function criarBackendSupabase(cliente, { aoConflito = () => {}, aoErro = () => {}, aoGravar = () => {}, esperar = esperaPadrao } = {}) {
+export function criarBackendSupabase(cliente, { aoConflito = () => {}, aoErro = () => {}, aoGravar = () => {}, aoSessaoExpirada = null, esperar = esperaPadrao } = {}) {
+  // A sessão expirou (401): espera o novo login, quando o app sabe pedir; senão, conta como recusa definitiva
+  const sessaoExpirada = status => status === 401 && aoSessaoExpirada !== null;
   const versoes = {};
   const pendentes = {};
   const emAndamento = {};
@@ -56,6 +60,11 @@ export function criarBackendSupabase(cliente, { aoConflito = () => {}, aoErro = 
           bloqueado = true;
           aoConflito(documento, { formato: error.hint === 'formato' });
           return false;
+        }
+        if (sessaoExpirada(status)) {
+          if (!Object.hasOwn(pendentes, documento)) pendentes[documento] = conteudo;
+          await aoSessaoExpirada();
+          continue;
         }
         if (!transitorio(status)) {
           delete pendentes[documento];
@@ -135,6 +144,10 @@ export function criarBackendSupabase(cliente, { aoConflito = () => {}, aoErro = 
           if (!error) {
             aoGravar('historico');
             return id;
+          }
+          if (sessaoExpirada(status)) {
+            await aoSessaoExpirada();
+            continue;
           }
           aoErro(error, 'historico', { definitivo: !transitorio(status) });
           if (!transitorio(status)) return null;
