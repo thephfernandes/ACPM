@@ -18,6 +18,11 @@ describe('Limites da lei', () => {
     assert.deepEqual(l, { ...LIMITES_DA_LEI, vooMesH: 90, vooSemestreH: 500, vooAnoH: null });
     assert.deepEqual(normalizarLimites(undefined), LIMITES_DA_LEI);
   });
+
+  it('o limite é maior que zero (revisão de 14/11): zero volta ao padrão; a apresentação e o encerramento podem ser 0', () => {
+    const l = normalizarLimites({ vooMesH: 0, jornadaMin: 0, apresentacaoMin: 0, encerramentoMin: 0 });
+    assert.deepEqual(l, { ...LIMITES_DA_LEI, apresentacaoMin: 0, encerramentoMin: 0 });
+  });
 });
 
 describe('Horas passadas', () => {

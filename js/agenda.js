@@ -42,16 +42,18 @@ export function disponibilidadeDaSolicitacao({ janela, horario }) {
 
 // Pedido da demanda: a missão com o equipamento padrão; como preferências, os dois primeiros horários dela que a
 // disponibilidade permite (sem disponibilidade, os primeiros a partir das 08:20 e das 10:10); 1 h (o Ground tem
-// 01h30) e prioridade 3. Os horários são os da categoria do equipamento (o PA-34 tem os seus)
-export function pedidoDaSolicitacao(solicitacao, horarios) {
+// 01h30) e prioridade 3. Os horários são os da categoria do equipamento (o PA-34 tem os seus). eq: outro equipamento
+// da missão (o do programa do curso; revisão de 14/11)
+export function pedidoDaSolicitacao(solicitacao, horarios, { eq } = {}) {
   const jan = disponibilidadeDaSolicitacao(solicitacao);
   const regra = Object.hasOwn(MIS, solicitacao.missao) ? MIS[solicitacao.missao] : MIS['Voo Local'];
-  const lista = horariosDaMissao(horarios, solicitacao.missao, regra.defEq);
+  const equipamento = eq && regra.eq.includes(eq) ? eq : regra.defEq;
+  const lista = horariosDaMissao(horarios, solicitacao.missao, equipamento);
   const permitida = disponibilidadeDoAluno(jan);
   const naDisponibilidade = permitida ? lista.filter(permitida) : [];
   const [p1, p2] = naDisponibilidade.length ? [naDisponibilidade[0], naDisponibilidade[Math.min(1, naDisponibilidade.length - 1)]] : preferenciasPadrao(lista);
   const pedido = {
-    fly: true, mis: solicitacao.missao, eq: regra.defEq,
+    fly: true, mis: solicitacao.missao, eq: equipamento,
     p1, p2, nb: 1, ss: 1, pr: 3,
     ...(jan ? { jan } : {})
   };
@@ -70,13 +72,16 @@ export function importarSolicitacoes(estado, solicitacoes, { situacao = [] } = {
   if (!Array.isArray(estado.importadas)) estado.importadas = [];
   for (const solicitacao of solicitacoes) {
     if (solicitacao.cancelada_em || estado.importadas.includes(solicitacao.id)) continue;
-    estado.importadas.push(solicitacao.id);
+    // O pedido de quem não está no cadastro não conta como visto: entra quando o aluno for cadastrado (revisão de 14/11)
     const aluno = estado.stu.find(x => x.id === solicitacao.aluno);
     if (!aluno) { resumo.semAluno++; continue; }
-    const pedido = pedidoDaSolicitacao(solicitacao, estado.horarios);
+    estado.importadas.push(solicitacao.id);
     const jaNoDia = [aluno, ...(aluno.extra || [])].filter(m => m.fly && m.etapa).map(m => m.etapa);
     const proxima = proximaMissao(programa, mapa, aluno.id, aluno.curso, { exceto: jaNoDia });
-    if (proxima && proxima.mis === pedido.mis) Object.assign(pedido, { etapa: proxima.id, eq: proxima.eq, nb: proxima.nb });
+    const doCurso = proxima && proxima.mis === solicitacao.missao;
+    // A missão do curso: o recurso do programa, com os horários e as preferências dele
+    const pedido = pedidoDaSolicitacao(solicitacao, estado.horarios, doCurso ? { eq: proxima.eq } : {});
+    if (doCurso) Object.assign(pedido, { etapa: proxima.id, nb: proxima.nb });
     const mesmaMissao = [aluno, ...(aluno.extra || [])].find(m => m.fly && m.mis === pedido.mis);
     if (mesmaMissao) {
       Object.assign(mesmaMissao, { p1: pedido.p1, p2: pedido.p2 });

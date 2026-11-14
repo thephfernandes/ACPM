@@ -558,7 +558,7 @@ async function importarDaAgenda() {
   });
   save(); rDem(); rAgenda();
   showToast(`${resumo.novos + resumo.atualizados} pedido(s) da agenda na demanda` +
-    (resumo.semAluno ? ` · ${resumo.semAluno} de aluno que não está mais no cadastro` : '') + '.', 'ok');
+    (resumo.semAluno ? ` · ${resumo.semAluno} de aluno que não está no cadastro (entra depois de cadastrado)` : '') + '.', 'ok');
 }
 $('#importar-agenda').onclick = importarDaAgenda;
 $('#agenda-importar').onclick = importarDaAgenda;
@@ -1048,8 +1048,10 @@ document.addEventListener('change', e => {
   if (!campo || !podeEditarLimites()) return;
   const chave = campo.dataset.limite, divisor = +campo.dataset.divisor;
   const antes = normalizarLimites(S.limites);
-  const valor = campo.value.trim() === '' ? null : Math.max(0, +campo.value) * divisor;
+  const valor = campo.value.trim() === '' ? null : +campo.value * divisor;
   if (valor !== null && !Number.isFinite(valor)) { rLimites(); return; }
+  // O limite é maior que zero (revisão de 14/11); vazio é sem limite
+  if (valor !== null && valor <= 0) { showToast('O limite precisa ser maior que zero (vazio é sem limite).'); rLimites(); return; }
   S.limites = normalizarLimites({ ...antes, [chave]: valor });
   logChange('mod', `Limites da lei: ${ROTULOS_DOS_LIMITES[chave]} ${emHoras(chave, antes[chave])} → ${emHoras(chave, S.limites[chave])}`);
   save();

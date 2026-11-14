@@ -50,6 +50,19 @@ test.describe('Limites da lei', () => {
     await expect(limites.getByLabel('Voo no mês (h)')).toHaveValue('100');
   });
 
+  // Revisão de 14/11: o limite é maior que zero (vazio é sem limite)
+  test('zero não vale como limite: o valor continua o de antes, com o aviso', async ({ page }) => {
+    await abrir(page, { estado: umInstrutorDoisVoos() });
+    await irPara(page, 'ins');
+    await page.locator('#s-ins [data-vista-ins="cadastro"]').click();
+    const mes = page.locator('#limites-lei').getByLabel('Voo no mês (h)');
+    await mes.fill('0');
+    await mes.dispatchEvent('change');
+    await expect(page.locator('.toast').last()).toHaveText('O limite precisa ser maior que zero (vazio é sem limite).');
+    await expect(mes).toHaveValue('100');
+    await expect(page.locator('#historico')).not.toContainText('Limites da lei');
+  });
+
   test('no Gestor, os limites só se leem', async ({ page }) => {
     await abrir(page, { estado: umInstrutorDoisVoos(), url: './?role=gestor' });
     await irPara(page, 'ins');

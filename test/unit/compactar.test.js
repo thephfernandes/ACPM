@@ -220,3 +220,16 @@ describe('Compactação: em dias gerados', async () => {
     assert.ok(saidas('aviao') < saidas('inva'), `saídas: ${saidas('aviao')} x ${saidas('inva')}`);
   });
 });
+
+// Revisão de 14/11: chamada sem os limites da lei, a compactação usa os padrões (antes, quebrava)
+describe('Compactação chamada sem os limites', () => {
+  it('usa os limites da lei padrão', async () => {
+    const { compactar } = await import('../../js/compactar.js');
+    const { gerarCenario } = await import('../helpers/cenarios.js');
+    for (const seed of [1001, 1002, 1003]) {
+      const estado = gerarCenario(seed);
+      const out = runAllocationEngine(estado, { compactar: false }).out.map(o => ({ ...o }));
+      assert.doesNotThrow(() => compactar(out, estado), `seed ${seed}`);
+    }
+  });
+});

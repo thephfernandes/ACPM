@@ -85,11 +85,19 @@ describe('Importar as solicitações da agenda para a demanda', () => {
     assert.deepEqual([e.stu[1].etapa, e.stu[1].mis], [undefined, 'Navegação'], 'a próxima do 1001 é PP-01 (Voo Local): o pedido entra como veio');
   });
 
-  it('ignora cancelados e os já importados; conta os alunos que não estão mais no cadastro', () => {
+  it('ignora cancelados e os já importados; conta os alunos que não estão no cadastro', () => {
     const e = { ...estado(), importadas: [5] };
     const resumo = importarSolicitacoes(e, [pedido(4, 1000, { cancelada_em: '2026-11-10T13:00:00Z' }), pedido(5, 1000), pedido(6, 9999)]);
     assert.deepEqual(resumo, { novos: 0, atualizados: 0, semAluno: 1 });
     assert.equal(e.stu[0].fly, false);
-    assert.deepEqual(e.importadas, [5, 6], 'o pedido de quem saiu do cadastro conta como visto');
+    // Revisão de 14/11: o pedido de quem não está no cadastro não conta como visto (entra quando o aluno for cadastrado)
+    assert.deepEqual(e.importadas, [5]);
+  });
+
+  it('missão do curso noutro recurso: as preferências são os horários desse recurso, na disponibilidade pedida', () => {
+    const programa = { PP: [], PC: [{ id: 'PC-01', nome: 'A', mis: 'IFR', eq: 'PA-34', nb: 1 }], INVA: [] };
+    const e = { ...estado(), cursos: programa, stu: [aluno(1000, { fly: false }, { curso: 'PC' })] };
+    importarSolicitacoes(e, [pedido(9, 1000, { missao: 'IFR', janela: 'manha' })]);
+    assert.deepEqual([e.stu[0].etapa, e.stu[0].eq, e.stu[0].p1, e.stu[0].p2], ['PC-01', 'PA-34', 390, 420]);
   });
 });

@@ -154,6 +154,12 @@ describe('Nova data', () => {
     assert.equal(novo.av['PR-BTB'], false);
     assert.deepEqual(novo.pedidos[1000], anterior.pedidos[1000]);
     novo.pedidos[1000].extra[0].p1 = 7;
+    // A missão do curso é a do dia (revisão de 14/11): a cópia não a leva
+    const comEtapa = structuredClone(anterior);
+    comEtapa.pedidos[1000].etapa = 'PP-07';
+    comEtapa.pedidos[1000].extra[0].etapa = 'PP-08';
+    const copia = diaParaCopiar(comEtapa).pedidos[1000];
+    assert.deepEqual([copia.etapa, copia.extra[0].etapa], [undefined, undefined]);
     assert.notEqual(anterior.pedidos[1000].extra[0].p1, 7, 'a cópia é independente');
   });
 

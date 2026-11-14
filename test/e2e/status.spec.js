@@ -65,6 +65,9 @@ test.describe('Status do voo com detalhes', () => {
     await novo.fill('10:00');
     await confirmar(page);
     await expect(dialogo(page).locator('[role="alert"]')).toHaveText('A nova decolagem precisa ser depois das 10:10, no mesmo dia.');
+    await novo.fill('23:30');
+    await confirmar(page);
+    await expect(dialogo(page).locator('[role="alert"]')).toHaveText('O voo atrasado precisa pousar até as 24:00 (decolagem até as 23:00).');
     await novo.fill('10:40');
     await confirmar(page);
     await expect(dialogo(page)).toBeHidden();

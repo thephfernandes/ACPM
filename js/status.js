@@ -14,7 +14,8 @@ const CHAVE_DO_VOO = /^\d+_\d+_\d+$/;
 const limparTexto = texto => (typeof texto === 'string' ? texto.trim().replace(/\s+/g, ' ') : '');
 
 // O detalhe que o operador informou, validado: { detalhe } (null para os status sem detalhe) ou { erro }
-export function validarDetalhe(status, dados, inicio) {
+// duracao: os minutos do voo (o atrasado pousa até a meia-noite)
+export function validarDetalhe(status, dados, inicio, duracao = 0) {
   if (status === 'Cancelado') {
     const motivo = dados && dados.motivo;
     if (!MOTIVOS_DE_CANCELAMENTO.includes(motivo)) return { erro: 'Escolha o motivo do cancelamento.' };
@@ -28,6 +29,9 @@ export function validarDetalhe(status, dados, inicio) {
     const novoInicio = dados && dados.novoInicio;
     if (!Number.isInteger(novoInicio) || novoInicio <= inicio || novoInicio >= FIM_DO_DIA) {
       return { erro: `A nova decolagem precisa ser depois das ${hm(inicio)}, no mesmo dia.` };
+    }
+    if (novoInicio + duracao > FIM_DO_DIA) {
+      return { erro: `O voo atrasado precisa pousar até as 24:00 (decolagem até as ${hm(FIM_DO_DIA - duracao)}).` };
     }
     return { detalhe: { novoInicio } };
   }

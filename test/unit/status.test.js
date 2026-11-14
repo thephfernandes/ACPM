@@ -35,6 +35,9 @@ describe('Status do voo: a lista e os detalhes', () => {
   it('atraso: a nova decolagem precisa ser depois da original e no mesmo dia', () => {
     assert.deepEqual(validarDetalhe('Atrasado', { novoInicio: 640 }, 610), { detalhe: { novoInicio: 640 } });
     assert.match(validarDetalhe('Atrasado', { novoInicio: 610 }, 610).erro, /depois das 10:10/);
+    // O voo atrasado pousa até a meia-noite (revisão de 14/11): a duração conta
+    assert.deepEqual(validarDetalhe('Atrasado', { novoInicio: 1380 }, 610, 60), { detalhe: { novoInicio: 1380 } });
+    assert.equal(validarDetalhe('Atrasado', { novoInicio: 1381 }, 610, 60).erro, 'O voo atrasado precisa pousar até as 24:00 (decolagem até as 23:00).');
     assert.ok(validarDetalhe('Atrasado', { novoInicio: 600 }, 610).erro);
     assert.ok(validarDetalhe('Atrasado', { novoInicio: 1440 }, 610).erro);
     assert.ok(validarDetalhe('Atrasado', { novoInicio: '10:40' }, 610).erro);

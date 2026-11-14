@@ -39,7 +39,7 @@ function ligar() {
     const dados = pedido.status === 'Cancelado'
       ? { motivo: (dlg.querySelector('input[name="motivo"]:checked') || {}).value, texto: $('#st-outro').value }
       : { novoInicio: paraMinuto($('#st-novo').value) };
-    const { detalhe, erro } = validarDetalhe(pedido.status, dados, pedido.voo.a);
+    const { detalhe, erro } = validarDetalhe(pedido.status, dados, pedido.voo.a, pedido.voo.b - pedido.voo.a);
     if (erro) { $('#st-erro').textContent = erro; return; }
     const { aoConfirmar } = pedido;
     pedido = null;

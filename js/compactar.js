@@ -14,7 +14,7 @@ import { podeFazer } from './habilitacoes.js';
 import { categoriaDoRodizio } from './rodizio.js';
 import { livre, cobre, cabeNoSaldo } from './viabilidade.js';
 import { reducaoNecessaria, combustivelDoVoo } from './combustivel.js';
-import { dentroDosLimites } from './limites.js';
+import { dentroDosLimites, normalizarLimites } from './limites.js';
 import { HORARIOS_INICIAIS, horariosDaMissao, periodoDoMinuto, minutoDaPreferencia } from './horarios.js';
 import { disponibilidadeDoAluno, doesGroundGateFlight } from './rules.js';
 import { INTERVALO_DO_HANGAR } from './metricas.js';
@@ -92,7 +92,9 @@ export function custoDaEscala(out, estado) {
 
 // A busca. Muda os voos de out no lugar (horário, período, instrutor, peso, combustível, avião e a etiqueta da
 // preferência) e devolve quantos movimentos fez
-export function compactar(out, state, { saldo = () => Infinity, posicao = () => 0, limites, historico = () => null, limitesDaBusca = LIMITES_DA_COMPACTACAO } = {}) {
+export function compactar(out, state, { saldo = () => Infinity, posicao = () => 0, limites: limitesDados, historico = () => null, limitesDaBusca = LIMITES_DA_COMPACTACAO } = {}) {
+  // Sem os limites, os do estado (revisão de 14/11)
+  const limites = limitesDados || normalizarLimites(state.limites);
   const { buracos, horarios: regra } = normalizarCriterios(state.criterios);
   const pesos = PESOS_DA_COMPACTACAO[buracos], pesosDaPreferencia = PESOS_DA_COMPACTACAO.preferencia;
   const frota = Array.isArray(state.frota) ? state.frota : FROTA_INICIAL;

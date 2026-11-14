@@ -21,7 +21,9 @@ export function normalizarLimites(limites) {
   return Object.fromEntries(Object.entries(LIMITES_DA_LEI).map(([chave, padrao]) => {
     const v = dados[chave];
     if (v === null && !['apresentacaoMin', 'encerramentoMin'].includes(chave)) return [chave, null];
-    return [chave, typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : padrao];
+    // O limite é maior que zero (revisão de 14/11); a apresentação e o encerramento podem ser 0
+    const minimo = ['apresentacaoMin', 'encerramentoMin'].includes(chave) ? 0 : Number.MIN_VALUE;
+    return [chave, typeof v === 'number' && Number.isFinite(v) && v >= minimo ? v : padrao];
   }));
 }
 

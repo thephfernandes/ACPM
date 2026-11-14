@@ -109,6 +109,12 @@ export function juntar(cadastro, dia = diaPadrao()) {
 export function diaParaCopiar(anterior, instrutores = []) {
   if (!anterior || !anterior.ins || !anterior.pedidos) return diaPadrao();
   const { win, av, ins, pedidos, hangar = null, criterios } = structuredClone(anterior);
+  // A missão do curso é a do dia (revisão de 14/11): a data nova começa sem ela
+  for (const p of Object.values(pedidos)) {
+    if (!p || typeof p !== 'object') continue;
+    delete p.etapa;
+    (Array.isArray(p.extra) ? p.extra : []).forEach(ex => { if (ex && typeof ex === 'object') delete ex.etapa; });
+  }
   return { win, av, ins, pedidos, fStatus: {}, fObs: {}, horas: horasDoDiaSeguinte(anterior), filas: filasDoDiaSeguinte(anterior, instrutores), hangar: hangar || normalizarHangar(null, FROTA_INICIAL), fixos: {}, aprovacao: null, criterios: normalizarCriterios(criterios), importadas: [] };
 }
 
