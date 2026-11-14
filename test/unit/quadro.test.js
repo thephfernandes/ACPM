@@ -143,4 +143,21 @@ describe('O quadro da TV da recepção (o mesmo que o servidor entrega)', async 
     assert.deepEqual(quadroDoDia({ pedidos: {} }), { voos: null, fStatus: {}, fObs: {} }, 'dia sem escala gravada');
     assert.deepEqual(quadroDoDia(null), { voos: null, fStatus: {}, fObs: {} });
   });
+
+  // Como a função painel_do_dia do servidor (revisão de 14/11): o que foi gravado fora do formato pela API não chega à TV
+  it('valores fora do formato: só os status e os motivos da lista, as chaves de voo e os horários do dia', () => {
+    const X = '"><img src=x>';
+    const dia = {
+      fStatus: { '1000_0_1': 'Cancelado', '1001_0_1': X, [X]: 'Cancelado' },
+      fObs: {
+        '1000_0_1': { motivo: X, novoInicio: 99999 }, '1001_0_1': { motivo: 'Meteorologia', novoInicio: 640 },
+        '1002_0_1': { novoInicio: 0 }, [X]: { motivo: 'Outro' }
+      },
+      resultado: { out: [voo('1000_0_1', 610), voo('1001_0_1', 390), { ...voo('1002_0_1', 500), b: 2000 }, { ...voo('1003_0_1', 500), fKey: X }] }
+    };
+    const quadro = quadroDoDia(dia);
+    assert.deepEqual(quadro.voos.map(v => v.fKey), ['1001_0_1', '1000_0_1'], 'a linha fora do formato sai');
+    assert.deepEqual(quadro.fStatus, { '1000_0_1': 'Cancelado' });
+    assert.deepEqual(quadro.fObs, { '1001_0_1': { motivo: 'Meteorologia', novoInicio: 640 } });
+  });
 });

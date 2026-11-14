@@ -6,7 +6,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = public, extensions;
 
-select plan(24);
+select plan(31);
 
 insert into auth.users (id, email, created_at, updated_at) values
   ('00000000-0000-4000-a000-000000000031', 'painel@painel.acpm.invalid', now(), now()),
@@ -71,6 +71,40 @@ select set_config('request.jwt.claims', '{"sub":"00000000-0000-4000-a000-0000000
 select is(jsonb_array_length(public.painel_do_dia()->'voos'), 3, 'operador também vê o quadro');
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-4000-a000-000000000033","role":"authenticated"}', true);
 select throws_ok($$ select public.painel_do_dia() $$, '42501', null, 'conta sem perfil não vê o quadro');
+
+-- Valores fora do formato, gravados pela API por uma conta de operador (revisão de 14/11): só os status da lista (o
+-- desconhecido da linha vira "Confirmado"; "Pousou" já vale), as chaves de voo, os motivos da lista e os horários do
+-- dia; os textos longos são cortados, e a linha sem chave de voo ou sem horário válido no dia sai
+reset role;
+update public.dias set conteudo = conteudo || jsonb_build_object(
+  'fStatus', jsonb_build_object('1000_0_1', 'Pousou', '1001_0_1', '"><img src=x>', '"><b>', 'Cancelado'),
+  'fObs', jsonb_build_object(
+    '1000_0_1', jsonb_build_object('novoInicio', 99999999999),
+    '1001_0_1', jsonb_build_object('motivo', '"><img src=x>', 'novoInicio', 'x'),
+    '"><b>', jsonb_build_object('motivo', 'Outro'),
+    '1004_0_1', jsonb_build_object('motivo', 'Meteorologia', 'novoInicio', 700)),
+  'resultado', jsonb_build_object('out', jsonb_build_array(
+    jsonb_build_object('fKey', '1000_0_1', 'a', 610, 'b', 670, 'status', '"><img src=x>', 's', repeat('M', 300) || ' Silva',
+      'ins', repeat('I', 300), 'mis', repeat('m', 300), 'r', repeat('R', 300), 'eqType', repeat('e', 300),
+      'classKey', repeat('c', 300), 'etapa', '"><b>'),
+    jsonb_build_object('fKey', '"><img src=x>', 'a', 390, 'b', 450),
+    jsonb_build_object('fKey', '1002_0_1', 'a', 99999999999, 'b', 590),
+    jsonb_build_object('fKey', '1003_0_1', 'a', 500, 'b', 2000),
+    jsonb_build_object('fKey', '1004_0_1', 'a', 'x', 'b', 450),
+    jsonb_build_object('fKey', '1005_0_1', 'a', 700, 'b', 640),
+    '"texto"'::jsonb)))
+where data = (now() at time zone 'America/Sao_Paulo')::date;
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-4000-a000-000000000031","role":"authenticated"}', true);
+select lives_ok($$ select public.painel_do_dia() $$, 'o quadro abre com o dia adulterado');
+select is(public.painel_do_dia()->'fStatus', '{"1000_0_1": "Pousou"}'::jsonb, 'só os status da lista, nas chaves de voo ("Pousou" já vale)');
+select is(public.painel_do_dia()->'fObs', '{"1004_0_1": {"motivo": "Meteorologia", "novoInicio": 700}}'::jsonb,
+  'só os motivos da lista e os horários do dia, nas chaves de voo');
+select is((select array_agg(v->>'fKey') from jsonb_array_elements(public.painel_do_dia()->'voos') v), array['1000_0_1'],
+  'a linha sem chave de voo ou sem horário válido no dia sai');
+select is(public.painel_do_dia()->'voos'->0->>'status', 'Confirmado', 'o status desconhecido da linha vira Confirmado');
+select is(public.painel_do_dia()->'voos'->0->>'etapa', null, 'a missão do curso fora do formato sai');
+select is((select max(length(v.value)) from jsonb_each_text(public.painel_do_dia()->'voos'->0) v), 80, 'os textos longos são cortados');
 
 -- O administrador cria a conta da TV
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-4000-a000-000000000034","role":"authenticated"}', true);

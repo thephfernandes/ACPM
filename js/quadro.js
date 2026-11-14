@@ -5,7 +5,7 @@
 import { GROUND_EQ_TYPE } from './config.js';
 import { nomeDoRecurso } from './categorias.js';
 import { isGroundMission } from './rules.js';
-import { intervaloEfetivo, textoDoDetalhe, classeDoStatus, normalizarStatus } from './status.js';
+import { intervaloEfetivo, textoDoDetalhe, classeDoStatus, normalizarStatus, MOTIVOS_DE_CANCELAMENTO } from './status.js';
 import { normalizarLinhaGravada } from './escala-gravada.js';
 
 // Uma linha por voo (a turma de Ground, uma só: cancelada só quando todos os alunos estão), no horário efetivo
@@ -117,11 +117,19 @@ export function quadroDoDia(dia) {
   const voos = out.filter(o => o && Number.isInteger(o.a) && Number.isInteger(o.b))
     .map(o => ({ fKey: o.fKey, classKey: o.classKey, isGround: Boolean(o.isGround), a: o.a, b: o.b, r: o.r, eqType: o.eqType, s: nomeCurto(o.s), ins: o.ins, mis: o.mis, etapa: o.etapa || null, status: o.status }))
     .sort((x, y) => x.a - y.a || String(x.fKey).localeCompare(String(y.fKey)));
-  const fObs = Object.fromEntries(Object.entries(dia.fObs && typeof dia.fObs === 'object' ? dia.fObs : {})
-    .filter(([, d]) => d && typeof d === 'object')
-    .map(([fKey, d]) => [fKey, {
-      ...(d.motivo ? { motivo: d.motivo } : {}),
-      ...(Number.isInteger(d.novoInicio) ? { novoInicio: d.novoInicio } : {})
-    }]));
-  return { voos, fStatus: normalizarStatus(dia.fStatus), fObs };
+  return { voos, fStatus: normalizarStatus(dia.fStatus), fObs: detalhesDoQuadro(dia.fObs) };
+}
+
+// Do detalhe do status, só a categoria do motivo (da lista, sem o texto livre) e o novo horário (no dia), nas chaves de voo
+const CHAVE_DO_VOO = /^\d+_\d+_\d+$/;
+function detalhesDoQuadro(fObs) {
+  const dados = fObs && typeof fObs === 'object' ? fObs : {};
+  return Object.fromEntries(Object.entries(dados).flatMap(([fKey, d]) => {
+    if (!CHAVE_DO_VOO.test(fKey) || !d || typeof d !== 'object') return [];
+    const detalhe = {
+      ...(MOTIVOS_DE_CANCELAMENTO.includes(d.motivo) ? { motivo: d.motivo } : {}),
+      ...(Number.isInteger(d.novoInicio) && d.novoInicio > 0 && d.novoInicio < 24 * 60 ? { novoInicio: d.novoInicio } : {})
+    };
+    return Object.keys(detalhe).length ? [[fKey, detalhe]] : [];
+  }));
 }
