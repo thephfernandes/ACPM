@@ -92,6 +92,14 @@ test('o "+ missão" da Demanda aparece com o foco do teclado em qualquer campo d
   await expect.poll(() => opacidade(linha.locator('.btn-add-mis'))).toBe('1');
 });
 
+test('o foco do teclado na data aparece no rótulo dela', async ({ page }) => {
+  await abrir(page, { estado: diaComHorarioLivre() });
+  await page.locator('#dt-ant').focus();
+  await page.keyboard.press('Tab');
+  await expect(page.locator('#dt')).toBeFocused();
+  expect(await page.locator('.topo-data-campo').evaluate(el => getComputedStyle(el).outlineStyle)).toBe('solid');
+});
+
 test.describe('Dicas no celular', () => {
   test.use({ viewport: { width: 360, height: 780 }, hasTouch: true });
 

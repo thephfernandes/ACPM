@@ -91,6 +91,8 @@ header.topo {
 }
 #dt-rotulo { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .topo-data-campo:hover { background: rgba(255,255,255,.1); }
+/* O campo da data é transparente por cima do rótulo: o foco do teclado aparece no rótulo (revisão de 14/11) */
+.topo-data-campo:has(#dt:focus-visible) { outline: 2px solid #fff; outline-offset: 2px; background: rgba(255,255,255,.1); }
 .topo-data-rel { font: 700 12px 'Barlow', sans-serif; background: var(--ye); color: #12263A; border-radius: 10px; padding: 1px 8px; }
 /* O campo de data cobre o rótulo: um clique abre o calendário do navegador */
 #dt { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; padding: 0; border: 0; cursor: pointer; }
@@ -1260,3 +1262,8 @@ body.tela-painel { min-height: 100vh; background: #07122B; overflow: hidden; }
   }
   .dica-btn:hover, .dica-btn[aria-expanded="true"] { border-color: transparent; }
 }
+/* O Glossário do Manual */
+dl.glossario { display: grid; grid-template-columns: minmax(140px, max-content) 1fr; gap: 6px 16px; margin: 4px 0 12px; }
+dl.glossario dt { font-weight: 600; }
+dl.glossario dd { margin: 0; }
+@media (max-width: 640px) { dl.glossario { grid-template-columns: 1fr; gap: 2px; } dl.glossario dd { margin-bottom: 8px; } }

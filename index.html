@@ -399,6 +399,7 @@
       <a href="#manual-abas">As abas</a>
       <a href="#manual-regras">Como a escala é montada</a>
       <a href="#manual-gestor">Para o gestor</a>
+      <a href="#manual-glossario">Glossário</a>
       <a href="#manual-faq">Perguntas frequentes</a>
     </nav>
 
@@ -442,7 +443,7 @@
         <li><b>Por recurso</b> e <b>Por instrutor:</b> o mapa do dia, com a ocupação de cada um. Um clique num voo abre os detalhes dele (aluno, instrutor, recurso, missão, peso e status); Esc ou um clique fora fecha.</li>
         <li><b>Painel:</b> partidas e chegadas como nos painéis dos aeroportos. <i>Partidas</i> mostra todas as decolagens (e o início das aulas) do dia e <i>Chegadas</i>, o que ainda não pousou ou terminou, cada um pelo horário previsto: o horário programado, a missão, o modelo, a aeronave, o aluno (no Ground, só quantos alunos), o instrutor, o previsto (no atraso, o novo horário) e a observação na cor do status (no cancelamento, com o motivo). Os quadros se alternam página a página a cada 10 segundos; escolha <i>Partidas</i> ou <i>Chegadas</i> para ver um só, <i>Pausar</i> para parar a troca e <i>Tela cheia</i> para um monitor ou TV. O painel só mostra: o status muda na Lista e no mapa.</li>
       </ul>
-      <p>Filtre por categoria (C152, C172, Simulador, PA-34 ou Sala Ground) e, dentro dela, por recurso, ou busque um aluno ou instrutor. Na lista, um clique no horário recolhe ou abre os voos dele. Na lista, mude o status do voo ou use o ✕ do fim da linha (<i>Tirar da escala</i>, aparece ao passar o mouse) para tirar um voo; o Histórico permite restaurar. O histórico registra o motivo do cancelamento só pela categoria: a descrição de “Outro” fica no voo, não no histórico. <i>CSV</i> gera o arquivo do lançamento no portal, agrupado por avião e com o peso e o status (com o motivo ou a nova decolagem); <i>PDF</i> gera a escala para impressão, com o status de cada voo. No celular, a lista mostra um cartão por voo.</p>
+      <p>Filtre por categoria (C152, C172, Simulador, PA-34 ou Sala Ground) e, dentro dela, por recurso, ou busque um aluno ou instrutor. Na lista, um clique no horário recolhe ou abre os voos dele. Na lista, mude o status do voo ou use o ✕ do fim da linha (<i>Tirar da escala</i>, aparece com o mouse ou o foco do teclado na linha; no celular, fica à vista) para tirar um voo; o Histórico permite restaurar. O histórico registra o motivo do cancelamento só pela categoria: a descrição de “Outro” fica no voo, não no histórico. <i>CSV</i> gera o arquivo do lançamento no portal, agrupado por avião e com o peso e o status (com o motivo ou a nova decolagem); <i>PDF</i> gera a escala para impressão, com o status de cada voo. No celular, a lista mostra um cartão por voo.</p>
 
       <h4>Demanda</h4>
       <p>Uma linha por aluno. Ligue <i>Voa</i> para quem voa na data e preencha:</p>
@@ -453,7 +454,7 @@
         <li><b>Duração:</b> as horas da missão, num voo só (para dividir em dois voos no dia, use <i>+ missão</i>);</li>
         <li><b>Prioridade:</b> de 1 a 5; quem tem 5 é atendido primeiro.</li>
       </ul>
-      <p><i>Só quem voa</i> (ligado) esconde quem não voa na data. <i>+ missão</i> (aparece ao passar o mouse no nome) acrescenta outra missão ao mesmo aluno no dia, por exemplo Ground de manhã e voo à tarde. <i>Importar pedidos da agenda</i> traz os pedidos da data: só acrescenta, nunca apaga nem repete. <i>Pôr um aluno na demanda</i> inclui um aluno que ainda não voa na data. <i>Limpar demanda</i> fica no menu <i>Mais</i> e pede confirmação.</p>
+      <p><i>Só quem voa</i> (ligado) esconde quem não voa na data. <i>+ missão</i> (aparece com o mouse ou o foco do teclado na linha; no celular, fica à vista) acrescenta outra missão ao mesmo aluno no dia, por exemplo Ground de manhã e voo à tarde. <i>Importar pedidos da agenda</i> traz os pedidos da data: só acrescenta, nunca apaga nem repete. <i>Pôr um aluno na demanda</i> inclui um aluno que ainda não voa na data. <i>Limpar demanda</i> fica no menu <i>Mais</i> e pede confirmação.</p>
       <p><b>Alunos de um curso</b> (o curso fica em Alunos): ao lado do nome aparece a próxima missão do programa, por exemplo <i>Próxima: PP-07 · Usar</i> (deixe o mouse em cima para ver a missão, as horas e o recurso). <i>Usar</i> põe essa missão no pedido (o tipo de missão, o recurso e as horas do programa), liga <i>Voa</i>, e o código aparece no lugar do botão. Na <i>+ missão</i> do mesmo aluno, a sugestão é a missão seguinte. Mudar à mão a missão, o recurso ou a duração tira o código. Na importação da agenda, quando a próxima missão do aluno é do tipo pedido, o pedido já entra como ela.</p>
 
       <h4>Agenda</h4>
@@ -464,9 +465,9 @@
       <p><b>Janelas de operação:</b> os períodos do dia em que a escala opera. Desligar uma janela tira da escala do dia os horários de decolagem que caem nela. A disponibilidade dos instrutores e “manhã, tarde e noite” do aluno também valem por janela.</p>
       <ul class="manual-lista-curta" id="manual-janelas"></ul>
       <p><b>Horários de decolagem:</b> cada categoria (C152, C172, Simulador e PA-34) tem os seus horários de saída. O padrão são as janelas do dia, e o PA-34 sai de 30 em 30 minutos. Tire um horário pelo ✕, acrescente outro pelo campo de hora ou use um modelo (<i>Janelas do dia</i> ou <i>De 30 em 30 min</i>). Os pedidos da categoria vão para o horário mais próximo da lista nova. O voo noturno sai sempre às 17:30, e o Ground, nas janelas do dia.</p>
-      <p><b>Aviões e simuladores:</b> desligado quer dizer indisponível (em manutenção). O avião marcado “Só Parafuso” só voa Parafuso. Para acrescentar um recurso à frota, use <i>+ Novo recurso</i>: a matrícula e a categoria (no C152, também “Só Parafuso”); o limite de peso e o controle das 50 horas vêm da categoria. <i>Retirar</i> (aparece ao passar o mouse na linha) tira um recurso da frota, com confirmação; o Histórico desfaz. A tabela mostra quanto cada avião voa na escala do dia e o saldo até a revisão de 50 horas. Escolha uma categoria para ver só a frota dela; um clique no nome da categoria recolhe ou abre as linhas.</p>
-      <p><b>Ordem no hangar:</b> os aviões da frente para o fundo, como estão guardados. A escala tira primeiro os da frente e junta os voos nos que já saíram; os do fundo só saem quando os da frente não dão conta. Use os botões que aparecem ao passar o mouse para subir, descer ou pôr um avião na frente. A data seguinte começa com a mesma ordem; ajuste quando o hangar for arrumado de outro jeito.</p>
-      <p><b>Revisão de 50 horas:</b> informe as horas de cada avião desde a última revisão. A escala não passa das 50 horas: o avião para quando não tem saldo para mais um voo, e o aviso aparece na escala. Depois da revisão, clique em <i>Revisão feita</i> (aparece ao passar o mouse na linha) para zerar. A data seguinte começa com as horas desta data mais os voos dela que não foram cancelados. Avião sem as horas informadas fica sem esse controle.</p>
+      <p><b>Aviões e simuladores:</b> desligado quer dizer indisponível (em manutenção). O avião marcado “Só Parafuso” só voa Parafuso. Para acrescentar um recurso à frota, use <i>+ Novo recurso</i>: a matrícula e a categoria (no C152, também “Só Parafuso”); o limite de peso e o controle das 50 horas vêm da categoria. <i>Retirar</i> (aparece com o mouse ou o foco do teclado na linha; no celular, fica à vista) tira um recurso da frota, com confirmação; o Histórico desfaz. A tabela mostra quanto cada avião voa na escala do dia e o saldo até a revisão de 50 horas. Escolha uma categoria para ver só a frota dela; um clique no nome da categoria recolhe ou abre as linhas.</p>
+      <p><b>Ordem no hangar:</b> os aviões da frente para o fundo, como estão guardados. A escala tira primeiro os da frente e junta os voos nos que já saíram; os do fundo só saem quando os da frente não dão conta. Use os botões de cada avião (aparecem com o mouse ou o foco do teclado; no celular, ficam à vista) para subir, descer ou pôr um avião na frente. A data seguinte começa com a mesma ordem; ajuste quando o hangar for arrumado de outro jeito.</p>
+      <p><b>Revisão de 50 horas:</b> informe as horas de cada avião desde a última revisão. A escala não passa das 50 horas: o avião para quando não tem saldo para mais um voo, e o aviso aparece na escala. Depois da revisão, clique em <i>Revisão feita</i> (aparece com o mouse ou o foco do teclado na linha; no celular, fica à vista) para zerar. A data seguinte começa com as horas desta data mais os voos dela que não foram cancelados. Avião sem as horas informadas fica sem esse controle.</p>
 
       <h4>Instrutores</h4>
       <p>Duas vistas, com a busca e o filtro por habilitação valendo nas duas:</p>
@@ -484,7 +485,7 @@
       <h4 id="manual-aba-rodizio">Rodízio</h4>
       <p>Filas para dividir com justiça, entre os instrutores habilitados, os voos que remuneram melhor:</p>
       <ul class="manual-lista-curta" id="manual-rodizio"></ul>
-      <p>Cada voo da categoria vai para o primeiro da fila que estiver livre (no mesmo dia, quem ainda não voou nela vem antes). Quem voou vai para o fim da fila na data seguinte; voo cancelado não conta. Para ajustar a ordem, por exemplo quando um voo foi cancelado pela meteorologia, use os botões que aparecem ao passar o mouse sobre o nome: subir, descer e pôr no início da fila.</p>
+      <p>Cada voo da categoria vai para o primeiro da fila que estiver livre (no mesmo dia, quem ainda não voou nela vem antes). Quem voou vai para o fim da fila na data seguinte; voo cancelado não conta. Para ajustar a ordem, por exemplo quando um voo foi cancelado pela meteorologia, use os botões de cada nome (aparecem com o mouse ou o foco do teclado; no celular, ficam à vista): subir, descer e pôr no início da fila.</p>
 
       <h4>BI</h4>
       <p>Indicadores das escalas gravadas: horas por recurso, por instrutor e por missão, no dia, na semana e no mês. Escolha a data base e filtre por categoria e, dentro dela, por recurso, ou busque um instrutor. As tabelas de recurso e de instrutor mostram os 10 maiores; <i>Ver todos</i> abre a lista inteira.</p>
@@ -549,6 +550,12 @@
         <li>Deixe o navegador em tela cheia. O painel busca as mudanças a cada minuto, recarrega sozinho de madrugada e mantém a tela acesa. Sem conexão por mais de 3 minutos, mostra desde quando.</li>
       </ol>
       <p>O painel mostra a escala de hoje que já foi gravada (a escala é gravada a cada alteração do operador ou quando ele exporta o CSV ou o PDF).</p>
+    </div>
+
+    <div class="pn" id="manual-glossario">
+      <h3>Glossário</h3>
+      <p>Os termos da tela. Na tela, um termo com o sublinhado pontilhado ou um <b>?</b> ao lado mostra a explicação: com o mouse parado em cima, com o foco do teclado ou com um toque (no celular). Esc ou um toque fora fecham.</p>
+      <div id="manual-glossario-lista"></div>
     </div>
 
     <div class="pn" id="manual-faq">

@@ -1,4 +1,5 @@
 import { test, expect, abrir, irPara, abrirMenuDaConta } from './fixtures.js';
+import { GLOSSARIO } from '../../js/glossario.js';
 
 test.describe('Aplicação', () => {
   test('abre na Escala, com as abas na ordem de uso e sem números', async ({ page }) => {
@@ -141,7 +142,10 @@ test.describe('Aplicação', () => {
       expect(texto, antigo).not.toContain(antigo);
     }
     await expect(manual.locator('h3')).toHaveText(['Primeiros passos: a rotina do operador', 'Perfis de acesso', 'As abas',
-      'Como a escala é montada', 'Para o gestor', 'TV da recepção', 'Perguntas frequentes']);
+      'Como a escala é montada', 'Para o gestor', 'TV da recepção', 'Glossário', 'Perguntas frequentes']);
+    // O Glossário sai do glossário das dicas (revisão de 14/11)
+    await expect(page.locator('#manual-glossario-lista dt')).toHaveCount(Object.keys(GLOSSARIO).length);
+    await expect(page.locator('#manual-glossario-lista')).toContainText(GLOSSARIO['horario-livre'].texto);
     // As abas na ordem do app, sem números, com os nomes novos dos botões e das vistas
     await expect(manual.locator('#manual-abas h4')).toHaveText(['Escala', 'Demanda', 'Agenda', 'Recursos', 'Instrutores', 'Alunos', 'Rodízio', 'BI']);
     for (const novo of ['menu da conta', 'Pôr um aluno na demanda', 'Disponibilidade do dia', 'Editar habilitações', 'Não escalar com',

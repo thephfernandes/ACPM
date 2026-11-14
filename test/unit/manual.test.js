@@ -2,7 +2,8 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { MIS } from '../../js/config.js';
-import { missoesDoManual, quemPodeDar, janelasDoManual, pesosDoManual, combustivelDoManual, rodizioDoManual } from '../../js/manual.js';
+import { missoesDoManual, quemPodeDar, janelasDoManual, pesosDoManual, combustivelDoManual, rodizioDoManual, glossarioDoManual } from '../../js/manual.js';
+import { GLOSSARIO, ABAS_DO_GLOSSARIO } from '../../js/glossario.js';
 
 describe('Manual', () => {
   it('quem pode dar cada missão, com os rótulos da grade de habilitações (e o que o avião acrescenta)', () => {
@@ -35,5 +36,13 @@ describe('Manual', () => {
     assert.deepEqual(janelasDoManual(), ['06:30', '08:20', '10:10', '11:30', '12:40', '13:40', '14:30', '16:20', '17:30 (noturno)']);
     assert.deepEqual(pesosDoManual(), [['C152', '170 kg'], ['C172', '222 kg'], ['PA-34', '250 kg']]);
     assert.deepEqual(rodizioDoManual(), ['Voos de cheque', 'Voo MLTE (PA-34)', 'Voo noturno', 'Voo C172']);
+  });
+
+  // Revisão de 14/11: o Glossário do Manual sai do mesmo glossário das dicas, aba por aba
+  it('o glossário, aba por aba, com todos os termos das dicas', () => {
+    const grupos = glossarioDoManual();
+    assert.deepEqual(grupos.map(g => g.aba), ABAS_DO_GLOSSARIO);
+    assert.equal(grupos.flatMap(g => g.termos).length, Object.keys(GLOSSARIO).length);
+    assert.deepEqual(grupos[0].termos[0], { termo: GLOSSARIO['horario-livre'].termo, texto: GLOSSARIO['horario-livre'].texto });
   });
 });

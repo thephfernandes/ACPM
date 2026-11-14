@@ -3,6 +3,7 @@
 import { MIS, WIN, NI, DEFAULT_LIM, GROUND_DURATION_MIN, COMBUSTIVEL } from './config.js';
 import { HABILITACOES, exigencias } from './habilitacoes.js';
 import { CATEGORIAS_DO_RODIZIO } from './rodizio.js';
+import { GLOSSARIO, ABAS_DO_GLOSSARIO } from './glossario.js';
 
 // Os rótulos curtos são os da grade de habilitações da aba Instrutores
 const ROTULO = new Map(HABILITACOES.map(h => [h.id, h.curto]));
@@ -41,3 +42,8 @@ export const pesosDoManual = () => Object.entries(DEFAULT_LIM).map(([tipo, kg]) 
 export const combustivelDoManual = () => Object.entries(COMBUSTIVEL).map(([tipo, { galoes, autonomiaMin }]) =>
   `${tipo}: ${galoes} gal, ${Math.floor(autonomiaMin / 60)}h${autonomiaMin % 60 ? String(autonomiaMin % 60).padStart(2, '0') : ''}`);
 export const rodizioDoManual = () => CATEGORIAS_DO_RODIZIO.map(c => c.nome);
+
+// O Glossário (revisão de 14/11): os termos das dicas, aba por aba, na ordem das abas
+export const glossarioDoManual = () => ABAS_DO_GLOSSARIO.map(aba => ({
+  aba, termos: Object.values(GLOSSARIO).filter(t => t.aba === aba).map(({ termo, texto }) => ({ termo, texto }))
+}));
