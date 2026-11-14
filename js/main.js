@@ -35,7 +35,7 @@ import { normalizarCursos, normalizarCursoDoAluno, novaMissaoDoCurso, codigoVali
 import { rCursos, mostrarVistaDosAlunos, podeEditarCursos, atualizarLinhaDoPrograma } from './views/cursos.js';
 import { proximaDoPedido } from './views/etapas.js';
 import { STATUS_COM_DETALHE, textoParaOHistorico } from './status.js';
-import { pinoDoVoo, normalizarFixos } from './fixos.js';
+import { pinoDoVoo, normalizarFixos, fixosAoMudarStatus, fixosAoReabrir } from './fixos.js';
 import { validarReversao } from './reversoes.js';
 import { singleDemandRowHTML, cnt, rDem, applyDemandFilters } from './views/demanda.js';
 import { rIns, rAlu, applyInstructorFilters, preencherFiltroDeHabilitacoes, mostrarVistaDosInstrutores, abrirPainelDoInstrutor, fecharPainelDoInstrutor, atualizarLinhaDoCadastro, atualizarLinhaDoAluno, rPainelDoInstrutor, rLimites, podeEditarLimites } from './views/cadastros.js';
@@ -876,7 +876,8 @@ document.addEventListener('click', e => {
     showToast('Escala aprovada: os voos ficam fixos.', 'ok');
   } else {
     if (!confirmado(reabrir, 'Confirmar reabertura')) return;
-    S.fixos = {};
+    // Os voos em andamento (Em Voo, Atrasado, Cancelado) continuam fixos
+    S.fixos = fixosAoReabrir(S.fixos, S.fStatus);
     S.aprovacao = null;
     save();
     logChange('mod', 'Escala reaberta: volta a ser refeita a cada alteração');
@@ -1026,8 +1027,9 @@ function aplicarStatus(fKey, status, detalhe) {
   const voo = vooDaChave(fKey);
   if (voo) voo.status = status;
   // Em Voo, Atrasado e Cancelado fixam o voo (fase 12; o cancelado desde a revisão de 14/11): uma alteração na escala
-  // não o tira do lugar (o cancelado fica onde estava, sem ocupar nada)
-  if (voo && ['Em Voo', 'Atrasado', 'Cancelado'].includes(status)) S.fixos = { ...(S.fixos || {}), [fKey]: S.fixos && S.fixos[fKey] ? S.fixos[fKey] : pinoDoVoo(voo) };
+  // não o tira do lugar (o cancelado fica onde estava, sem ocupar nada). Fora da escala aprovada, Pendente ou
+  // Confirmado o soltam
+  if (voo) S.fixos = fixosAoMudarStatus(S.fixos, voo, status, { aprovada: Boolean(S.aprovacao) });
   save();
   logChange('mod', `Status de ${voo ? `${voo.s} (${hm(voo.a)}–${hm(voo.b)})` : fKey}: ${textoParaOHistorico(status, detalhe)}`);
 }

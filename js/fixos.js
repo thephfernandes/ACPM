@@ -20,3 +20,25 @@ export function normalizarAprovacao(aprovacao) {
 
 // O voo fixo como o motor o recebe: o horário, o avião e o instrutor (e a turma, no Ground)
 export const pinoDoVoo = o => ({ a: o.a, b: o.b, r: o.r, insId: o.insId, ...(o.isGround ? { classKey: o.classKey } : {}) });
+
+// O ciclo do cadeado (revisão de 14/11). Em Voo, Atrasado e Cancelado fixam o voo onde ele está (o pino que já havia
+// continua); fora da escala aprovada, Pendente ou Confirmado o soltam. Reabrir a escala mantém os fixados pelo status
+export const STATUS_QUE_FIXAM = ['Em Voo', 'Atrasado', 'Cancelado'];
+
+export function fixosAoMudarStatus(fixos, voo, status, { aprovada }) {
+  const atuais = fixos || {};
+  if (STATUS_QUE_FIXAM.includes(status)) return { ...atuais, [voo.fKey]: atuais[voo.fKey] || pinoDoVoo(voo) };
+  if (aprovada || !atuais[voo.fKey]) return atuais;
+  const { [voo.fKey]: _, ...resto } = atuais;
+  return resto;
+}
+
+export const fixosAoReabrir = (fixos, fStatus) =>
+  Object.fromEntries(Object.entries(fixos || {}).filter(([fKey]) => STATUS_QUE_FIXAM.includes((fStatus || {})[fKey])));
+
+// Por que o voo está fixo (o texto do cadeado): o status de andamento, ou a escala aprovada
+export function motivoDoFixo(fKey, { fStatus, aprovacao }) {
+  const status = (fStatus || {})[fKey];
+  if (STATUS_QUE_FIXAM.includes(status)) return `Voo fixo: ${status}`;
+  return aprovacao ? 'Voo fixo: escala aprovada' : 'Voo fixo';
+}

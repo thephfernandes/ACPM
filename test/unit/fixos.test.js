@@ -286,3 +286,40 @@ describe('Voos fixos: em 100 dias gerados', async () => {
     }
   });
 });
+
+// Revisão de 14/11: o ciclo do cadeado. Em Voo, Atrasado e Cancelado fixam o voo; Pendente ou Confirmado o soltam fora
+// da escala aprovada; Reabrir mantém os fixados pelo status; o cadeado diz por que o voo está fixo
+describe('O cadeado do voo', () => {
+  const VOO = { fKey: '1000_0_1', a: 390, b: 450, r: 'PR-VOB', insId: 1 };
+  const PINO = { a: 390, b: 450, r: 'PR-VOB', insId: 1 };
+
+  it('o status de andamento fixa o voo (mantém o pino que já havia)', async () => {
+    const { fixosAoMudarStatus } = await import('../../js/fixos.js');
+    for (const status of ['Em Voo', 'Atrasado', 'Cancelado']) {
+      assert.deepEqual(fixosAoMudarStatus({}, VOO, status, { aprovada: false }), { '1000_0_1': PINO });
+    }
+    const antigo = { '1000_0_1': { ...PINO, r: 'PR-VOC' } };
+    assert.deepEqual(fixosAoMudarStatus(antigo, VOO, 'Em Voo', { aprovada: true }), antigo);
+  });
+
+  it('Pendente ou Confirmado soltam o voo fora da escala aprovada; na aprovada, ele continua fixo', async () => {
+    const { fixosAoMudarStatus } = await import('../../js/fixos.js');
+    const fixos = { '1000_0_1': PINO, '1001_0_1': { ...PINO, a: 500, b: 560 } };
+    assert.deepEqual(fixosAoMudarStatus(fixos, VOO, 'Confirmado', { aprovada: false }), { '1001_0_1': fixos['1001_0_1'] });
+    assert.deepEqual(fixosAoMudarStatus(fixos, VOO, 'Pendente', { aprovada: true }), fixos);
+  });
+
+  it('Reabrir mantém só os voos fixados pelo status', async () => {
+    const { fixosAoReabrir } = await import('../../js/fixos.js');
+    const fixos = { '1000_0_1': PINO, '1001_0_1': PINO, '1002_0_1': PINO, '1003_0_1': PINO };
+    const fStatus = { '1000_0_1': 'Em Voo', '1001_0_1': 'Confirmado', '1002_0_1': 'Cancelado' };
+    assert.deepEqual(Object.keys(fixosAoReabrir(fixos, fStatus)), ['1000_0_1', '1002_0_1']);
+  });
+
+  it('o motivo do cadeado', async () => {
+    const { motivoDoFixo } = await import('../../js/fixos.js');
+    assert.equal(motivoDoFixo('1000_0_1', { fStatus: {}, aprovacao: { em: '2026-11-10T21:05:00.000Z', por: 'Rayane' } }), 'Voo fixo: escala aprovada');
+    assert.equal(motivoDoFixo('1000_0_1', { fStatus: { '1000_0_1': 'Em Voo' }, aprovacao: null }), 'Voo fixo: Em Voo');
+    assert.equal(motivoDoFixo('1000_0_1', { fStatus: { '1000_0_1': 'Cancelado' }, aprovacao: { em: 'x' } }), 'Voo fixo: Cancelado');
+  });
+});

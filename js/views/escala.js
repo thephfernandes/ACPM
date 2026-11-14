@@ -13,6 +13,7 @@ import { OPCOES_DE_BURACOS, OPCOES_DE_HORARIOS, normalizarCriterios } from '../c
 import { metricasDaEscala } from '../metricas.js';
 import { sumUniqueOperationalHours, consolidateTimelineSlots } from '../engine.js';
 import { S, RES, AUDIT_LOG, TL_MODE, DATA, isGestor, dadoIndisponivel } from '../state.js';
+import { motivoDoFixo } from '../fixos.js';
 import { $ } from '../dom.js';
 
 export const HT = o => (o.isGround || isGroundMission(o.mis) ? '01h30 (1,5 h)' : o.h + ' h' + (o.ss !== '1/1' ? ` (sessão ${o.ss})` : ''));
@@ -415,7 +416,9 @@ function tabela(voos) {
       const classes = [statusDe(voo) === 'Cancelado' ? 'st-Cancelado' : '', voo.conflito ? 'em-conflito' : ''].filter(Boolean);
       return classes.length ? ` class="${classes.join(' ')}"` : '';
     };
-    const fixo = o.fixo ? ' <svg class="ico fixo" role="img" aria-label="Voo fixo (escala aprovada)"><title>Voo fixo (escala aprovada)</title><use href="#i-cadeado"/></svg>' : '';
+    // O cadeado diz por que o voo está fixo: o status de andamento ou a escala aprovada (revisão de 14/11)
+    const motivo = esc(motivoDoFixo(o.fKey, { fStatus: S.fStatus, aprovacao: S.aprovacao }));
+    const fixo = o.fixo ? ` <svg class="ico fixo" role="img" aria-label="${motivo}"><title>${motivo}</title><use href="#i-cadeado"/></svg>` : '';
     const doTempo = ` data-w="${o.w}"${recolhido ? ' hidden' : ''}`;
     h += `<tr${cancelado(o)}${doTempo}>
       <td class="c-hr hr"${rs}>${hm(o.a)}–${hm(o.b)} <small>${duracao(o)}</small>${fixo}${preferencia(o)}${o.conflito ? ' <span class="tag er">conflito</span>' : ''}</td>

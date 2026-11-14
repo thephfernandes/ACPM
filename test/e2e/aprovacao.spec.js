@@ -72,3 +72,29 @@ test.describe('Escala aprovada', () => {
     await expect(page.locator('#btn-reabrir')).toBeHidden();
   });
 });
+
+// Revisão de 14/11: o ciclo do cadeado
+test.describe('O cadeado do voo', () => {
+  const linha = (page, nome) => page.locator('#out tbody tr:not(.win)', { hasText: nome });
+
+  test('fora da escala aprovada, Em Voo fixa o voo e Confirmado o solta; o cadeado diz por quê', async ({ page }) => {
+    await abrir(page, { estado: dia() });
+    await abrirEscala(page);
+    await linha(page, 'Aluno 1000').locator('.st-sel').selectOption('Em Voo');
+    const cadeado = linha(page, 'Aluno 1000').locator('.fixo');
+    await expect(cadeado).toHaveAttribute('aria-label', 'Voo fixo: Em Voo');
+    await linha(page, 'Aluno 1000').locator('.st-sel').selectOption('Confirmado');
+    await expect(cadeado).toHaveCount(0);
+  });
+
+  test('Reabrir mantém fixo o voo em andamento', async ({ page }) => {
+    await abrir(page, { estado: dia() });
+    await abrirEscala(page);
+    await confirmar(page, page.locator('#btn-aprovar'));
+    await expect(linha(page, 'Aluno 1001').locator('.fixo')).toHaveAttribute('aria-label', 'Voo fixo: escala aprovada');
+    await linha(page, 'Aluno 1000').locator('.st-sel').selectOption('Em Voo');
+    await confirmar(page, page.locator('#btn-reabrir'));
+    await expect(linha(page, 'Aluno 1000').locator('.fixo')).toHaveAttribute('aria-label', 'Voo fixo: Em Voo');
+    await expect(linha(page, 'Aluno 1001').locator('.fixo')).toHaveCount(0);
+  });
+});
