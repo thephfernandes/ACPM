@@ -55,15 +55,20 @@ export function setRole(role, lockShared = false) {
 
 // A escala acompanha os dados: cada alteração do operador refaz a escala da data (o motor leva milissegundos) e
 // grava os dados e a escala juntos. Ao abrir a aba Escala, ela já está pronta
+// A gravação mais recente da escala: as entradas do histórico esperam por ela
+let gravacaoAtual = Promise.resolve(true);
+
+// Refaz e grava a escala; responde se a gravação deu certo
 export function save() {
-  if (isGestor()) return;
+  if (isGestor()) return Promise.resolve(false);
   refazerEscala();
-  ApiClient.salvarDia(DATA, S, RES);
+  gravacaoAtual = ApiClient.salvarDia(DATA, S, RES);
   escalaSoCalculada = false;
   // A barra da escala mostra quando ela foi refeita
   const agora = new Date();
   $('#escala-atualizada-texto').textContent = `Atualizada às ${String(agora.getHours()).padStart(2, '0')}:${String(agora.getMinutes()).padStart(2, '0')}`;
   $('#escala-atualizada').hidden = false;
+  return gravacaoAtual;
 }
 
 // Escala só calculada (data aberta ainda sem escala gravada): é gravada na primeira alteração ou quando é exportada
@@ -74,12 +79,14 @@ export function gravarEscalaCalculada() {
   if (escalaSoCalculada) save();
 }
 
-// A entrada aparece na hora; o id (que permite reverter) chega quando o registro é gravado.
-// reverte: id da entrada que esta alteração desfaz (ela deixa de aparecer no painel)
 // A descrição de uma entrada do histórico tem até 500 caracteres, ao gravar e ao abrir (revisão de 14/11)
 const LIMITE_DA_DESCRICAO = 500;
 const textoAte = (texto, limite) => (texto === null || texto === undefined ? texto : String(texto).slice(0, limite));
 
+// A entrada aparece na hora, "gravando…". Ela só vai para o servidor depois da gravação que leva a alteração (a que
+// acabou de sair ou a que sai logo depois, no mesmo evento): uma alteração recusada não entra no histórico e fica
+// "não gravada". O id (que permite reverter) chega quando o registro é gravado.
+// reverte: id da entrada que esta alteração desfaz (ela deixa de aparecer no painel)
 export function logChange(type, texto, revertAction = null, reverte = null) {
   if (isGestor()) return;
   const desc = textoAte(texto, LIMITE_DA_DESCRICAO);
@@ -91,15 +98,21 @@ export function logChange(type, texto, revertAction = null, reverte = null) {
     revert: revertAction,
     reverte,
     autor: ApiClient.autorAtual,
-    importado: false
+    importado: false,
+    estado: 'gravando'
   };
   AUDIT_LOG.unshift(entry);
   renderAuditPanel();
-  ApiClient.registrarHistorico(DATA, { tipo: type, descricao: desc, reverter: revertAction, reverte }).then(id => {
-    if (id === null || id === undefined) return;
-    entry.id = id;
+  const data = DATA;
+  queueMicrotask(() => gravacaoAtual.then(async gravou => {
+    const id = gravou ? await ApiClient.registrarHistorico(data, { tipo: type, descricao: desc, reverter: revertAction, reverte }) : null;
+    if (id === null || id === undefined) entry.estado = 'nao-gravada';
+    else {
+      entry.id = id;
+      delete entry.estado;
+    }
     renderAuditPanel();
-  });
+  }));
 }
 
 // Entradas importadas (anteriores à fase 3) mostram também o dia em que foram feitas

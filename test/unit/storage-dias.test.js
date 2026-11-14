@@ -110,6 +110,31 @@ describe('Carregar e salvar uma data', () => {
     assert.deepEqual(backend.historico, []);
   });
 });
+describe('Ordem das gravações (revisão de 14/11)', () => {
+  it('o cadastro é gravado antes do dia; sem o cadastro gravado, o dia não é gravado e a gravação responde false', async () => {
+    const estado = ApiClient.normalizeAndMigrateState({ ...ApiClient.createFreshState(), ins: [instrutor(1, 9)], stu: [aluno(1000)] });
+    const eventos = [];
+    const gravar = backend.gravar;
+    let cadastroFalha = true;
+    backend.gravar = async (doc, conteudo) => {
+      eventos.push(`início ${doc}`);
+      await new Promise(r => setTimeout(r, 5));
+      const ok = doc === 'cadastro' && cadastroFalha ? false : await gravar(doc, conteudo);
+      eventos.push(`fim ${doc}`);
+      return ok;
+    };
+    assert.equal(await ApiClient.salvarDia('2026-11-11', estado, null), false);
+    assert.deepEqual(eventos, ['início cadastro', 'fim cadastro'], 'o dia não é gravado sem o cadastro');
+    eventos.length = 0;
+    cadastroFalha = false;
+    assert.equal(await ApiClient.salvarDia('2026-11-11', estado, null), true);
+    assert.deepEqual(eventos, ['início cadastro', 'fim cadastro', 'início dia:2026-11-11', 'fim dia:2026-11-11'], 'um depois do outro');
+    eventos.length = 0;
+    assert.equal(await ApiClient.salvarDia('2026-11-11', estado, null), true);
+    assert.deepEqual(eventos, ['início dia:2026-11-11', 'fim dia:2026-11-11'], 'o cadastro igual ao gravado não é regravado');
+  });
+});
+
 
 describe('Horas até a revisão de 50 horas', () => {
   it('ficam no dia e a nova data começa com as horas mais os voos do dia anterior', async () => {

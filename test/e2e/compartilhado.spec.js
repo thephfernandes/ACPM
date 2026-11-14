@@ -55,6 +55,57 @@ test.describe('Modo compartilhado: gravação, conflitos e link da escala', () =
     await contexto.close();
   });
 
+  // Revisão de 14/11: a entrada do histórico só vai para o servidor depois que a alteração foi gravada
+  test('a alteração recusada (outra pessoa gravou antes) não entra no histórico: na tela, "não gravada", sem Reverter', async ({ browser }) => {
+    const contexto = await novoContexto(browser);
+    const servidor = await instalarSupabaseFalso(contexto, comDados());
+    const page = await contexto.newPage();
+    const erros = vigiarErros(page, { statusEsperados: [409] });
+    await entrar(page, CONTAS.operador);
+    const doColega = structuredClone(servidor.dias.get(AMANHA).conteudo);
+    doColega.av['PR-IGU'] = false;
+    servidor.alterarDiaPorOutraPessoa(AMANHA, doColega);
+    const registradas = servidor.historico.length;
+
+    await irPara(page, 'rec');
+    await page.locator('#eqs input[data-id="PR-BTB"]').uncheck();
+    await expect(page.locator('#aviso-sync')).toBeVisible();
+    await page.locator('#btn-open-log').click();
+    const entrada = page.locator('#audit-log-list .audit-item').filter({ hasText: 'PR-BTB' });
+    await expect(entrada.locator('.audit-estado')).toHaveText('não gravada');
+    await expect(entrada.locator('[data-act="rev-log"]')).toHaveCount(0);
+    expect(servidor.historico.length, 'nada foi registrado no servidor').toBe(registradas);
+    expect(erros).toEqual([]);
+    await contexto.close();
+  });
+
+  test('enquanto a alteração é gravada, a entrada aparece "gravando…" sem Reverter; depois, registrada e com Reverter', async ({ browser }) => {
+    const contexto = await novoContexto(browser);
+    const servidor = await instalarSupabaseFalso(contexto, comDados());
+    const page = await contexto.newPage();
+    const erros = vigiarErros(page);
+    await entrar(page, CONTAS.operador);
+    const registradas = servidor.historico.length;
+
+    const liberar = servidor.segurarGravacoes();
+    await irPara(page, 'rec');
+    await page.locator('#eqs input[data-id="PR-BTB"]').uncheck();
+    await page.locator('#btn-open-log').click();
+    const entrada = page.locator('#audit-log-list .audit-item').filter({ hasText: 'PR-BTB' });
+    await expect(entrada.locator('.audit-estado')).toHaveText('gravando…');
+    await expect(entrada.locator('[data-act="rev-log"]')).toHaveCount(0);
+    await page.waitForTimeout(300);
+    expect(servidor.historico.length, 'o histórico espera a gravação').toBe(registradas);
+
+    liberar();
+    await expect(entrada.locator('[data-act="rev-log"]')).toBeVisible();
+    await expect(entrada.locator('.audit-estado')).toHaveCount(0);
+    expect(servidor.historico.length).toBe(registradas + 1);
+    expect(servidor.historico.at(-1).descricao).toContain('PR-BTB');
+    expect(erros).toEqual([]);
+    await contexto.close();
+  });
+
   test('servidor fora do ar: aviso de erro, que some quando a gravação volta a funcionar', async ({ browser }) => {
     const contexto = await novoContexto(browser);
     const servidor = await instalarSupabaseFalso(contexto, comDados());

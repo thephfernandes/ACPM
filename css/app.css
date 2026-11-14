@@ -1096,6 +1096,10 @@ a { color: var(--ac); }
 }
 .audit-badge.inc { background: var(--ok-bg); color: var(--ok); }
 .audit-badge.exc { background: var(--er-bg); color: var(--er); }
+/* A alteração ainda sendo gravada, ou recusada pelo servidor (riscada, em vermelho) */
+.audit-estado { font-style: italic; }
+.audit-estado.nao-gravada { color: var(--er); font-style: normal; font-weight: 600; }
+.audit-item:has(.nao-gravada) .audit-desc { text-decoration: line-through; }
 .audit-badge.mod { background: var(--info-bg); color: var(--ac); }
 
 .bi-bar-wrap { width: 130px; background: var(--bg); height: 10px; border-radius: 5px; overflow: hidden; border: 1px solid var(--ln); display: inline-block; vertical-align: middle; margin-right: 6px; }

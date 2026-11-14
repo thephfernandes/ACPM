@@ -95,6 +95,7 @@ export function criarSupabaseFalso({ documentos = {}, dias = {}, historico: hist
   const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': '*', 'Access-Control-Allow-Methods': '*' };
   let falhasDeGravacao = 0;
   let leiturasDeDiasSeguras = null;
+  let gravacoesSeguras = null;
 
   // Versão do formato do conteúdo (campo esquema); o servidor não aceita voltar a um formato mais antigo
   const esquema = conteudo => (conteudo && typeof conteudo.esquema === 'number' ? Math.floor(conteudo.esquema) : 0);
@@ -176,6 +177,7 @@ export function criarSupabaseFalso({ documentos = {}, dias = {}, historico: hist
       const funcao = url.pathname.slice('/rest/v1/rpc/'.length);
       const args = req.postDataJSON();
       if (funcao === 'salvar_documento' || funcao === 'salvar_dia') {
+        await gravacoesSeguras;
         const chave = funcao === 'salvar_dia' ? `dia:${args.p_data}` : args.p_chave;
         gravacoes.push({ chave, versaoLida: args.p_versao_lida, por: conta && conta.email });
         if (falhasDeGravacao > 0) {
@@ -316,6 +318,12 @@ export function criarSupabaseFalso({ documentos = {}, dias = {}, historico: hist
     },
     // Simula indisponibilidade do servidor nas próximas gravações
     falharGravacoes(n) { falhasDeGravacao = n; },
+    // Segura as gravações (do cadastro e dos dias) até chamar a função devolvida (uma gravação que demora)
+    segurarGravacoes() {
+      let liberar;
+      gravacoesSeguras = new Promise(resolve => { liberar = resolve; });
+      return () => { gravacoesSeguras = null; liberar(); };
+    },
     // Segura as leituras da tabela dias até chamar a função devolvida (uma data que demora a carregar)
     segurarLeiturasDeDias() {
       let liberar;

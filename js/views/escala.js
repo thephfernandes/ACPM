@@ -229,8 +229,11 @@ export function renderAuditPanel() {
           : '';
         const autor = item.autor ? ` <span class="sm audit-autor">${esc(item.autor)}</span>` : '';
         const importado = item.importado ? ' <span class="sm">(importado)</span>' : '';
+        // A alteração ainda sendo gravada, ou recusada pelo servidor (revisão de 14/11)
+        const estado = item.estado === 'gravando' ? ' <span class="sm audit-estado">gravando…</span>'
+          : item.estado === 'nao-gravada' ? ' <span class="sm audit-estado nao-gravada">não gravada</span>' : '';
         return `<div class="audit-item">
-          <div><span class="sm">[${esc(item.ts)}]</span>${autor} <span class="audit-badge ${tipo}">${lbl}</span> <span class="audit-desc">${esc(item.desc)}</span>${importado}</div>
+          <div><span class="sm">[${esc(item.ts)}]</span>${autor} <span class="audit-badge ${tipo}">${lbl}</span> <span class="audit-desc">${esc(item.desc)}</span>${importado}${estado}</div>
           ${btnRevert}
         </div>`;
       }).join('');

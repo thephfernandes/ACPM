@@ -208,15 +208,13 @@ export const ApiClient = {
     const cadastro = { ...partes.cadastro, esquema: ESQUEMA };
     const dia = { ...partes.dia, esquema: ESQUEMA };
     const json = JSON.stringify(cadastro);
-    const gravacoes = [];
+    // O cadastro primeiro; o dia só depois que o cadastro foi gravado (revisão de 14/11: o dia não fica gravado com
+    // pessoas ou pedidos que o cadastro gravado não tem)
     if (json !== this.cadastroGravado) {
-      gravacoes.push(this.backend.gravar('cadastro', cadastro).then(ok => {
-        if (ok) this.cadastroGravado = json;
-        return ok;
-      }));
+      if (!await this.backend.gravar('cadastro', cadastro)) return false;
+      this.cadastroGravado = json;
     }
-    gravacoes.push(this.backend.gravar(`dia:${data}`, { ...dia, resultado: escala || null }));
-    return (await Promise.all(gravacoes)).every(Boolean);
+    return this.backend.gravar(`dia:${data}`, { ...dia, resultado: escala || null });
   },
 
   async registrarHistorico(data, entrada) {
