@@ -46,6 +46,23 @@ test.describe('Escala por data', () => {
     expect(await lerEscala(page)).toEqual(escalaDia12);
   });
 
+  test('sem espaço neste navegador: o aviso diz que a alteração não foi salva (revisão de 14/11)', async ({ page }) => {
+    await abrirSintetico(page);
+    await page.evaluate(() => {
+      const gravar = Storage.prototype.setItem;
+      Storage.prototype.setItem = function (chave, valor) {
+        if (chave.startsWith('acpm4_')) throw new DOMException('O espaço acabou', 'QuotaExceededError');
+        return gravar.call(this, chave, valor);
+      };
+    });
+    await irPara(page, 'rec');
+    await page.locator('#eqs input[data-id="PR-BTB"]').uncheck();
+    await expect(page.locator('#aviso-sync-texto')).toHaveText(
+      'Não foi possível salvar neste navegador (o espaço de armazenamento pode ter acabado): a última alteração não foi salva. Exporte o CSV para não perder a escala.');
+    await page.locator('#btn-open-log').click();
+    await expect(page.locator('#audit-log-list .audit-item').filter({ hasText: 'PR-BTB' }).locator('.audit-estado')).toHaveText('não gravada');
+  });
+
   test('o histórico é separado por data', async ({ page }) => {
     await abrirSintetico(page);
     await irPara(page, 'rec');

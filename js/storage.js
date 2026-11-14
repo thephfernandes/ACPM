@@ -217,6 +217,11 @@ export const ApiClient = {
     return this.backend.gravar(`dia:${data}`, { ...dia, resultado: escala || null });
   },
 
+  // Há alteração esperando para ser gravada no servidor (o modo local grava na hora)?
+  temGravacoesPendentes() {
+    return Boolean(this.backend.temGravacoesPendentes && this.backend.temGravacoesPendentes());
+  },
+
   async registrarHistorico(data, entrada) {
     if (this.readOnly) return null;
     return this.backend.registrar({ data, ...entrada });

@@ -3,7 +3,7 @@ import { isoMenosDias, fimDoMes, rotuloDaData, hojeISO, LIMITE_DO_NOME } from '.
 import { runAllocationEngine } from './engine.js';
 import { ApiClient } from './storage.js';
 import { S, RES, AUDIT_LOG, BI_HISTORY, DATA, setS, setRES, setAuditLog, setBIHistory, setData, isGestor } from './state.js';
-import { $, mostrarAviso } from './dom.js';
+import { $, mostrarAviso, avisoAberto } from './dom.js';
 import { rBI } from './views/bi.js';
 import { renderAuditPanel, rOut } from './views/escala.js';
 import { rDem } from './views/demanda.js';
@@ -53,6 +53,33 @@ export function setRole(role, lockShared = false) {
   atualizarSeloDaAgenda();
 }
 
+// Uma gravação que não deu certo (revisão de 14/11). Sem conexão, o aviso conta as alterações esperando (as entradas
+// "gravando…" do histórico), que são gravadas sozinhas; uma recusa definitiva do servidor pede para recarregar
+export function avisarFalhaDeGravacao(erro, documento, { definitivo = false } = {}) {
+  if (avisoAberto() === 'conflito') return;
+  if (definitivo) {
+    const motivo = erro && erro.code === '42501' ? 'a sua conta não tem permissão' : (erro && erro.message) || 'erro desconhecido';
+    mostrarAviso('erro', documento === 'historico'
+      ? `O servidor recusou o registro da última alteração no histórico (${motivo}).`
+      : `O servidor recusou a última alteração (${motivo}): ela não foi salva. Recarregue a página para voltar à escala gravada.`);
+    return;
+  }
+  avisarAlteracoesEsperando();
+}
+
+function avisarAlteracoesEsperando() {
+  const n = AUDIT_LOG.filter(e => e.estado === 'gravando').length;
+  // Sem alteração do operador esperando (ex.: a atualização dos dados ao abrir), o aviso não conta alterações
+  if (!n) {
+    mostrarAviso('espera', 'Sem conexão com o servidor: gravando de novo assim que a conexão voltar; não feche esta página.', { recarregar: false });
+    return;
+  }
+  mostrarAviso('espera', n > 1
+    ? `Sem conexão com o servidor: ${n} alterações esperando para serem gravadas. Elas são gravadas sozinhas quando a conexão voltar; não feche esta página.`
+    : 'Sem conexão com o servidor: 1 alteração esperando para ser gravada. Ela é gravada sozinha quando a conexão voltar; não feche esta página.',
+  { recarregar: false });
+}
+
 // Depois de um conflito nada mais é gravado (revisão de 14/11): a tela fica só para consulta até recarregar, com o aviso
 export function travarAposConflito({ formato = false } = {}) {
   setRole('gestor', true);
@@ -73,6 +100,12 @@ export function save() {
   if (isGestor()) return Promise.resolve(false);
   refazerEscala();
   gravacaoAtual = ApiClient.salvarDia(DATA, S, RES);
+  // Neste navegador (sem servidor), a gravação só falha quando o armazenamento recusa (o espaço pode ter acabado)
+  if (document.body.dataset.backend !== 'supabase') {
+    gravacaoAtual.then(gravou => {
+      if (!gravou) mostrarAviso('erro', 'Não foi possível salvar neste navegador (o espaço de armazenamento pode ter acabado): a última alteração não foi salva. Exporte o CSV para não perder a escala.', { recarregar: false });
+    });
+  }
   escalaSoCalculada = false;
   // A barra da escala mostra quando ela foi refeita
   const agora = new Date();
@@ -113,6 +146,7 @@ export function logChange(type, texto, revertAction = null, reverte = null) {
   };
   AUDIT_LOG.unshift(entry);
   renderAuditPanel();
+  if (avisoAberto() === 'espera') avisarAlteracoesEsperando();
   const data = DATA;
   queueMicrotask(() => gravacaoAtual.then(async gravou => {
     const id = gravou ? await ApiClient.registrarHistorico(data, { tipo: type, descricao: desc, reverter: revertAction, reverte }) : null;

@@ -20,6 +20,7 @@ function clienteFalso(documentos = {}, { atraso = 0, dias = {} } = {}) {
   const rpcs = [];
   const chamadas = [];
   let falhasDeRede = 0;
+  let recusas = [];
 
   const linhasDe = tabela => {
     if (tabela === 'documentos') return [...banco].map(([chave, d]) => ({ chave, ...d }));
@@ -48,6 +49,8 @@ function clienteFalso(documentos = {}, { atraso = 0, dias = {} } = {}) {
     rpcs,
     chamadas,
     falharProximas(n) { falhasDeRede = n; },
+    // As próximas gravações recebem este erro do servidor (ex.: { code: '42501' } com status 403)
+    recusarProximas(n, erro, status) { recusas = Array.from({ length: n }, () => ({ erro, status })); },
     contas,
     atualizacoes,
     auth: {
@@ -92,7 +95,11 @@ function clienteFalso(documentos = {}, { atraso = 0, dias = {} } = {}) {
       chamadas.push([nome, structuredClone(args)]);
       if (nome === 'salvar_documento' || nome === 'salvar_dia') rpcs.push(structuredClone(args));
       await espera(atraso);
-      if (falhasDeRede > 0) { falhasDeRede--; return { data: null, error: { message: 'Failed to fetch', code: '' } }; }
+      if (falhasDeRede > 0) { falhasDeRede--; return { data: null, error: { message: 'Failed to fetch', code: '' }, status: 0 }; }
+      if (recusas.length && (nome === 'salvar_documento' || nome === 'salvar_dia')) {
+        const { erro, status } = recusas.shift();
+        return { data: null, error: erro, status };
+      }
       if (nome === 'salvar_documento') {
         // Depois da conversão (o cadastro existe), os documentos da fase 2 ficam só como cópia
         if (args.p_chave !== 'cadastro' && banco.has('cadastro')) return { data: null, error: { code: 'PT409', message: 'versão anterior do app' } };
@@ -216,22 +223,52 @@ describe('Backend Supabase', () => {
     assert.deepEqual(conflitos, [['cadastro', { formato: true }]]);
   });
 
-  it('erro de rede: avisa e a próxima alteração tenta de novo', async () => {
+  // Revisão de 14/11: sem conexão, a alteração não se perde; a gravação tenta de novo sozinha
+  it('erro de rede: avisa a cada falha e tenta de novo sozinho, esperando cada vez mais, até gravar', async () => {
     const cliente = clienteFalso();
-    const erros = [];
-    const gravados = [];
+    const erros = [], gravados = [], esperas = [];
     const backend = criarBackendSupabase(cliente, {
-      aoErro: (erro, doc) => erros.push([doc, erro.message]),
-      aoGravar: doc => gravados.push(doc)
+      aoErro: (erro, doc, { definitivo }) => erros.push([doc, erro.message, definitivo]),
+      aoGravar: doc => gravados.push(doc),
+      esperar: tentativa => { esperas.push(tentativa); return espera(1); }
     });
     await backend.ler('estado');
-    cliente.falharProximas(1);
-    assert.equal(await backend.gravar('estado', 'A'), false);
-    assert.deepEqual(erros, [['estado', 'Failed to fetch']]);
-    assert.deepEqual(gravados, []);
-    assert.equal(await backend.gravar('estado', 'B'), true);
+    cliente.falharProximas(2);
+    assert.equal(await backend.gravar('estado', 'A'), true);
+    assert.deepEqual(erros, [['estado', 'Failed to fetch', false], ['estado', 'Failed to fetch', false]]);
+    assert.deepEqual(esperas, [1, 2], 'cada tentativa espera mais');
     assert.deepEqual(gravados, ['estado'], 'avisa quando volta a gravar');
+    assert.deepEqual(cliente.banco.get('estado'), { conteudo: 'A', versao: 1 });
+  });
+
+  it('enquanto espera para tentar de novo, a alteração mais recente toma o lugar da anterior', async () => {
+    const cliente = clienteFalso();
+    let liberar;
+    const backend = criarBackendSupabase(cliente, { esperar: () => new Promise(r => { liberar = r; }) });
+    await backend.ler('estado');
+    cliente.falharProximas(1);
+    const primeira = backend.gravar('estado', 'A');
+    await espera(5);
+    assert.equal(backend.temGravacoesPendentes(), true);
+    const segunda = backend.gravar('estado', 'B');
+    liberar();
+    assert.deepEqual([await primeira, await segunda], [true, true]);
     assert.deepEqual(cliente.banco.get('estado'), { conteudo: 'B', versao: 1 });
+    assert.equal(cliente.rpcs.length, 2, 'uma tentativa que falhou e uma com o conteúdo mais recente');
+    assert.equal(backend.temGravacoesPendentes(), false);
+  });
+
+  it('recusa definitiva (sem permissão, dado inválido): avisa e não tenta de novo', async () => {
+    const cliente = clienteFalso();
+    const erros = [];
+    const backend = criarBackendSupabase(cliente, { aoErro: (erro, doc, { definitivo }) => erros.push([doc, erro.code, definitivo]), esperar: () => espera(1) });
+    await backend.ler('estado');
+    cliente.recusarProximas(1, { code: '23514', message: 'status de voo fora da lista' }, 400);
+    assert.equal(await backend.gravar('estado', 'A'), false);
+    assert.deepEqual(erros, [['estado', '23514', true]]);
+    assert.equal(cliente.rpcs.length, 1);
+    assert.equal(backend.temGravacoesPendentes(), false);
+    assert.equal(await backend.gravar('estado', 'B'), true, 'a alteração seguinte grava normalmente');
   });
 
   it('erro na leitura é repassado para quem chamou', async () => {

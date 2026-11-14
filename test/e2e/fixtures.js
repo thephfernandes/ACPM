@@ -32,9 +32,9 @@ export async function prepararContexto(context) {
 }
 
 // Respostas HTTP de erro que um teste provoca de propósito (ex.: 400 da senha errada) não contam como erro
-export function vigiarErros(page, { statusEsperados = [] } = {}) {
+export function vigiarErros(page, { statusEsperados = [], ignorar = [] } = {}) {
   const erros = [];
-  const esperado = texto => statusEsperados.some(st => texto.includes(`status of ${st}`));
+  const esperado = texto => statusEsperados.some(st => texto.includes(`status of ${st}`)) || ignorar.some(r => r.test(texto));
   page.on('pageerror', e => erros.push(`pageerror: ${e.message}`));
   page.on('console', m => { if (m.type() === 'error' && !esperado(m.text())) erros.push(`console: ${m.text()}`); });
   return erros;

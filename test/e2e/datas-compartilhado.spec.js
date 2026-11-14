@@ -55,7 +55,32 @@ test.describe('Escala por data (modo compartilhado)', () => {
     expect(servidor.banco.has('estado'), 'os documentos da fase 2 ficam como cópia').toBe(true);
   });
 
-  test('se a conversão falhar no meio, o app pede para recarregar em vez de abrir o cadastro vazio', async ({ browser }) => {
+  test('se o servidor recusar uma gravação da conversão, o app pede para recarregar em vez de abrir o cadastro vazio', async ({ browser }) => {
+    const contexto = await browser.newContext({ baseURL: test.info().project.use.baseURL, locale: 'pt-BR', timezoneId: 'America/Sao_Paulo' });
+    await prepararContexto(contexto);
+    const estado = ApiClient.normalizeAndMigrateState({ ...estadoSintetico(), stu: [aluno(1000)] });
+    const servidor = await instalarSupabaseFalso(contexto, { documentos: { estado, escala: runAllocationEngine(estado) } });
+    const page = await contexto.newPage();
+    const erros = vigiarErros(page, { statusEsperados: [400] });
+    servidor.falharGravacoes(1, 400);
+    await page.goto(URL_APP);
+    await page.locator('#login-email').fill(CONTAS.operador.email);
+    await page.locator('#login-senha').fill(CONTAS.operador.senha);
+    await page.locator('#btn-entrar').click();
+    await expect(page.locator('#aviso-sync-texto')).toContainText('Não foi possível preparar os dados');
+    await expect(page.locator('#inst .cd')).toHaveCount(0);
+    expect(servidor.banco.has('cadastro')).toBe(false);
+
+    await page.locator('#btn-recarregar').click();
+    await expect(page.locator('#inst .cd').first()).toBeAttached();
+    await expect(page.locator('#aviso-sync')).toBeHidden();
+    expect(servidor.banco.get('cadastro').conteudo).toEqual({ ...separar(estado).cadastro, esquema: ESQUEMA });
+    expect(erros).toEqual([]);
+    await contexto.close();
+  });
+
+  // Revisão de 14/11: o servidor fora do ar por um instante não interrompe a conversão (a gravação tenta de novo)
+  test('com o servidor fora do ar por um instante, a conversão espera e termina sozinha', async ({ browser }) => {
     const contexto = await browser.newContext({ baseURL: test.info().project.use.baseURL, locale: 'pt-BR', timezoneId: 'America/Sao_Paulo' });
     await prepararContexto(contexto);
     const estado = ApiClient.normalizeAndMigrateState({ ...estadoSintetico(), stu: [aluno(1000)] });
@@ -67,12 +92,8 @@ test.describe('Escala por data (modo compartilhado)', () => {
     await page.locator('#login-email').fill(CONTAS.operador.email);
     await page.locator('#login-senha').fill(CONTAS.operador.senha);
     await page.locator('#btn-entrar').click();
-    await expect(page.locator('#aviso-sync-texto')).toContainText('Não foi possível preparar os dados');
-    await expect(page.locator('#inst .cd')).toHaveCount(0);
-    expect(servidor.banco.has('cadastro')).toBe(false);
-
-    await page.locator('#btn-recarregar').click();
-    await expect(page.locator('#inst .cd').first()).toBeAttached();
+    await expect(page.locator('#aviso-sync-texto')).toHaveText('Sem conexão com o servidor: gravando de novo assim que a conexão voltar; não feche esta página.');
+    await expect(page.locator('#inst .cd').first()).toBeAttached({ timeout: 10000 });
     await expect(page.locator('#aviso-sync')).toBeHidden();
     expect(servidor.banco.get('cadastro').conteudo).toEqual({ ...separar(estado).cadastro, esquema: ESQUEMA });
     expect(erros).toEqual([]);

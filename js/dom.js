@@ -15,13 +15,15 @@ export function showToast(text, tipo = '') {
 }
 
 // Aviso fixo no topo, com o botão "Recarregar". O conflito e a falha ao preparar os dados só saem recarregando;
-// o erro de gravação some quando uma gravação der certo (fecharAviso('erro'))
+// as alterações esperando a conexão saem quando uma gravação der certo (fecharAviso('espera')), e esse aviso vem sem o
+// botão (recarregar perderia as alterações)
 let avisoAtual = null;
 export const avisoAberto = () => avisoAtual;
-export function mostrarAviso(tipo, texto) {
+export function mostrarAviso(tipo, texto, { recarregar = true } = {}) {
   avisoAtual = tipo;
   $('#aviso-sync-texto').textContent = texto;
   $('#aviso-sync').hidden = false;
+  $('#btn-recarregar').hidden = !recarregar;
   $('#btn-recarregar').onclick = () => window.location.reload();
 }
 export function fecharAviso(tipo) {

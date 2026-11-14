@@ -1201,6 +1201,13 @@ document.addEventListener('change', e => {
   }
 });
 
+// Fechar ou recarregar a página com alterações esperando a conexão pede confirmação (elas se perderiam)
+window.addEventListener('beforeunload', e => {
+  if (!ApiClient.temGravacoesPendentes()) return;
+  e.preventDefault();
+  e.returnValue = '';
+});
+
 // Inicialização Assíncrona
 (async function bootstrap() {
   try {

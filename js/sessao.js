@@ -3,7 +3,7 @@
 import { ApiClient } from './storage.js';
 import { criarBackendSupabase } from './backends/supabase.js';
 import { backendLocal } from './backends/local.js';
-import { setRole, travarAposConflito } from './actions.js';
+import { setRole, travarAposConflito, avisarFalhaDeGravacao } from './actions.js';
 import { $, mostrarAviso, avisoAberto, fecharAviso, avisarDoLink } from './dom.js';
 import { amanhaISO, esc } from './format.js';
 import { ROTULOS, operaEscala, gerenciaContas, soPainel } from './perfis.js';
@@ -112,8 +112,8 @@ export async function iniciarSessaoSupabase(projeto) {
   delete document.body.dataset.login;
   ApiClient.backend = criarBackendSupabase(cliente, {
     aoConflito: (documento, motivo) => travarAposConflito(motivo),
-    aoErro: () => { if (avisoAberto() !== 'conflito') mostrarAviso('erro', 'Não foi possível salvar a última alteração. Verifique a conexão: a próxima alteração tentará salvar de novo.'); },
-    aoGravar: () => fecharAviso('erro')
+    aoErro: avisarFalhaDeGravacao,
+    aoGravar: () => fecharAviso('espera')
   });
   $('#btn-share-link').title = 'Copiar o link da escala desta data (quem abrir entra com a própria conta)';
   // No menu da conta: o nome e o perfil (o texto continua "Nome · Perfil"), as iniciais e os itens da conta

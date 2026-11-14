@@ -128,21 +128,53 @@ test.describe('Modo compartilhado: gravação, conflitos e link da escala', () =
     await contexto.close();
   });
 
-  test('servidor fora do ar: aviso de erro, que some quando a gravação volta a funcionar', async ({ browser }) => {
+  // Revisão de 14/11: sem conexão, as alterações esperam e são gravadas sozinhas
+  test('servidor fora do ar: o aviso conta as alterações esperando; a gravação tenta de novo sozinha e o aviso some', async ({ browser }) => {
     const contexto = await novoContexto(browser);
     const servidor = await instalarSupabaseFalso(contexto, comDados());
     const page = await contexto.newPage();
     const erros = vigiarErros(page, { statusEsperados: [503] });
     await entrar(page, CONTAS.operador);
 
-    servidor.falharGravacoes(1);
+    servidor.falharGravacoes(2);
     await irPara(page, 'rec');
     await page.locator('#eqs input[data-id="PR-BTB"]').uncheck();
-    await expect(page.locator('#aviso-sync')).toContainText('Não foi possível salvar');
-    await page.locator('#eqs input[data-id="PR-IGU"]').uncheck();
-    await expect(page.locator('#aviso-sync')).toBeHidden();
-    await expect.poll(() => servidor.dias.get(AMANHA).conteudo.av['PR-IGU']).toBe(false);
+    await expect(page.locator('#aviso-sync-texto')).toHaveText(
+      'Sem conexão com o servidor: 1 alteração esperando para ser gravada. Ela é gravada sozinha quando a conexão voltar; não feche esta página.');
+    await expect(page.locator('#btn-recarregar'), 'recarregar perderia a alteração').toBeHidden();
+    // Sem nenhuma outra alteração, a gravação tenta de novo e o aviso some
+    await expect(page.locator('#aviso-sync')).toBeHidden({ timeout: 15000 });
     expect(servidor.dias.get(AMANHA).conteudo.av['PR-BTB']).toBe(false);
+    await page.locator('#btn-open-log').click();
+    await expect(page.locator('#audit-log-list .audit-item').filter({ hasText: 'PR-BTB' }).locator('[data-act="rev-log"]')).toBeVisible();
+    expect(erros).toEqual([]);
+    await contexto.close();
+  });
+
+  test('sem conexão: as alterações esperam (fechar a página pede confirmação) e são gravadas quando a conexão volta', async ({ browser }) => {
+    const contexto = await novoContexto(browser);
+    const servidor = await instalarSupabaseFalso(contexto, comDados());
+    const page = await contexto.newPage();
+    const erros = vigiarErros(page, { ignorar: [/ERR_INTERNET_DISCONNECTED/] });
+    await entrar(page, CONTAS.operador);
+
+    // A conexão cai (o navegador sabe: quando ela volta, avisa a página)
+    servidor.desconectar();
+    await contexto.setOffline(true);
+    await irPara(page, 'rec');
+    await page.locator('#eqs input[data-id="PR-BTB"]').uncheck();
+    await page.locator('#eqs input[data-id="PR-IGU"]').uncheck();
+    await expect(page.locator('#aviso-sync-texto')).toHaveText(
+      'Sem conexão com o servidor: 2 alterações esperando para serem gravadas. Elas são gravadas sozinhas quando a conexão voltar; não feche esta página.');
+    const dialogo = new Promise(resolve => page.once('dialog', async d => { resolve(d.type()); await d.dismiss(); }));
+    await page.close({ runBeforeUnload: true });
+    expect(await dialogo, 'fechar a página com alterações esperando pede confirmação').toBe('beforeunload');
+    expect(page.isClosed(), 'quem desiste continua na página').toBe(false);
+
+    servidor.reconectar();
+    await contexto.setOffline(false);
+    await expect(page.locator('#aviso-sync')).toBeHidden();
+    expect(servidor.dias.get(AMANHA).conteudo.av).toMatchObject({ 'PR-BTB': false, 'PR-IGU': false });
     expect(erros).toEqual([]);
     await contexto.close();
   });

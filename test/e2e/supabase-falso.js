@@ -94,8 +94,10 @@ export function criarSupabaseFalso({ documentos = {}, dias = {}, historico: hist
   const saidas = [];
   const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': '*', 'Access-Control-Allow-Methods': '*' };
   let falhasDeGravacao = 0;
+  let statusDaFalha = 503;
   let leiturasDeDiasSeguras = null;
   let gravacoesSeguras = null;
+  let desconectado = false;
 
   // Versão do formato do conteúdo (campo esquema); o servidor não aceita voltar a um formato mais antigo
   const esquema = conteudo => (conteudo && typeof conteudo.esquema === 'number' ? Math.floor(conteudo.esquema) : 0);
@@ -119,6 +121,7 @@ export function criarSupabaseFalso({ documentos = {}, dias = {}, historico: hist
     const responder = (status, corpo) => route.fulfill({
       status, headers: { ...cors, 'Content-Type': 'application/json' }, body: corpo === undefined ? '' : JSON.stringify(corpo)
     });
+    if (desconectado) return route.abort('internetdisconnected');
     if (req.method() === 'OPTIONS') return route.fulfill({ status: 204, headers: cors });
     const conta = sessoes.get((req.headers().authorization || '').replace(/^Bearer /, ''));
     const comPerfil = conta && conta.perfil;
@@ -182,7 +185,7 @@ export function criarSupabaseFalso({ documentos = {}, dias = {}, historico: hist
         gravacoes.push({ chave, versaoLida: args.p_versao_lida, por: conta && conta.email });
         if (falhasDeGravacao > 0) {
           falhasDeGravacao--;
-          return responder(503, { message: 'Service Unavailable' });
+          return responder(statusDaFalha, statusDaFalha === 503 ? { message: 'Service Unavailable' } : { code: '23514', message: 'conteúdo recusado' });
         }
       }
       // Contas: só o administrador lista, cria e exclui (ninguém exclui a própria conta)
@@ -317,7 +320,11 @@ export function criarSupabaseFalso({ documentos = {}, dias = {}, historico: hist
       return `#access_token=${emitirToken(conta)}&expires_at=${expira}&expires_in=3600&refresh_token=renovar-${conta.id}&token_type=bearer&type=email_change`;
     },
     // Simula indisponibilidade do servidor nas próximas gravações
-    falharGravacoes(n) { falhasDeGravacao = n; },
+    // (503: fora do ar, o app tenta de novo; 400: recusa definitiva)
+    falharGravacoes(n, status = 503) { falhasDeGravacao = n; statusDaFalha = status; },
+    // Sem conexão: nenhuma requisição chega ao servidor até reconectar
+    desconectar() { desconectado = true; },
+    reconectar() { desconectado = false; },
     // Segura as gravações (do cadastro e dos dias) até chamar a função devolvida (uma gravação que demora)
     segurarGravacoes() {
       let liberar;
