@@ -77,6 +77,21 @@ describe('CSV da escala por avião', () => {
     assert.deepEqual(linhas.slice(2), ['', '"Alertas";"Aluno";"Mensagem"', '"Rejeitado";"Bia";"Rejeitado: sem avião."']);
   });
 
+  // Revisão de 14/11: um nome gravado como "=HYPERLINK(...)" viraria uma fórmula ao abrir o arquivo no Excel
+  it('um texto que o Excel leria como fórmula vai com um apóstrofo na frente', () => {
+    const csv = montarCsv(escala(
+      [voo('PR-BTB', 'C152', 390, { s: '=HYPERLINK("http://x","Clique")', ins: '+Instrutor', mis: '@SOMA(1)' })],
+      [{ t: 'warn', s: '-2+3', m: '\tAviso' }, { t: 'warn', s: '\rAluna', m: 'Peso: 70 kg' }]
+    ));
+    const linhas = csv.slice(1).split('\r\n');
+    const celulas = linhas[1].split(/;(?=")/);
+    assert.equal(celulas[2], `"'=HYPERLINK(""http://x"",""Clique"")"`);
+    assert.equal(celulas[3], `"'@SOMA(1)"`);
+    assert.equal(celulas[4], `"'+Instrutor"`);
+    assert.equal(linhas.at(-2), `"Aviso";"'-2+3";"'\tAviso"`);
+    assert.ok(csv.endsWith(`"Aviso";"'\rAluna";"Peso: 70 kg"`));
+  });
+
   it('o arquivo leva a data da escala no nome', () => {
     assert.equal(nomeDoCsv('2026-11-11'), 'escala-acpm-2026-11-11.csv');
   });

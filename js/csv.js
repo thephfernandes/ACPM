@@ -48,8 +48,13 @@ export function linhasDoCsv(res, fStatus = {}, fObs = {}) {
     });
 }
 
+// Um texto que o Excel leria como fórmula (começando com =, +, -, @, tabulação ou retorno) vai com um apóstrofo na
+// frente (revisão de 14/11: um nome gravado como "=HYPERLINK(...)" viraria um link no arquivo)
+const PARECE_FORMULA = /^[=+\-@\t\r]/;
+const celula = v => { const texto = String(v); return '"' + (PARECE_FORMULA.test(texto) ? `'${texto}` : texto).replace(/"/g, '""') + '"'; };
+
 export function montarCsv(res, fStatus = {}, fObs = {}) {
-  const q = v => '"' + String(v).replace(/"/g, '""') + '"';
+  const q = celula;
   const linhas = [CABECALHO, ...linhasDoCsv(res, fStatus, fObs)].map(l => l.map(q).join(';'));
   if (res.al.length) {
     linhas.push('');
