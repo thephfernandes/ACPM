@@ -16,7 +16,7 @@
 import { WIN, NI, T, GROUND_EQ_TYPE, GROUND_REG, GROUND_DURATION_MIN, GROUND_DURATION_H, MIS, PRE } from './config.js';
 import { novoRecurso, matriculasDoTipo } from './frota.js';
 import { HORARIOS_PADRAO, DE_30_EM_30, horariosDaMissao, ajustarPreferencias, paraMinuto } from './horarios.js';
-import { hm, fmtH, fmtDurLabel, pad, amanhaISO, isoMenosDias, nomeLimpo } from './format.js';
+import { hm, fmtH, fmtDurLabel, pad, amanhaISO, isoMenosDias, nomeLimpo, dataIsoValida } from './format.js';
 import { isGroundMission, blank, rotuloDaDisponibilidade, normalizeMissionFields } from './rules.js';
 import { habilitacoesDoNivel, normalizarHabilitacoes, nomeDaHabilitacao, podeFazer } from './habilitacoes.js';
 import { ApiClient } from './storage.js';
@@ -245,7 +245,7 @@ $('#btn-clear-log').onclick = async () => {
 // Data vazia ou que não carregou: o campo volta para a data aberta
 $('#dt').onchange = e => {
   const data = e.target.value;
-  if ((isGestor() && !modoCompartilhado()) || !/^\d{4}-\d{2}-\d{2}$/.test(data)) {
+  if ((isGestor() && !modoCompartilhado()) || !dataIsoValida(data)) {
     e.target.value = DATA;
     return;
   }
@@ -1208,8 +1208,9 @@ document.addEventListener('change', e => {
   abrirData(amanha);
 
   const params = new URLSearchParams(window.location.search);
+  // A data do link (?data=); uma data que não existe abre amanhã, com o aviso
   const pedida = params.get('data');
-  const data = /^\d{4}-\d{2}-\d{2}$/.test(pedida || '') ? pedida : amanha;
+  const data = dataIsoValida(pedida) ? pedida : amanha;
 
   // Sessão e dados. Se algo falhar (sem conexão, conversão pela metade), o app não abre com dados incompletos:
   // fica o aviso para recarregar (nada se perde; o que faltou é retomado na próxima abertura)
@@ -1230,6 +1231,7 @@ document.addEventListener('change', e => {
     setRES(escala || escalaCalculada());
     marcarEscalaSoCalculada(!escala);
     setAuditLog(await historicoParaPainel(data));
+    if (pedida && data !== pedida) showToast(`A data do link não existe (${pedida.slice(0, 20)}). A escala aberta é a de amanhã.`);
   } catch (e) {
     console.warn(e);
     if (avisoAberto() !== 'conflito') mostrarAviso('falha', 'Não foi possível preparar os dados da escala. Verifique a conexão e recarregue a página; nada foi perdido.');

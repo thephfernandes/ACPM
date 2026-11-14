@@ -73,6 +73,14 @@ test.describe('Escala por data', () => {
     await expect(page.locator('#log-cnt')).toHaveText('1');
   });
 
+  test('o link com ?data= abre aquela data; uma data que não existe abre amanhã, com o aviso', async ({ page }) => {
+    await abrir(page, { url: `./?data=${DEPOIS}` });
+    await expect(page.locator('#dt')).toHaveValue(DEPOIS);
+    await page.goto('./?data=2026-02-30');
+    await expect(page.locator('#dt')).toHaveValue(AMANHA);
+    await expect(page.locator('#toast-box')).toContainText('A data do link não existe (2026-02-30). A escala aberta é a de amanhã.');
+  });
+
   test('com o campo de data vazio, a tela volta para a data aberta e as alterações continuam indo para ela', async ({ page }) => {
     await abrirSintetico(page);
     await page.locator('#nav button[data-t="esc"]').click();

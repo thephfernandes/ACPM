@@ -30,6 +30,13 @@ export function rotuloDaData(data, hoje) {
 export const fimDoMes = iso => new Date(Date.UTC(+iso.slice(0, 4), +iso.slice(5, 7), 0)).toISOString().slice(0, 10);
 
 // Texto para dentro de HTML, inclusive de atributos com aspas duplas ou simples
+// Uma data AAAA-MM-DD que existe no calendário (2026-02-30 não)
+export const dataIsoValida = texto => {
+  if (typeof texto !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(texto)) return false;
+  const data = new Date(`${texto}T12:00:00Z`);
+  return !Number.isNaN(data.getTime()) && data.toISOString().slice(0, 10) === texto;
+};
+
 // O nome de uma pessoa no cadastro: sem espaços a mais e com até 80 caracteres (vazio fica o anterior)
 export const LIMITE_DO_NOME = 80;
 export const nomeLimpo = (valor, anterior) => String(valor).trim().replace(/\s+/g, ' ').slice(0, LIMITE_DO_NOME).trim() || anterior;

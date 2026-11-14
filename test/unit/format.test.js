@@ -1,6 +1,6 @@
 import { describe, it, mock } from 'node:test';
 import assert from 'node:assert/strict';
-import { hm, fmtH, fmtDurLabel, WLB, pad, esc, opts, amanhaISO, hojeISO, isoMenosDias, fimDoMes, rotuloDaData, nomeLimpo, LIMITE_DO_NOME } from '../../js/format.js';
+import { hm, fmtH, fmtDurLabel, WLB, pad, esc, opts, amanhaISO, hojeISO, isoMenosDias, fimDoMes, rotuloDaData, nomeLimpo, LIMITE_DO_NOME, dataIsoValida } from '../../js/format.js';
 
 describe('Formatação', () => {
   it('minutos do dia em HH:MM', () => {
@@ -32,6 +32,12 @@ describe('Formatação', () => {
     assert.equal(esc("x' onmouseover='1"), 'x&#39; onmouseover=&#39;1', 'aspas simples também (atributos com aspas simples)');
     assert.equal(opts([['a"><b>', '<i>x</i>'], ['2', 'Dois']], '2'),
       '<option value="a&quot;&gt;&lt;b&gt;">&lt;i&gt;x&lt;/i&gt;</option><option value="2" selected>Dois</option>', 'opções escapadas');
+  });
+
+  it('uma data AAAA-MM-DD que existe no calendário', () => {
+    assert.deepEqual(['2026-11-11', '2024-02-29', '2026-12-31'].map(dataIsoValida), [true, true, true]);
+    assert.deepEqual(['2026-02-30', '2025-02-29', '2026-13-01', '2026-11-1', '11/11/2026', '', null, undefined, 20261111].map(dataIsoValida),
+      [false, false, false, false, false, false, false, false, false]);
   });
 
   it('o nome de uma pessoa: sem espaços a mais e com até 80 caracteres; vazio fica o anterior', () => {
