@@ -34,6 +34,9 @@ function backendEmMemoria() {
       const d = [...docs.keys()].filter(k => k.startsWith('dia:')).map(k => k.slice(4)).filter(x => x < data).sort().pop();
       return d ? { data: d, conteudo: structuredClone(docs.get(`dia:${d}`)) } : null;
     },
+    async horasDosInstrutores() { return {}; },
+    async situacaoDasMissoes() { return []; },
+    async resultadosDoDia() { return []; },
     async registrar(entrada) { historico.push({ id: historico.length + 1, ...entrada }); return historico.length; },
     async listarHistorico(data) { return historico.filter(e => e.data === data).reverse(); },
     async importarHistorico(data, entradas) {
@@ -110,6 +113,19 @@ describe('Carregar e salvar uma data', () => {
     assert.deepEqual(backend.historico, []);
   });
 });
+describe('Dados lidos à parte (revisão de 14/11)', () => {
+  it('sem as horas dos instrutores ou os resultados dos cursos, a data abre e diz o que ficou indisponível', async () => {
+    assert.deepEqual((await ApiClient.carregarDia('2026-11-11')).indisponiveis, []);
+    backend.horasDosInstrutores = async () => { throw new Error('sem conexão'); };
+    const semHoras = await ApiClient.carregarDia('2026-11-11');
+    assert.deepEqual([semHoras.indisponiveis, semHoras.horasBase], [['horas'], {}]);
+    backend.situacaoDasMissoes = async () => { throw new Error('sem conexão'); };
+    const semNada = await ApiClient.carregarDia('2026-11-11');
+    assert.deepEqual([semNada.indisponiveis, semNada.resultados], [['horas', 'resultados'], { situacao: [], doDia: [] }]);
+    assert.deepEqual(await ApiClient.lerDadosAParte('2026-11-11'), { horasBase: null, resultados: null });
+  });
+});
+
 describe('Ordem das gravações (revisão de 14/11)', () => {
   it('o cadastro é gravado antes do dia; sem o cadastro gravado, o dia não é gravado e a gravação responde false', async () => {
     const estado = ApiClient.normalizeAndMigrateState({ ...ApiClient.createFreshState(), ins: [instrutor(1, 9)], stu: [aluno(1000)] });

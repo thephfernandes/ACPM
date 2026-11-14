@@ -146,6 +146,28 @@ test.describe('Modo compartilhado: gravação, conflitos e link da escala', () =
     await contexto.close();
   });
 
+  // Revisão de 14/11: sem as horas dos instrutores, os limites do mês e do ano não são conferidos; o app avisa
+  test('sem as horas dos instrutores ou os resultados: aviso fixo, Aprovar escala desligado e "Tentar de novo"', async ({ browser }) => {
+    const contexto = await novoContexto(browser);
+    const servidor = await instalarSupabaseFalso(contexto, documentosAtuais(comExemplo(estadoSintetico()), AMANHA));
+    const page = await contexto.newPage();
+    const erros = vigiarErros(page, { statusEsperados: [503] });
+    servidor.falhar('/rpc/horas_dos_instrutores');
+    servidor.falhar('/rpc/situacao_das_missoes');
+    await entrar(page, CONTAS.operador);
+    await expect(page.locator('#aviso-dados-texto')).toHaveText(
+      'Não foi possível ler as horas de voo dos instrutores: os limites do mês e do ano não estão sendo conferidos, e Aprovar escala fica desligado. ' +
+      'Não foi possível ler os resultados das missões dos cursos: a próxima missão e o registro de resultados ficam desligados.');
+    await abrirEscala(page);
+    await expect(page.locator('#btn-aprovar')).toBeDisabled();
+
+    await page.locator('#btn-tentar-dados').click();
+    await expect(page.locator('#aviso-dados')).toBeHidden();
+    await expect(page.locator('#btn-aprovar')).toBeEnabled();
+    expect(erros).toEqual([]);
+    await contexto.close();
+  });
+
   // Revisão de 14/11: a sessão que expira não perde a alteração nem vira "sem conexão"
   test('sessão expirada: o app pede a senha de novo, sem perder a alteração, e grava depois do login', async ({ browser }) => {
     const contexto = await novoContexto(browser);

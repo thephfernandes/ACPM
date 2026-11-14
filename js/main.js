@@ -43,7 +43,7 @@ import { LIMITES_DA_LEI, normalizarLimites, comHorasExternas } from './limites.j
 import { rRec, rRevisao, rHangar, alternarGrupoDaFrota, NOMES_DAS_CATEGORIAS } from './views/recursos.js';
 import { normalizarHangar, moverNoHangar } from './hangar.js';
 import { opcoesDeCategoria, categoriaDoTipo } from './categorias.js';
-import { setRole, save, logChange, escalaCalculada, marcarEscalaSoCalculada, gravarEscalaCalculada, abrirData, historicoParaPainel, carregarData, carregarBI } from './actions.js';
+import { setRole, save, logChange, escalaCalculada, marcarEscalaSoCalculada, gravarEscalaCalculada, abrirData, historicoParaPainel, carregarData, carregarBI, avisarDadosIndisponiveis, lerDadosDeNovo } from './actions.js';
 import { exp, pdf } from './export.js';
 import { projetoSupabase } from './config-supabase.js';
 import { CATEGORIAS_DO_RODIZIO, ajustarFilas } from './rodizio.js';
@@ -1212,6 +1212,12 @@ document.addEventListener('change', e => {
   }
 });
 
+// As horas dos instrutores ou os resultados dos cursos que não foram lidos: "Tentar de novo" lê outra vez
+$('#btn-tentar-dados').onclick = async e => {
+  e.target.disabled = true;
+  try { await lerDadosDeNovo(); } finally { e.target.disabled = false; }
+};
+
 // Fechar ou recarregar a página com alterações esperando a conexão pede confirmação (elas se perderiam)
 window.addEventListener('beforeunload', e => {
   if (!ApiClient.temGravacoesPendentes()) return;
@@ -1255,8 +1261,9 @@ window.addEventListener('beforeunload', e => {
     await ApiClient.atualizarFormatoGravado();
 
     abrirData(data);
-    const { estado, escala, horasBase, horasDosInstrutores, resultados } = await ApiClient.carregarDia(data);
-    setS({ ...estado, horasBase, horasDosInstrutores, resultados });
+    const { estado, escala, horasBase, horasDosInstrutores, resultados, indisponiveis } = await ApiClient.carregarDia(data);
+    setS({ ...estado, horasBase, horasDosInstrutores, resultados, indisponiveis });
+    avisarDadosIndisponiveis();
     // Data sem escala gravada: a escala calculada aparece na hora (é gravada junto com a primeira alteração)
     setRES(escala || escalaCalculada());
     marcarEscalaSoCalculada(!escala);

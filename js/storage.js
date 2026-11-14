@@ -175,31 +175,28 @@ export const ApiClient = {
     // As horas de voo de cada instrutor antes da data e o fim de ontem (limites da lei), mais as de fora do app. Não são
     // gravadas (vão à parte, para o estado da tela): saem das escalas guardadas a cada abertura. Sem resposta, o motor
     // confere só os limites do dia
-    const horasBase = await this.horasDosInstrutores(data);
+    // Sem resposta (revisão de 14/11), a data abre assim mesmo e diz o que ficou indisponível: a tela avisa e desliga o que
+    // depende disso (Aprovar escala sem as horas; a próxima missão e o resultado sem os resultados)
+    const lidos = await this.lerDadosAParte(data);
+    const horasBase = lidos.horasBase || {};
     const horasDosInstrutores = comHorasExternas(horasBase, estado.ins, data);
     // A escala gravada só vale no formato do motor (revisão de 14/11); adulterada, a tela usa a escala calculada
     const escala = dia ? normalizarEscalaGravada(dia.resultado) : null;
-    const resultados = await this.resultadosDaData(data);
-    return { estado, escala, novo: !dia, horasBase, horasDosInstrutores, resultados };
+    const resultados = lidos.resultados || { situacao: [], doDia: [] };
+    const indisponiveis = [...(lidos.horasBase ? [] : ['horas']), ...(lidos.resultados ? [] : ['resultados'])];
+    return { estado, escala, novo: !dia, horasBase, horasDosInstrutores, resultados, indisponiveis };
   },
 
-  // Os resultados das missões dos cursos (fase 14): a situação de cada missão e os registros da data. Vão à parte (não
-  // são gravados no dia); sem resposta, ficam vazios
-  async resultadosDaData(data) {
-    try {
-      const [situacao, doDia] = await Promise.all([this.backend.situacaoDasMissoes(), this.backend.resultadosDoDia(data)]);
-      return { situacao: situacao || [], doDia: doDia || [] };
-    } catch (e) {
-      return { situacao: [], doDia: [] };
-    }
-  },
-
-  async horasDosInstrutores(data) {
-    try {
-      return (await this.backend.horasDosInstrutores(data)) || {};
-    } catch (e) {
-      return {};
-    }
+  // O que vai à parte do dia (não é gravado nele): as horas de voo de cada instrutor antes da data (limites da lei) e os
+  // resultados das missões dos cursos (fase 14: a situação de cada missão e os registros da data). Sem resposta, null
+  async lerDadosAParte(data) {
+    const ler = async fn => fn();
+    const [horasBase, resultados] = await Promise.all([
+      ler(() => this.backend.horasDosInstrutores(data)).then(h => h || {}, () => null),
+      ler(() => Promise.all([this.backend.situacaoDasMissoes(), this.backend.resultadosDoDia(data)]))
+        .then(([situacao, doDia]) => ({ situacao: situacao || [], doDia: doDia || [] }), () => null)
+    ]);
+    return { horasBase, resultados };
   },
 
   async salvarDia(data, estado, escala) {

@@ -2,8 +2,9 @@
 import { isoMenosDias, fimDoMes, rotuloDaData, hojeISO, LIMITE_DO_NOME } from './format.js';
 import { runAllocationEngine } from './engine.js';
 import { ApiClient } from './storage.js';
-import { S, RES, AUDIT_LOG, BI_HISTORY, DATA, setS, setRES, setAuditLog, setBIHistory, setData, isGestor } from './state.js';
-import { $, mostrarAviso, avisoAberto } from './dom.js';
+import { S, RES, AUDIT_LOG, BI_HISTORY, DATA, setS, setRES, setAuditLog, setBIHistory, setData, isGestor, dadoIndisponivel } from './state.js';
+import { $, mostrarAviso, avisoAberto, showToast } from './dom.js';
+import { comHorasExternas } from './limites.js';
 import { rBI } from './views/bi.js';
 import { renderAuditPanel, rOut } from './views/escala.js';
 import { rDem } from './views/demanda.js';
@@ -51,6 +52,35 @@ export function setRole(role, lockShared = false) {
   // Agenda: quem pode registrar pedidos (operadores e secretaria; no modo local, fora do perfil Gestor)
   document.body.dataset.agenda = podeEditarAgenda() ? 'edita' : 'consulta';
   atualizarSeloDaAgenda();
+}
+
+// As horas dos instrutores ou os resultados dos cursos que não foram lidos (revisão de 14/11): o aviso fica até a leitura
+// dar certo, e o que depende disso fica desligado (Aprovar escala; a próxima missão e o resultado)
+const SEM_OS_DADOS = {
+  horas: 'Não foi possível ler as horas de voo dos instrutores: os limites do mês e do ano não estão sendo conferidos, e Aprovar escala fica desligado.',
+  resultados: 'Não foi possível ler os resultados das missões dos cursos: a próxima missão e o registro de resultados ficam desligados.'
+};
+export function avisarDadosIndisponiveis() {
+  const partes = (S.indisponiveis || []).filter(p => Object.hasOwn(SEM_OS_DADOS, p));
+  $('#aviso-dados').hidden = !partes.length;
+  $('#aviso-dados-texto').textContent = partes.map(p => SEM_OS_DADOS[p]).join(' ');
+}
+
+// "Tentar de novo": lê de novo o que faltou; a escala é refeita com as horas (o voo além do limite do mês aparece)
+export async function lerDadosDeNovo() {
+  const data = DATA;
+  const { horasBase, resultados } = await ApiClient.lerDadosAParte(data);
+  if (DATA !== data) return;
+  if (horasBase && dadoIndisponivel('horas')) {
+    S.horasBase = horasBase;
+    S.horasDosInstrutores = comHorasExternas(horasBase, S.ins, data);
+  }
+  if (resultados && dadoIndisponivel('resultados')) S.resultados = resultados;
+  S.indisponiveis = (S.indisponiveis || []).filter(p => (p === 'horas' ? !horasBase : p === 'resultados' ? !resultados : true));
+  avisarDadosIndisponiveis();
+  if (!S.indisponiveis.length) showToast('Dados lidos.', 'ok');
+  if (horasBase && !isGestor()) save();
+  rIns(); rAlu(); rDem(); rOut();
 }
 
 // Uma gravação que não deu certo (revisão de 14/11). Sem conexão, o aviso conta as alterações esperando (as entradas
@@ -183,11 +213,12 @@ export async function historicoParaPainel(data) {
 let pedidoDeData = 0;
 export async function carregarData(data) {
   const pedido = ++pedidoDeData;
-  const { estado, escala, horasBase, horasDosInstrutores, resultados } = await ApiClient.carregarDia(data);
+  const { estado, escala, horasBase, horasDosInstrutores, resultados, indisponiveis } = await ApiClient.carregarDia(data);
   const historico = await historicoParaPainel(data);
   if (pedido !== pedidoDeData) return;
   abrirData(data);
-  setS({ ...estado, horasBase, horasDosInstrutores, resultados });
+  setS({ ...estado, horasBase, horasDosInstrutores, resultados, indisponiveis });
+  avisarDadosIndisponiveis();
   // Data sem escala gravada (por exemplo, uma data nova, copiada da anterior): a escala calculada aparece na hora
   // e é gravada junto com a primeira alteração
   setRES(escala || escalaCalculada());

@@ -12,7 +12,7 @@ import { resultadoNaEscala } from './etapas.js';
 import { OPCOES_DE_BURACOS, OPCOES_DE_HORARIOS, normalizarCriterios } from '../criterios.js';
 import { metricasDaEscala } from '../metricas.js';
 import { sumUniqueOperationalHours, consolidateTimelineSlots } from '../engine.js';
-import { S, RES, AUDIT_LOG, TL_MODE, DATA, isGestor } from '../state.js';
+import { S, RES, AUDIT_LOG, TL_MODE, DATA, isGestor, dadoIndisponivel } from '../state.js';
 import { $ } from '../dom.js';
 
 export const HT = o => (o.isGround || isGroundMission(o.mis) ? '01h30 (1,5 h)' : o.h + ' h' + (o.ss !== '1/1' ? ` (sessão ${o.ss})` : ''));
@@ -298,7 +298,10 @@ function rAprovacao(temVoos) {
     selo.innerHTML = `<svg class="ico" aria-hidden="true"><use href="#i-cadeado"/></svg>Aprovada às ${hora}${S.aprovacao.por ? ` por ${esc(S.aprovacao.por)}` : ''}`;
     lugar.innerHTML = `<button type="button" class="btn sec edit-only" id="btn-reabrir" title="Os voos deixam de ser fixos e a escala volta a ser refeita inteira a cada alteração">Reabrir</button>`;
   } else {
-    lugar.innerHTML = temVoos ? `<button type="button" class="btn edit-only" id="btn-aprovar" title="Fixa os voos: depois disso, as alterações não tiram ninguém do lugar">Aprovar escala</button>` : '';
+    // Sem as horas dos instrutores, os limites do mês e do ano não foram conferidos: não aprova (revisão de 14/11)
+    const semHoras = dadoIndisponivel('horas');
+    const dica = semHoras ? 'As horas de voo dos instrutores não foram lidas: os limites do mês e do ano não foram conferidos' : 'Fixa os voos: depois disso, as alterações não tiram ninguém do lugar';
+    lugar.innerHTML = temVoos ? `<button type="button" class="btn edit-only" id="btn-aprovar" title="${dica}"${semHoras ? ' disabled' : ''}>Aprovar escala</button>` : '';
   }
 }
 

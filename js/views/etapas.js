@@ -4,7 +4,7 @@
 import { MIS } from '../config.js';
 import { normalizarCursos } from '../cursos.js';
 import { situacaoPorMissao, proximaMissao, progresso, resultadoDoVoo } from '../resultados.js';
-import { S, isGestor, stuBy } from '../state.js';
+import { S, isGestor, stuBy, dadoIndisponivel } from '../state.js';
 import { esc, opts, fmtDurLabel } from '../format.js';
 
 const resultados = () => S.resultados || { situacao: [], doDia: [] };
@@ -26,7 +26,7 @@ export function etapaNaDemanda(stu, d, mid) {
   if (d.etapa) return ` <span class="etapa" title="Missão do curso ${esc(stu.curso || '')}">${esc(d.etapa)}</span>`;
   const proxima = proximaDoPedido(stu, mid);
   return proxima
-    ? ` <button type="button" class="btn quiet edit-only usar-proxima" data-act="usar-proxima" data-id="${esc(stu.id)}" data-mid="${esc(mid)}" title="${esc(descricaoDaMissao(proxima))}">Próxima: ${esc(proxima.id)} · Usar</button>`
+    ? ` <button type="button" class="btn quiet edit-only usar-proxima" data-act="usar-proxima" data-id="${esc(stu.id)}" data-mid="${esc(mid)}" title="${esc(descricaoDaMissao(proxima))}"${dadoIndisponivel('resultados') ? ' disabled' : ''}>Próxima: ${esc(proxima.id)} · Usar</button>`
     : '';
 }
 
@@ -48,5 +48,5 @@ export function resultadoNaEscala(o) {
   if (isGestor() || !stu || !stu.curso) {
     return `<span class="resultado">${codigo}${atual !== 'pendente' ? ` <span class="res res-${atual}">${atual === 'aprovado' ? 'Aprovado' : 'Reprovado'}</span>` : ''}</span>`;
   }
-  return `<span class="resultado">${codigo} <select class="res-sel res-${atual}" data-resultado="${esc(o.fKey)}" aria-label="Resultado de ${esc(o.s)} em ${esc(o.etapa)}">${opts([['pendente', 'Resultado'], ['aprovado', 'Aprovado'], ['reprovado', 'Reprovado']], atual)}</select></span>`;
+  return `<span class="resultado">${codigo} <select class="res-sel res-${atual}" data-resultado="${esc(o.fKey)}" aria-label="Resultado de ${esc(o.s)} em ${esc(o.etapa)}"${dadoIndisponivel('resultados') ? ' disabled' : ''}>${opts([['pendente', 'Resultado'], ['aprovado', 'Aprovado'], ['reprovado', 'Reprovado']], atual)}</select></span>`;
 }

@@ -99,6 +99,7 @@ export function criarSupabaseFalso({ documentos = {}, dias = {}, historico: hist
   let gravacoesSeguras = null;
   let desconectado = false;
   const seguradas = new Map();
+  const falhas = new Map();
 
   // Versão do formato do conteúdo (campo esquema); o servidor não aceita voltar a um formato mais antigo
   const esquema = conteudo => (conteudo && typeof conteudo.esquema === 'number' ? Math.floor(conteudo.esquema) : 0);
@@ -125,6 +126,11 @@ export function criarSupabaseFalso({ documentos = {}, dias = {}, historico: hist
     if (desconectado) return route.abort('internetdisconnected');
     if (req.method() === 'OPTIONS') return route.fulfill({ status: 204, headers: cors });
     for (const [caminho, espera] of seguradas) if (url.pathname.endsWith(caminho)) await espera;
+    for (const [caminho, n] of falhas) {
+      if (!url.pathname.endsWith(caminho) || n <= 0) continue;
+      falhas.set(caminho, n - 1);
+      return route.fulfill({ status: 503, headers: { ...cors, 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'Service Unavailable' }) });
+    }
     const portador = (req.headers().authorization || '').replace(/^Bearer /, '');
     const conta = sessoes.get(portador);
     // Um token de sessão (JWT) que o servidor não conhece mais: sessão expirada
@@ -329,6 +335,8 @@ export function criarSupabaseFalso({ documentos = {}, dias = {}, historico: hist
     // Simula indisponibilidade do servidor nas próximas gravações
     // (503: fora do ar, o app tenta de novo; 400: recusa definitiva)
     falharGravacoes(n, status = 503) { falhasDeGravacao = n; statusDaFalha = status; },
+    // As próximas n requisições a um caminho recebem 503 (servidor fora do ar)
+    falhar(caminho, n = 1) { falhas.set(caminho, n); },
     // Segura as requisições a um caminho (ex.: '/rpc/registrar_resultado') até chamar a função devolvida
     segurar(caminho) {
       let liberar;
