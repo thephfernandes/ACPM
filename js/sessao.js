@@ -8,6 +8,7 @@ import { $, mostrarAviso, avisoAberto, fecharAviso } from './dom.js';
 import { amanhaISO, esc } from './format.js';
 import { ROTULOS, operaEscala, gerenciaContas, soPainel } from './perfis.js';
 import { retornoDoLink } from './retorno-do-link.js';
+import { chaveDaSessao, passarSessaoParaATV } from './config-supabase.js';
 
 
 function pedirLogin(cliente) {
@@ -92,7 +93,7 @@ export async function iniciarSessaoSupabase(projeto) {
     window.history.replaceState(window.history.state, '', window.location.pathname + window.location.search);
     avisarDoLink(AVISOS_DO_LINK[retorno], retorno === 'invalido' ? 'erro' : 'ok');
   }
-  const cliente = window.supabase.createClient(projeto.url, projeto.chave, { auth: { storageKey: `acpm-${projeto.nome}` } });
+  const cliente = window.supabase.createClient(projeto.url, projeto.chave, { auth: { storageKey: chaveDaSessao(projeto) } });
   const { data } = await cliente.auth.getSession();
   const sessao = data.session || await pedirLogin(cliente);
   if (retorno === 'concluida') avisarDoLink(`Troca de e-mail concluída: agora você entra com ${sessao.user.email}.`, 'ok');
@@ -108,8 +109,9 @@ export async function iniciarSessaoSupabase(projeto) {
     return false;
   }
 
-  // A conta da TV da recepção só vê o painel: vai direto para ele (a sessão é a mesma)
+  // A conta da TV da recepção só vê o painel: vai direto para ele, com a sessão (o app não fica conectado com ela)
   if (soPainel(perfil.perfil)) {
+    passarSessaoParaATV(projeto);
     window.location.replace(`painel.html${window.location.search}`);
     return false;
   }

@@ -69,9 +69,11 @@ test.describe('Site publicado (login real)', () => {
     await expect(page).toHaveURL(/painel\.html/, { timeout: 20000 });
     await expect(page.locator('.fids .fids-titulo')).toHaveText(/^(Partidas|Chegadas)$/, { timeout: 20000 });
     const linhasLidas = await page.evaluate(async () => {
-      const { projetoSupabase } = await import('./js/config-supabase.js');
+      const { projetoSupabase, chaveDaSessao } = await import('./js/config-supabase.js');
       const projeto = projetoSupabase();
-      const cliente = window.supabase.createClient(projeto.url, projeto.chave, { auth: { storageKey: `acpm-${projeto.nome}` } });
+      // A sessão da TV (na chave dela): a do app ficou vazia
+      if (localStorage.getItem(chaveDaSessao(projeto))) return 'o app ficou conectado com a conta da TV';
+      const cliente = window.supabase.createClient(projeto.url, projeto.chave, { auth: { storageKey: chaveDaSessao(projeto, { painel: true }) } });
       const lidas = {};
       for (const tabela of ['documentos', 'dias', 'historico', 'solicitacoes', 'dados_pessoais']) {
         const { data } = await cliente.from(tabela).select('*').limit(1);
