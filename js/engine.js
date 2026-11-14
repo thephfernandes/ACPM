@@ -591,27 +591,28 @@ export function runAllocationEngine(state, opcoes = {}) {
           status: (state.fStatus && state.fStatus[fKey]) || 'Confirmado'
         });
       } else {
-        let why;
+        // O motivo, com o código (revisão de 14/11: o código diz onde resolver)
+        let codigo, why;
         if (!state.ins.some(x => x.on && habilitado(x))) {
-          why = `nenhum instrutor ativo habilitado para ministrar ${d.mis} (${descreverExigencias(d.mis, GROUND_EQ_TYPE)})`;
+          [codigo, why] = ['sem-instrutor-habilitado', `nenhum instrutor ativo tem a habilitação de ${d.mis} (${descreverExigencias(d.mis, GROUND_EQ_TYPE)})`];
         } else if (semPrazo.length && !candidateWins.length) {
-          why = `o Ground precisa terminar antes do voo fixo das ${hm(prazoFixo)}, e não há horário para ele antes disso`;
+          [codigo, why] = ['ground-antes-do-voo-fixo', `o Ground precisa terminar antes do voo fixo das ${hm(prazoFixo)}, e não há horário para ele antes disso`];
         } else if (!starts.length) {
-          why = permitidas
-            ? `não há horário habilitado na disponibilidade do aluno (${rotuloDaDisponibilidade(d.jan)}) para 01h30 de Ground`
-            : `nenhuma janela diurna habilitada comporta 01h30 de Ground até ${hm(endMax)}`;
+          [codigo, why] = permitidas
+            ? ['disponibilidade-do-aluno', `nenhum horário aberto na disponibilidade do aluno (${rotuloDaDisponibilidade(d.jan)}) comporta 01h30 de Ground`]
+            : ['sem-horario', `nenhum período aberto comporta 01h30 de Ground até as ${hm(endMax)}`];
         } else {
           const key = Object.keys(fcGnd).sort((a, b) => fcGnd[b] - fcGnd[a])[0];
-          why = {
-            stu_busy: `conflito de horário com outra missão do próprio aluno (${nm})`,
-            sala: `a sala de Ground já está ocupada por outra turma nos horários testados`,
-            disp: `nenhum instrutor disponível durante todo o período de 01h30`,
-            busy: `todos os instrutores disponíveis já estão ocupados nos horários testados`,
-            bloq: `os instrutores disponíveis no horário estão bloqueados por este aluno`,
-            limite: `nenhum instrutor dentro dos limites da Lei do Aeronauta (horas de voo, jornada ou repouso) nos horários testados`
+          [codigo, why] = {
+            stu_busy: ['aluno-ocupado', 'o aluno já tem outra missão nos horários possíveis'],
+            sala: ['sala-ocupada', 'a sala de Ground já está ocupada por outra turma nos horários possíveis'],
+            disp: ['instrutores-indisponiveis', 'nenhum instrutor habilitado está disponível durante as 01h30 nos horários possíveis'],
+            busy: ['instrutores-ocupados', 'os instrutores habilitados já têm outro compromisso nos horários possíveis'],
+            bloq: ['bloqueio', 'os instrutores habilitados e livres estão em “Não escalar com” deste aluno'],
+            limite: ['limite-da-lei', 'nenhum instrutor dentro dos limites da Lei do Aeronauta (horas de voo, jornada ou repouso) nos horários possíveis']
           }[key];
         }
-        al.push({ t: 'err', s: labelStu, m: `Rejeitado: ${why}.` });
+        al.push({ t: 'err', s: labelStu, m: `Rejeitado: ${why}.`, codigo });
       }
       continue;
     }
@@ -635,7 +636,8 @@ export function runAllocationEngine(state, opcoes = {}) {
       al.push({
         t: 'err',
         s: labelStu,
-        m: `Rejeitado: a missão “${d.mis}” é realizada apenas em ${m.eq.join(' ou ')} (selecionado: ${d.eq}).`
+        m: `Rejeitado: a missão “${d.mis}” só voa em ${m.eq.join(' ou ')} (o pedido está no ${d.eq}).`,
+        codigo: 'equipamento-da-missao'
       });
       continue;
     }
@@ -647,7 +649,8 @@ export function runAllocationEngine(state, opcoes = {}) {
       al.push({
         t: 'err',
         s: labelStu,
-        m: `Rejeitado: o pré-requisito “${unallocatedGround.mis}” agendado para hoje não pôde ser alocado antes deste voo.`
+        m: `Rejeitado: o “${unallocatedGround.mis}” de hoje, que vem antes deste voo, não entrou na escala.`,
+        codigo: 'ground-pendente'
       });
       continue;
     }
@@ -765,37 +768,38 @@ export function runAllocationEngine(state, opcoes = {}) {
         al.push({ t: 'warn', s: labelStu, m: `${quem} (0 kg): verificação de limite (${lim} kg) no ${d.eq} não realizada.` });
       }
     } else {
-      let why;
+      // O motivo, com o código (revisão de 14/11: o código diz onde resolver)
+      let codigo, why;
       if (isParafuso && d.eq === 'C152' && !soParafuso.some(r => state.av[r])) {
-        why = soParafuso.length
-          ? `a aeronave acrobática ${nomesSoParafuso} (exclusiva para Parafuso no C152) está indisponível/em manutenção`
-          : 'não há na frota um C152 marcado como “Só Parafuso” (aba Recursos)';
+        [codigo, why] = ['so-parafuso', soParafuso.length
+          ? `o ${nomesSoParafuso} (só para Parafuso no C152) está em manutenção`
+          : 'não há na frota um C152 marcado como “Só Parafuso” (aba Recursos)'];
       } else if (!fleetPool.some(r => state.av[r])) {
-        why = `nenhum equipamento ${d.eq} compatível disponível (manutenção/indisponível)`;
+        [codigo, why] = ['sem-aviao', `nenhum ${d.eq} disponível (todos em manutenção)`];
       } else if (!state.ins.some(x => x.on && podeFazer(x, d.mis, d.eq))) {
-        why = `nenhum instrutor ativo habilitado para ${d.mis} em ${d.eq} (${exige})`;
+        [codigo, why] = ['sem-instrutor-habilitado', `nenhum instrutor ativo tem a habilitação de ${d.mis} no ${d.eq} (${exige})`];
       } else if (!inicios.length && permitidas) {
-        why = `não há horário habilitado na disponibilidade do aluno (${rotuloDaDisponibilidade(d.jan)}) para encaixar ${H} h`;
+        [codigo, why] = ['disponibilidade-do-aluno', `nenhum horário aberto na disponibilidade do aluno (${rotuloDaDisponibilidade(d.jan)}) comporta ${H} h`];
       } else if (!inicios.length) {
-        why = minStartAfterGround > 0
-          ? `não há janela disponível após o término do Ground School (${hm(minStartAfterGround)}) para encaixar ${H} h antes das ${hm(endMax)}`
-          : `não há como encaixar ${H} h contínuas ${night ? 'a partir da janela noturna (17:30)' : 'dentro do horário diurno (término até ' + hm(T[NI]) + ')'} com as janelas habilitadas`;
+        [codigo, why] = minStartAfterGround > 0
+          ? ['depois-do-ground', `nenhum horário aberto depois do Ground (${hm(minStartAfterGround)}) comporta ${H} h até as ${hm(endMax)}`]
+          : ['sem-horario', `nenhum horário aberto comporta ${H} h ${night ? 'a partir das 17:30' : `até as ${hm(T[NI])}`}`];
       } else {
         const key = Object.keys(fc).sort((a, b) => fc[b] - fc[a])[0];
-        why = {
-          stu_busy: `conflito de horário com outra missão/Ground do próprio aluno (${nm}) já agendada neste dia`,
-          eq: isParafuso && d.eq === 'C152'
-            ? `a aeronave acrobática ${nomesSoParafuso} (exclusiva para Parafuso) já está ocupada nos horários testados`
-            : `falta de ${d.eq} livre nos horários testados (ocupado por voos de maior prioridade)`,
-          revisao: `os ${d.eq} livres estão sem saldo até a revisão de 50 horas`,
-          disp: `nenhum instrutor habilitado (${exige}) disponível durante todo o voo nos horários testados`,
-          busy: `instrutores habilitados (${exige}) já ocupados em algum trecho do voo (conflito de horário)`,
-          bloq: `os instrutores habilitados (${exige}) livres estão bloqueados por este aluno`,
-          limite: `nenhum instrutor dentro dos limites da Lei do Aeronauta (horas de voo, jornada ou repouso) nos horários testados`,
-          peso: `peso aluno + instrutor acima do limite de ${lim} kg do ${d.eq}, mesmo com o mínimo de combustível`
+        [codigo, why] = {
+          stu_busy: ['aluno-ocupado', 'o aluno já tem outra missão nos horários possíveis'],
+          eq: ['avioes-ocupados', isParafuso && d.eq === 'C152'
+            ? `o ${nomesSoParafuso} (só para Parafuso) já está ocupado nos horários possíveis`
+            : `nenhum ${d.eq} livre nos horários possíveis (ocupados por pedidos de prioridade maior)`],
+          revisao: ['revisao', `os ${d.eq} livres estão sem saldo até a revisão de 50 horas`],
+          disp: ['instrutores-indisponiveis', `nenhum instrutor habilitado (${exige}) está disponível durante o voo inteiro nos horários possíveis`],
+          busy: ['instrutores-ocupados', `os instrutores habilitados (${exige}) já têm outro compromisso nos horários possíveis`],
+          bloq: ['bloqueio', `os instrutores habilitados (${exige}) e livres estão em “Não escalar com” deste aluno`],
+          limite: ['limite-da-lei', 'nenhum instrutor dentro dos limites da Lei do Aeronauta (horas de voo, jornada ou repouso) nos horários possíveis'],
+          peso: ['peso', `peso aluno + instrutor acima do limite de ${lim} kg do ${d.eq}, mesmo com o mínimo de combustível`]
         }[key];
       }
-      al.push({ t: 'err', s: labelStu, m: `Rejeitado: ${why}.` });
+      al.push({ t: 'err', s: labelStu, m: `Rejeitado: ${why}.`, codigo });
     }
   }
 

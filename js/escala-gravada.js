@@ -4,7 +4,7 @@
 // próxima alteração). Os campos desconhecidos saem.
 import { ALL_EQ_TYPES, MIS, FLIGHT_STATUSES, NI } from './config.js';
 import { codigoValido } from './cursos.js';
-import { CODIGOS_DE_CONFLITO } from './conflitos.js';
+import { CODIGOS_DE_CONFLITO, CODIGOS_DE_REJEICAO } from './conflitos.js';
 
 const CHAVE_DO_VOO = /^\d+_\d+_\d+$/;
 // A chave da turma de Ground: GND_<missão>_<período>_<instrutor> (com um número no fim quando repete)
@@ -75,7 +75,8 @@ export function normalizarLinhaGravada(o) {
 function alerta(a) {
   if (!objeto(a) || !TIPOS_DE_ALERTA.includes(a.t) || !texto(a.s, 200) || !texto(a.m, 1000)) return null;
   if (a.fKey !== undefined && !CAMPOS.fKey(a.fKey)) return null;
-  return { t: a.t, s: a.s, ...(a.fKey !== undefined ? { fKey: a.fKey } : {}), m: a.m };
+  if (a.codigo !== undefined && !CODIGOS_DE_REJEICAO.includes(a.codigo)) return null;
+  return { t: a.t, s: a.s, ...(a.fKey !== undefined ? { fKey: a.fKey } : {}), m: a.m, ...(a.codigo !== undefined ? { codigo: a.codigo } : {}) };
 }
 
 function revisaoDoAviao(r) {

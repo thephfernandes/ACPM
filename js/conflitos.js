@@ -40,3 +40,10 @@ export function gruposDoConflito(voo) {
     ...(textos.some(c => /aluno/.test(c)) ? ['horario'] : [])
   ]);
 }
+
+// Os códigos das rejeições (revisão de 14/11): por que o pedido ficou fora da escala, para dizer onde resolver
+export const CODIGOS_DE_REJEICAO = [
+  'equipamento-da-missao', 'ground-pendente', 'ground-antes-do-voo-fixo', 'so-parafuso', 'sem-aviao', 'sem-instrutor-habilitado',
+  'disponibilidade-do-aluno', 'depois-do-ground', 'sem-horario', 'aluno-ocupado', 'avioes-ocupados', 'sala-ocupada', 'revisao',
+  'instrutores-indisponiveis', 'instrutores-ocupados', 'bloqueio', 'limite-da-lei', 'peso'
+];

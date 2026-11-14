@@ -7,6 +7,7 @@ import { EQ, GROUND_REG, ACROBAT_REG, T, NI, DEFAULT_LIM } from '../../js/config
 import { isGroundMission, doesGroundGateFlight } from '../../js/rules.js';
 import { podeFazer } from '../../js/habilitacoes.js';
 import { gerarCenario } from '../helpers/cenarios.js';
+import { CODIGOS_DE_REJEICAO } from '../../js/conflitos.js';
 
 const SEEDS = Array.from({ length: 300 }, (_, i) => 1001 + i);
 const execucoes = SEEDS.map(seed => {
@@ -30,6 +31,11 @@ function emTodos(verificar) {
 }
 
 describe('Invariantes do motor de alocação', () => {
+  // Revisão de 14/11: a rejeição diz onde resolver
+  it('toda rejeição tem um código da lista', () => emTodos(({ al }) => {
+    for (const a of al.filter(x => x.t === 'err')) assert.ok(CODIGOS_DE_REJEICAO.includes(a.codigo), `${a.m} (${a.codigo})`);
+  }));
+
   it('toda missão marcada é alocada ou recebe um alerta de rejeição', () => emTodos(({ estado, out, al, tot }) => {
     const marcadas = estado.stu.reduce((n, s) => n + (s.fly ? 1 : 0) + s.extra.filter(ex => ex.fly).length, 0);
     const alocadas = new Set(out.map(o => `${o.stuId}_${o.mid}`)).size;

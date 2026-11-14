@@ -123,7 +123,7 @@ describe('Habilitações exigidas (os instrutores migrados fazem o mesmo que os 
       assert.equal(abaixo.out.length, 0);
       assert.deepEqual(abaixo.al, [{
         t: 'err', s: 'Aluno 1000',
-        m: `Rejeitado: nenhum instrutor ativo habilitado para ${mis} em ${eq} (${exige}).`
+        m: `Rejeitado: nenhum instrutor ativo tem a habilitação de ${mis} no ${eq} (${exige}).`, codigo: 'sem-instrutor-habilitado'
       }]);
 
       const habilitado = alocar({ ins: [instrutor(1, lv - 1), instrutor(2, lv)], stu: [pedido] });
@@ -137,7 +137,7 @@ describe('Habilitações exigidas (os instrutores migrados fazem o mesmo que os 
     assert.equal(alocar({ ins, stu: [aluno(1000, { mis: 'Simulador', eq: 'Sim. Mono' })] }).out[0].insId, 2);
     assert.equal(alocar({ ins, stu: [aluno(1000, { mis: 'Noturno', eq: 'C172', p1: 8, p2: 8 })] }).out[0].insId, 1);
     const parafuso = alocar({ ins: [instrutor(1, 9, { hab: ['local', 'mlte'] })], stu: [aluno(1000, { mis: 'Parafuso', eq: 'PA-34' })] });
-    assert.deepEqual(parafuso.al.map(a => a.m), ['Rejeitado: nenhum instrutor ativo habilitado para Parafuso em PA-34 (Voo de Parafuso (SPIN) + MLTE (PA-34)).']);
+    assert.deepEqual(parafuso.al.map(a => a.m), ['Rejeitado: nenhum instrutor ativo tem a habilitação de Parafuso no PA-34 (Voo de Parafuso (SPIN) + MLTE (PA-34)).']);
   });
 
   it('TGL (TMA): só o instrutor com a habilitação TGL (TMA)', () => {
@@ -152,20 +152,20 @@ describe('Habilitações exigidas (os instrutores migrados fazem o mesmo que os 
     assert.equal(cheque('Cheque PC MNTE IFR', 'C172').out[0].insId, 2);
     assert.equal(cheque('Cheque PC MLTE IFR', 'PA-34').out[0].insId, 3);
     const semChecador = alocar({ ins: [instrutor(1, 9)], stu: [aluno(1000, { mis: 'Cheque PC MLTE VFR', eq: 'PA-34' })] });
-    assert.deepEqual(semChecador.al.map(a => a.m), ['Rejeitado: nenhum instrutor ativo habilitado para Cheque PC MLTE VFR em PA-34 (Checador PP, PC, MLTE, MNTE, INVA, IFR).']);
+    assert.deepEqual(semChecador.al.map(a => a.m), ['Rejeitado: nenhum instrutor ativo tem a habilitação de Cheque PC MLTE VFR no PA-34 (Checador PP, PC, MLTE, MNTE, INVA, IFR).']);
   });
 
   it('missão em equipamento não permitido é rejeitada', () => {
     const { out, al } = alocar({ stu: [aluno(1000, { mis: 'IFR', eq: 'C152' })] });
     assert.equal(out.length, 0);
-    assert.deepEqual(al, [{ t: 'err', s: 'Aluno 1000', m: 'Rejeitado: a missão “IFR” é realizada apenas em C172 ou PA-34 (selecionado: C152).' }]);
+    assert.deepEqual(al, [{ t: 'err', s: 'Aluno 1000', m: 'Rejeitado: a missão “IFR” só voa em C172 ou PA-34 (o pedido está no C152).', codigo: 'equipamento-da-missao' }]);
   });
 
   it('instrutor bloqueado pelo aluno não é escalado', () => {
     const ins = [instrutor(1, 1), instrutor(2, 1)];
     assert.equal(alocar({ ins, stu: [aluno(1000, {}, { bl: [1] })] }).out[0].insId, 2);
     assert.deepEqual(alocar({ ins, stu: [aluno(1000, {}, { bl: [1, 2] })] }).al, [
-      { t: 'err', s: 'Aluno 1000', m: 'Rejeitado: os instrutores habilitados (Voo Local) livres estão bloqueados por este aluno.' }
+      { t: 'err', s: 'Aluno 1000', m: 'Rejeitado: os instrutores habilitados (Voo Local) e livres estão em “Não escalar com” deste aluno.', codigo: 'bloqueio' }
     ]);
   });
 
@@ -179,7 +179,7 @@ describe('Peso da tripulação', () => {
   it('aluno + instrutor acima do limite, mesmo com o mínimo de combustível, é rejeitado', () => {
     const { out, al } = alocar({ ins: [instrutor(1, 1, { kg: 100 })], stu: [aluno(1000, {}, { kg: 120 })] });
     assert.equal(out.length, 0);
-    assert.deepEqual(al, [{ t: 'err', s: 'Aluno 1000', m: 'Rejeitado: peso aluno + instrutor acima do limite de 170 kg do C152, mesmo com o mínimo de combustível.' }]);
+    assert.deepEqual(al, [{ t: 'err', s: 'Aluno 1000', m: 'Rejeitado: peso aluno + instrutor acima do limite de 170 kg do C152, mesmo com o mínimo de combustível.', codigo: 'peso' }]);
   });
 
   it('um pouco acima do limite: o voo sai com menos combustível (fase 10)', () => {
@@ -227,7 +227,7 @@ describe('Disponibilidade do aluno', () => {
 
   it('sem horário possível na disponibilidade, o pedido é rejeitado dizendo por quê', () => {
     const { al } = alocar({ stu: [aluno(1000, { jan: 'tarde' })], janelasOff: [4, 5, 6, 7] });
-    assert.deepEqual(al.map(a => a.m), ['Rejeitado: não há horário habilitado na disponibilidade do aluno (Tarde) para encaixar 1 h.']);
+    assert.deepEqual(al.map(a => a.m), ['Rejeitado: nenhum horário aberto na disponibilidade do aluno (Tarde) comporta 1 h.']);
   });
 
   it('Ground também respeita a disponibilidade', () => {
@@ -250,7 +250,7 @@ describe('Revisão de 50 horas', () => {
     const { out, al, revisao } = alocar({ ins, stu: tresVoos, semAeronaves: SO_PP_LJV, horas: { 'PP-LJV': 48, 'PR-BTB': 10 } });
     assert.deepEqual(out.map(o => [o.s, o.r, hm(o.a)]), [['Aluno 1000', 'PP-LJV', '08:20'], ['Aluno 1001', 'PP-LJV', '10:10']]);
     assert.deepEqual(al, [
-      { t: 'err', s: 'Aluno 1002', m: 'Rejeitado: os C152 livres estão sem saldo até a revisão de 50 horas.' },
+      { t: 'err', s: 'Aluno 1002', m: 'Rejeitado: os C152 livres estão sem saldo até a revisão de 50 horas.', codigo: 'revisao' },
       { t: 'warn', s: 'PP-LJV', m: 'Aeronave parou para revisão de 50 horas às 11:10 (50 h desde a última revisão).' }
     ]);
     assert.deepEqual(revisao, {
@@ -307,14 +307,14 @@ describe('PR-JPL (C152 Acrobat)', () => {
   it('outras missões nunca usam o PR-JPL', () => {
     const { out, al } = alocar({ stu: [aluno(1000)], semAeronaves: apenas('C152', 'PR-JPL') });
     assert.equal(out.length, 0);
-    assert.deepEqual(al, [{ t: 'err', s: 'Aluno 1000', m: 'Rejeitado: nenhum equipamento C152 compatível disponível (manutenção/indisponível).' }]);
+    assert.deepEqual(al, [{ t: 'err', s: 'Aluno 1000', m: 'Rejeitado: nenhum C152 disponível (todos em manutenção).', codigo: 'sem-aviao' }]);
   });
 
   it('Parafuso no C152 é rejeitado com o PR-JPL em manutenção', () => {
     const { al } = alocar({ stu: [aluno(1000, { mis: 'Parafuso' })], semAeronaves: ['PR-JPL'] });
     assert.deepEqual(al, [{
       t: 'err', s: 'Aluno 1000',
-      m: 'Rejeitado: a aeronave acrobática PR-JPL (exclusiva para Parafuso no C152) está indisponível/em manutenção.'
+      m: 'Rejeitado: o PR-JPL (só para Parafuso no C152) está em manutenção.', codigo: 'so-parafuso'
     }]);
   });
 
@@ -334,7 +334,7 @@ describe('Noturno', () => {
     const { al } = alocar({ ins: [instrutor(1, 7)], stu: [aluno(1000, { mis: 'Noturno', eq: 'C172', p1: 8, p2: 8 })], janelasOff: [8] });
     assert.deepEqual(al, [{
       t: 'err', s: 'Aluno 1000',
-      m: 'Rejeitado: não há como encaixar 1 h contínuas a partir da janela noturna (17:30) com as janelas habilitadas.'
+      m: 'Rejeitado: nenhum horário aberto comporta 1 h a partir das 17:30.', codigo: 'sem-horario'
     }]);
   });
 });
@@ -388,7 +388,7 @@ describe('Ground School', () => {
       janelasOff: [1, 2, 3, 4, 5, 6, 7, 8]
     });
     assert.deepEqual(out.map(o => o.s), ['Aluno 1000']);
-    assert.deepEqual(al, [{ t: 'err', s: 'Aluno 1001', m: 'Rejeitado: a sala de Ground já está ocupada por outra turma nos horários testados.' }]);
+    assert.deepEqual(al, [{ t: 'err', s: 'Aluno 1001', m: 'Rejeitado: a sala de Ground já está ocupada por outra turma nos horários possíveis.', codigo: 'sala-ocupada' }]);
   });
 
   it('é ministrado pelo instrutor disponível com menos habilitações', () => {
@@ -417,8 +417,8 @@ describe('Ground School', () => {
     });
     assert.equal(out.length, 0);
     assert.deepEqual(al, [
-      { t: 'err', s: 'Aluno 1000', m: 'Rejeitado: nenhum instrutor disponível durante todo o período de 01h30.' },
-      { t: 'err', s: 'Aluno 1000 (Voo Local)', m: 'Rejeitado: o pré-requisito “Ground C152” agendado para hoje não pôde ser alocado antes deste voo.' }
+      { t: 'err', s: 'Aluno 1000', m: 'Rejeitado: nenhum instrutor habilitado está disponível durante as 01h30 nos horários possíveis.', codigo: 'instrutores-indisponiveis' },
+      { t: 'err', s: 'Aluno 1000 (Voo Local)', m: 'Rejeitado: o “Ground C152” de hoje, que vem antes deste voo, não entrou na escala.', codigo: 'ground-pendente' }
     ]);
   });
 
@@ -435,7 +435,7 @@ describe('Ground School', () => {
 
   it('não termina depois das 17:30', () => {
     const { al } = alocar({ ins: [instrutor(1, 1)], stu: [aluno(1000, GROUND_C152)], janelasOff: [0, 1, 2, 3, 4, 5, 6] });
-    assert.deepEqual(al, [{ t: 'err', s: 'Aluno 1000', m: 'Rejeitado: nenhuma janela diurna habilitada comporta 01h30 de Ground até 17:30.' }]);
+    assert.deepEqual(al, [{ t: 'err', s: 'Aluno 1000', m: 'Rejeitado: nenhum período aberto comporta 01h30 de Ground até as 17:30.', codigo: 'sem-horario' }]);
   });
 });
 

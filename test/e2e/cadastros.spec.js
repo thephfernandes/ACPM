@@ -284,7 +284,7 @@ test.describe('Instrutores', () => {
     await page.locator('#inst .cd[data-id="2"] [data-act="editar-habs"]').click();
     await page.locator('#painel-instrutor [data-f="hab"][data-h="sim_mono"]').uncheck();
     await irPara(page, 'esc');
-    await expect(page.locator('#out')).toContainText('nenhum instrutor ativo habilitado para Simulador em Sim. Mono (Simulador (Mono))');
+    await expect(page.locator('#out')).toContainText('nenhum instrutor ativo tem a habilitação de Simulador no Sim. Mono (Simulador (Mono))');
   });
 
   test('instrutor indisponível pode ser revertido pelo histórico', async ({ page }) => {

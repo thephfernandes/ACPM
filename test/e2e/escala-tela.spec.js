@@ -38,7 +38,7 @@ test.describe('Tela da Escala', () => {
     const erros = page.locator('#out details.caixa.erros');
     await expect(erros).toHaveAttribute('open', '');
     await expect(erros.locator('summary')).toHaveText('1 missão não entrou na escala: Aluno 1000');
-    await expect(erros.locator('.al.err')).toContainText('nenhum instrutor ativo habilitado');
+    await expect(erros.locator('.al.err')).toContainText('nenhum instrutor ativo tem a habilitação');
     const avisos = page.locator('#out details.caixa.avisos');
     await expect(avisos).not.toHaveAttribute('open', '');
     await expect(avisos.locator('summary')).toHaveText('2 avisos: 2 alunos sem peso');

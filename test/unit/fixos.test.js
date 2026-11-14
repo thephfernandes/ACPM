@@ -208,7 +208,7 @@ describe('Turma de Ground fixa', () => {
       fixos: { '1000_1_1': voo }
     };
     const { al } = runAllocationEngine(estado);
-    assert.deepEqual(al, [{ t: 'err', s: 'Aluno 1000', m: 'Rejeitado: o Ground precisa terminar antes do voo fixo das 06:30, e não há horário para ele antes disso.' }]);
+    assert.deepEqual(al, [{ t: 'err', s: 'Aluno 1000', m: 'Rejeitado: o Ground precisa terminar antes do voo fixo das 06:30, e não há horário para ele antes disso.', codigo: 'ground-antes-do-voo-fixo' }]);
   });
 });
 
