@@ -34,6 +34,31 @@ describe('Migração de estado', () => {
     assert.deepEqual(ApiClient.normalizeAndMigrateState({ stu: 'x', ins: [] }).stu, []);
   });
 
+  it('valores gravados fora do formato: status desconhecidos saem; pessoas e pedidos voltam aos tipos certos (revisão de 14/11)', () => {
+    const ataque = 'x"><img/src/onerror=window.__xss=1>';
+    const estado = ApiClient.createFreshState();
+    estado.ins = [
+      { id: 1, nm: 'Ana', on: true, kg: ataque, hab: ['local', ataque], aw: estado.win.map(() => true) },
+      { id: ataque, nm: 'Sem id', on: true, kg: 70, hab: [], aw: [] },
+      { id: 2, nm: 'B'.repeat(200), on: 'sim', kg: 400, hab: [], aw: [ataque] }
+    ];
+    estado.stu = [{ id: 1000, nm: 'Aluno 1000', kg: ataque, bl: [1, ataque, 2.5], fly: 'sim', mis: 'Voo Local', eq: 'C152', p1: 500, p2: -1, nb: 1, ss: 1, pr: ataque,
+      extra: [{ mid: ataque, fly: true, mis: 'Voo Local', eq: 'C152', p1: 610, p2: -1, nb: 1, ss: 1, pr: 9 }, ataque] }, { id: '1001', nm: 'Sem id' }];
+    estado.fStatus = { '1000_0_1': ataque, '1000_0_2': 'Cancelado' };
+    estado.horas = { 'PR-VOB': ataque, 'PR-BTB': 12.5 };
+    estado.importadas = [7, ataque];
+    const x = ApiClient.normalizeAndMigrateState(estado);
+    assert.deepEqual(x.fStatus, { '1000_0_2': 'Cancelado' });
+    assert.deepEqual(x.ins.map(i => [i.id, i.nm.length, i.on, i.kg, i.hab, i.aw.length, i.aw.every(v => typeof v === 'boolean')]), [
+      [1, 3, true, 0, ['local'], 9, true],
+      [2, 80, true, 0, [], 9, true]
+    ]);
+    const [stu] = x.stu;
+    assert.deepEqual([x.stu.length, stu.kg, stu.bl, stu.fly, stu.pr], [1, 0, [1], true, 3]);
+    assert.deepEqual(stu.extra.map(ex => [Number.isInteger(ex.mid) && ex.mid > 0, ex.pr]), [[true, 3]]);
+    assert.deepEqual([x.horas, x.importadas], [{ 'PR-BTB': 12.5 }, [7]]);
+  });
+
   it('schema v4: preserva o cadastro e normaliza os pedidos', () => {
     const estado = ApiClient.createFreshState();
     estado.lim = { C152: 999 };

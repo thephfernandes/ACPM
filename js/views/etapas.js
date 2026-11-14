@@ -26,7 +26,7 @@ export function etapaNaDemanda(stu, d, mid) {
   if (d.etapa) return ` <span class="etapa" title="Missão do curso ${esc(stu.curso || '')}">${esc(d.etapa)}</span>`;
   const proxima = proximaDoPedido(stu, mid);
   return proxima
-    ? ` <button type="button" class="btn quiet edit-only usar-proxima" data-act="usar-proxima" data-id="${stu.id}" data-mid="${mid}" title="${esc(descricaoDaMissao(proxima))}">Próxima: ${esc(proxima.id)} · Usar</button>`
+    ? ` <button type="button" class="btn quiet edit-only usar-proxima" data-act="usar-proxima" data-id="${esc(stu.id)}" data-mid="${esc(mid)}" title="${esc(descricaoDaMissao(proxima))}">Próxima: ${esc(proxima.id)} · Usar</button>`
     : '';
 }
 
@@ -41,11 +41,12 @@ export function progressoDoAluno(stu) {
 // Na escala, com o status do aluno: o código da missão do curso e o resultado (o operador registra; os outros veem)
 export function resultadoNaEscala(o) {
   if (!o.etapa) return '';
-  const atual = resultadoDoVoo(resultados().doDia, o.fKey) || 'pendente';
+  const registrado = resultadoDoVoo(resultados().doDia, o.fKey);
+  const atual = ['aprovado', 'reprovado'].includes(registrado) ? registrado : 'pendente';
   const stu = stuBy(o.stuId);
   const codigo = `<span class="etapa" title="Missão do curso${stu && stu.curso ? ` ${esc(stu.curso)}` : ''}">${esc(o.etapa)}</span>`;
   if (isGestor() || !stu || !stu.curso) {
     return `<span class="resultado">${codigo}${atual !== 'pendente' ? ` <span class="res res-${atual}">${atual === 'aprovado' ? 'Aprovado' : 'Reprovado'}</span>` : ''}</span>`;
   }
-  return `<span class="resultado">${codigo} <select class="res-sel res-${atual}" data-resultado="${o.fKey}" aria-label="Resultado de ${esc(o.s)} em ${esc(o.etapa)}">${opts([['pendente', 'Resultado'], ['aprovado', 'Aprovado'], ['reprovado', 'Reprovado']], atual)}</select></span>`;
+  return `<span class="resultado">${codigo} <select class="res-sel res-${atual}" data-resultado="${esc(o.fKey)}" aria-label="Resultado de ${esc(o.s)} em ${esc(o.etapa)}">${opts([['pendente', 'Resultado'], ['aprovado', 'Aprovado'], ['reprovado', 'Reprovado']], atual)}</select></span>`;
 }

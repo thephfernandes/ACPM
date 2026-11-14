@@ -10,7 +10,8 @@ import { separar, juntar, diaPadrao, diaParaCopiar, converterLegado, biDosDias }
 import { ESQUEMA, migrarCadastro, migrarDia, precisaMigrar, renomearSimulador } from './migracoes.js';
 import { habilitacoesDoNivel, normalizarHabilitacoes } from './habilitacoes.js';
 import { ajustarFilas, CATEGORIAS_DO_RODIZIO } from './rodizio.js';
-import { normalizarDetalhes } from './status.js';
+import { normalizarDetalhes, normalizarStatus } from './status.js';
+import { normalizarEscalaGravada } from './escala-gravada.js';
 import { normalizarHangar } from './hangar.js';
 import { LIMITES_DA_LEI, normalizarLimites, comHorasExternas } from './limites.js';
 import { normalizarFixos, normalizarAprovacao } from './fixos.js';
@@ -77,7 +78,8 @@ export const ApiClient = {
   normalizeAndMigrateState(x) {
     if (!x || !Array.isArray(x.stu) || !Array.isArray(x.ins)) return this.createFreshState();
     x.lim = { ...DEFAULT_LIM };
-    if (!x.fStatus) x.fStatus = {};
+    // Revisão de 14/11: o que vem gravado pode ter sido escrito fora do app (pela API); só os status da lista valem
+    x.fStatus = normalizarStatus(x.fStatus);
     // Detalhes do status (fase 8): só os que valem para o status atual de cada voo
     x.fObs = normalizarDetalhes(x.fObs, x.fStatus);
     // Escala aprovada (fase 12): os voos fixos e quem aprovou
@@ -86,7 +88,9 @@ export const ApiClient = {
     // Critérios da compactação (fase 13)
     x.criterios = normalizarCriterios(x.criterios);
     if (!x.horas || typeof x.horas !== 'object' || Array.isArray(x.horas)) x.horas = {};
-    if (!Array.isArray(x.importadas)) x.importadas = [];
+    x.horas = Object.fromEntries(Object.entries(x.horas).filter(([, h]) => typeof h === 'number' && Number.isFinite(h) && h >= 0 && h <= 60));
+    x.importadas = Array.isArray(x.importadas) ? x.importadas.filter(id => Number.isInteger(id) && id > 0) : [];
+    x.win = Array.isArray(x.win) && x.win.length === WIN.length ? x.win.map(v => v !== false) : WIN.map(() => true);
     if (!x.nid || x.nid < 1000) x.nid = 1000;
     // A frota (fase 7): disponibilidade e horas só dos recursos dela; um recurso que o dia não conhece começa disponível
     // (os simuladores com os nomes de antes da fase 4 são renomeados antes)
@@ -137,6 +141,22 @@ export const ApiClient = {
 
     x.schemaVer = 4;
 
+    // Pessoas nos tipos certos (revisão de 14/11): sem id inteiro, a pessoa sai; nome de até 80 caracteres; peso de 0 a
+    // 300 kg; disponibilidade com uma janela por período; bloqueios só com ids
+    const nome = (v, padrao) => (typeof v === 'string' && v.trim() ? v.slice(0, 80) : padrao);
+    const peso = v => (typeof v === 'number' && Number.isFinite(v) && v > 0 && v <= 300 ? v : 0);
+    const comId = p => Boolean(p) && typeof p === 'object' && Number.isInteger(p.id) && p.id > 0;
+    x.ins = x.ins.filter(comId);
+    x.ins.forEach(i => {
+      Object.assign(i, { nm: nome(i.nm, `Instrutor ${i.id}`), on: i.on !== false, kg: peso(i.kg) });
+      i.aw = Array.isArray(i.aw) && i.aw.length === WIN.length ? i.aw.map(v => v === true) : WIN.map(() => true);
+    });
+    x.stu = x.stu.filter(comId);
+    x.stu.forEach(s => {
+      Object.assign(s, { nm: nome(s.nm, `Aluno ${s.id}`), kg: peso(s.kg), bl: Array.isArray(s.bl) ? s.bl.filter(id => Number.isInteger(id) && id > 0) : [] });
+      s.extra = Array.isArray(s.extra) ? s.extra.filter(ex => ex && typeof ex === 'object') : [];
+    });
+
     // Habilitações individuais (fase 4): quem só tem o nível A01–A09 recebe o que o nível permitia
     x.ins.forEach(i => { i.hab = Array.isArray(i.hab) ? normalizarHabilitacoes(i.hab) : habilitacoesDoNivel(i.lv); });
 
@@ -147,7 +167,7 @@ export const ApiClient = {
       normalizeMissionFields(s);
       if (!Array.isArray(s.extra)) s.extra = [];
       s.extra.forEach(ex => {
-        if (!ex.mid) ex.mid = x.nid++;
+        if (!Number.isInteger(ex.mid) || ex.mid <= 0) ex.mid = x.nid++;
         normalizeMissionFields(ex);
       });
     });
@@ -174,7 +194,8 @@ export const ApiClient = {
     // confere só os limites do dia
     const horasBase = await this.horasDosInstrutores(data);
     const horasDosInstrutores = comHorasExternas(horasBase, estado.ins, data);
-    const escala = dia && dia.resultado && Array.isArray(dia.resultado.out) ? dia.resultado : null;
+    // A escala gravada só vale no formato do motor (revisão de 14/11); adulterada, a tela usa a escala calculada
+    const escala = dia ? normalizarEscalaGravada(dia.resultado) : null;
     const resultados = await this.resultadosDaData(data);
     return { estado, escala, novo: !dia, horasBase, horasDosInstrutores, resultados };
   },

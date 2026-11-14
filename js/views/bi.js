@@ -104,7 +104,7 @@ export function rBI() {
   if (!recursos.includes(recurso)) recurso = '';
   if (eqFilterEl) {
     eqFilterEl.innerHTML = '<option value="">Todos</option>' +
-      recursos.map(r => `<option value="${r}"${r === recurso ? ' selected' : ''}>${esc(nomeDoRecurso(r))}</option>`).join('');
+      recursos.map(r => `<option value="${esc(r)}"${r === recurso ? ' selected' : ''}>${esc(nomeDoRecurso(r))}</option>`).join('');
   }
   const eqList = Object.values(eqStats)
     .filter(e => daCategoria(e.reg) && (!recurso || e.reg === recurso))

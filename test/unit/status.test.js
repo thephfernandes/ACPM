@@ -7,7 +7,7 @@ import {
 } from '../../js/config.js';
 import {
   MOTIVOS_DE_CANCELAMENTO, LIMITE_DO_TEXTO, STATUS_COM_DETALHE, validarDetalhe, normalizarDetalhes, textoDoDetalhe, textoDoStatus, textoParaOHistorico,
-  intervaloEfetivo, conflitosDeAtraso
+  intervaloEfetivo, conflitosDeAtraso, normalizarStatus, classeDoStatus
 } from '../../js/status.js';
 import { runAllocationEngine } from '../../js/engine.js';
 import { aluno, cenario, instrutor, GROUND_C152 } from '../helpers/montar.js';
@@ -43,6 +43,20 @@ describe('Status do voo: a lista e os detalhes', () => {
 
   it('os outros status não têm detalhe', () => {
     for (const st of ['Pendente', 'Confirmado', 'Em Voo']) assert.deepEqual(validarDetalhe(st, { motivo: 'Meteorologia' }, 610), { detalhe: null });
+  });
+
+  it('status guardados: só os da lista, em chaves de voo (o resto, gravado fora do formato, sai)', () => {
+    const ataque = 'x"><img/src/onerror=window.__xss=1>';
+    assert.deepEqual(normalizarStatus({ '1000_0_1': 'Em Voo', '1001_0_1': ataque, [ataque]: 'Cancelado', '1002_0_1': 'Atrasado', '1003_0_1': 7 }),
+      { '1000_0_1': 'Em Voo', '1002_0_1': 'Atrasado' });
+    assert.deepEqual(normalizarStatus(undefined), {});
+    assert.deepEqual(normalizarStatus(['Cancelado']), {});
+  });
+
+  it('a classe CSS de cada status vem de uma lista fixa (o desconhecido vale como Confirmado)', () => {
+    assert.deepEqual(FLIGHT_STATUSES.map(classeDoStatus), ['Pendente', 'Confirmado', 'Atrasado', 'EmVoo', 'Cancelado']);
+    assert.equal(classeDoStatus('x"><img/src/onerror=1>'), 'Confirmado');
+    assert.equal(classeDoStatus(undefined), 'Confirmado');
   });
 
   it('detalhes guardados: só os do status atual de cada voo e nos formatos válidos', () => {

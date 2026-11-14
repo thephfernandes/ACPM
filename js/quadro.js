@@ -5,7 +5,8 @@
 import { GROUND_EQ_TYPE } from './config.js';
 import { nomeDoRecurso } from './categorias.js';
 import { isGroundMission } from './rules.js';
-import { intervaloEfetivo, textoDoDetalhe } from './status.js';
+import { intervaloEfetivo, textoDoDetalhe, classeDoStatus, normalizarStatus } from './status.js';
+import { normalizarLinhaGravada } from './escala-gravada.js';
 
 // Uma linha por voo (a turma de Ground, uma só: cancelada só quando todos os alunos estão), no horário efetivo
 export function linhasDoQuadro(out, fStatus = {}, fObs = {}) {
@@ -64,7 +65,7 @@ function linhaDoAeroporto(l, momento) {
     aluno: l.ground ? `${n} ${n === 1 ? 'aluno' : 'alunos'}` : l.alunos.join(', '),
     instrutor: l.instrutor,
     observacao: [NO_QUADRO[l.status] || l.status, l.motivo].filter(Boolean).join(' · '),
-    classe: l.status.replace(/\s+/g, '')
+    classe: classeDoStatus(l.status)
   };
 }
 
@@ -110,7 +111,8 @@ export function nomeCurto(nome) {
 // usam esta): só o que o quadro mostra, com o aluno abreviado e, do detalhe do status, o novo horário e a categoria do
 // motivo. Sem escala gravada, voos é null
 export function quadroDoDia(dia) {
-  const out = dia && dia.resultado && Array.isArray(dia.resultado.out) ? dia.resultado.out : null;
+  // Só as linhas no formato do motor e os status da lista (revisão de 14/11): a linha adulterada sai
+  const out = dia && dia.resultado && Array.isArray(dia.resultado.out) ? dia.resultado.out.map(normalizarLinhaGravada).filter(Boolean) : null;
   if (!out) return { voos: null, fStatus: {}, fObs: {} };
   const voos = out.filter(o => o && Number.isInteger(o.a) && Number.isInteger(o.b))
     .map(o => ({ fKey: o.fKey, classKey: o.classKey, isGround: Boolean(o.isGround), a: o.a, b: o.b, r: o.r, eqType: o.eqType, s: nomeCurto(o.s), ins: o.ins, mis: o.mis, etapa: o.etapa || null, status: o.status }))
@@ -121,5 +123,5 @@ export function quadroDoDia(dia) {
       ...(d.motivo ? { motivo: d.motivo } : {}),
       ...(Number.isInteger(d.novoInicio) ? { novoInicio: d.novoInicio } : {})
     }]));
-  return { voos, fStatus: dia.fStatus && typeof dia.fStatus === 'object' ? { ...dia.fStatus } : {}, fObs };
+  return { voos, fStatus: normalizarStatus(dia.fStatus), fObs };
 }

@@ -77,6 +77,9 @@ export function normalizeMissionFields(target) {
   }
   target.p1 = preferenciaValida(target.p1);
   target.p2 = preferenciaValida(target.p2);
+  // Prioridade de 1 a 5 e "voa" sim ou não (revisão de 14/11: valores gravados fora do formato voltam ao padrão)
+  if (Object.hasOwn(target, 'pr')) target.pr = Number.isInteger(+target.pr) && +target.pr >= 1 && +target.pr <= 5 ? +target.pr : 3;
+  if (Object.hasOwn(target, 'fly')) target.fly = Boolean(target.fly);
   // O código da missão do curso (fase 14), quando o pedido veio do programa
   if (Object.hasOwn(target, 'etapa') && !(typeof target.etapa === 'string' && codigoValido(target.etapa))) delete target.etapa;
   const mRule = missionRule(target.mis) || MIS['Voo Local'];

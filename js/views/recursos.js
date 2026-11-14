@@ -45,13 +45,13 @@ function linha({ reg: r, tipo, soParafuso }, grupo, voadas, revisao) {
   const horas = S.horas[r];
   const temHoras = typeof horas === 'number';
   const parafuso = soParafuso ? ' <span class="tag fb" title="Exclusivo para a missão de Parafuso">Só Parafuso</span>' : '';
-  return `<tr data-r="${r}" data-grupo="${grupo}"${S.av[r] ? '' : ' class="manutencao"'}${recolhidos.has(grupo) ? ' hidden' : ''}>
-    <td><label class="alvo"><input type="checkbox" class="sw" data-a="av" data-id="${r}"${S.av[r] ? ' checked' : ''} aria-label="${r} disponível"></label></td>
-    <td><b>${r}</b>${aviao ? '' : ` <small class="sm">${tipo}</small>`}${parafuso}</td>
-    <td>${aviao ? `<input type="number" class="horas" min="0" max="60" step="0.1" inputmode="decimal" data-a="horas" data-horas="${r}" value="${temHoras ? horas : ''}" placeholder="—" aria-label="Horas do ${r} desde a última revisão"> h` : ''}</td>
+  return `<tr data-r="${esc(r)}" data-grupo="${grupo}"${S.av[r] ? '' : ' class="manutencao"'}${recolhidos.has(grupo) ? ' hidden' : ''}>
+    <td><label class="alvo"><input type="checkbox" class="sw" data-a="av" data-id="${esc(r)}"${S.av[r] ? ' checked' : ''} aria-label="${esc(r)} disponível"></label></td>
+    <td><b>${esc(r)}</b>${aviao ? '' : ` <small class="sm">${tipo}</small>`}${parafuso}</td>
+    <td>${aviao ? `<input type="number" class="horas" min="0" max="60" step="0.1" inputmode="decimal" data-a="horas" data-horas="${esc(r)}" value="${temHoras ? horas : ''}" placeholder="—" aria-label="Horas do ${esc(r)} desde a última revisão"> h` : ''}</td>
     <td>${aviao && temHoras ? saldo(horas) : ''}</td>
     <td>${situacao(r, voadas, revisao)}</td>
-    <td class="edit-only acoes-frota">${aviao ? `<button class="btn quiet rev" data-act="revisao" data-id="${r}">Revisão feita</button>` : ''}<button class="btn quiet rev ret" data-act="retirar-recurso" data-id="${r}" aria-label="Retirar ${r} da frota">Retirar</button></td>
+    <td class="edit-only acoes-frota">${aviao ? `<button class="btn quiet rev" data-act="revisao" data-id="${esc(r)}">Revisão feita</button>` : ''}<button class="btn quiet rev ret" data-act="retirar-recurso" data-id="${esc(r)}" aria-label="Retirar ${esc(r)} da frota">Retirar</button></td>
   </tr>`;
 }
 
@@ -117,7 +117,7 @@ export function rHangar() {
         <b>${esc(r)}</b> <small>${esc(tipo)}</small>
         ${situacao}
         <span class="acoes edit-only">
-          ${botao('subir', 'i-cima', `Subir ${r}`, i === 0)}${botao('descer', 'i-baixo', `Descer ${r}`, i === hangar.length - 1)}${botao('frente', 'i-topo', `Pôr ${r} na frente do hangar`, i === 0)}
+          ${botao('subir', 'i-cima', `Subir ${esc(r)}`, i === 0)}${botao('descer', 'i-baixo', `Descer ${esc(r)}`, i === hangar.length - 1)}${botao('frente', 'i-topo', `Pôr ${esc(r)} na frente do hangar`, i === 0)}
         </span>
       </li>`;
   }).join('');

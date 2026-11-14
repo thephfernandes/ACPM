@@ -3,6 +3,7 @@
 // uma data para outra (janelas, aeronaves, disponibilidade dos instrutores, demanda e status dos voos).
 import { WIN, DEFAULT_LIM, AIRCRAFT_EQ_TYPES } from './config.js';
 import { blank } from './rules.js';
+import { normalizarStatus } from './status.js';
 import { filasDoDiaSeguinte } from './rodizio.js';
 import { FROTA_INICIAL, normalizarFrota } from './frota.js';
 import { normalizarHorarios } from './horarios.js';
@@ -91,7 +92,7 @@ export function juntar(cadastro, dia = diaPadrao()) {
       bl: [...(s.bl || [])],
       ...(pedidos[s.id] ? structuredClone(pedidos[s.id]) : { ...blank(), extra: [] })
     })),
-    fStatus: { ...(dia.fStatus || {}) },
+    fStatus: normalizarStatus(dia.fStatus),
     fObs: structuredClone(dia.fObs || {}),
     horas: { ...(dia.horas || {}) },
     filas: structuredClone(dia.filas || {}),

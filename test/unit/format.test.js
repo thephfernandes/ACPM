@@ -1,6 +1,6 @@
 import { describe, it, mock } from 'node:test';
 import assert from 'node:assert/strict';
-import { hm, fmtH, fmtDurLabel, WLB, pad, esc, amanhaISO, hojeISO, isoMenosDias, fimDoMes, rotuloDaData } from '../../js/format.js';
+import { hm, fmtH, fmtDurLabel, WLB, pad, esc, opts, amanhaISO, hojeISO, isoMenosDias, fimDoMes, rotuloDaData } from '../../js/format.js';
 
 describe('Formatação', () => {
   it('minutos do dia em HH:MM', () => {
@@ -29,6 +29,9 @@ describe('Formatação', () => {
   it('escapa HTML', () => {
     assert.equal(esc('<b title="x">Ana & Bia</b>'), '&lt;b title=&quot;x&quot;&gt;Ana &amp; Bia&lt;/b&gt;');
     assert.equal(esc(42), '42');
+    assert.equal(esc("x' onmouseover='1"), 'x&#39; onmouseover=&#39;1', 'aspas simples também (atributos com aspas simples)');
+    assert.equal(opts([['a"><b>', '<i>x</i>'], ['2', 'Dois']], '2'),
+      '<option value="a&quot;&gt;&lt;b&gt;">&lt;i&gt;x&lt;/i&gt;</option><option value="2" selected>Dois</option>', 'opções escapadas');
   });
 
   it('datas AAAA-MM-DD: amanhã, dias antes e fim do mês (com virada de mês, ano e bissexto)', () => {

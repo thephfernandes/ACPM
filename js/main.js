@@ -36,6 +36,7 @@ import { rCursos, mostrarVistaDosAlunos, podeEditarCursos, atualizarLinhaDoProgr
 import { proximaDoPedido } from './views/etapas.js';
 import { STATUS_COM_DETALHE, textoParaOHistorico } from './status.js';
 import { pinoDoVoo, normalizarFixos } from './fixos.js';
+import { validarReversao } from './reversoes.js';
 import { singleDemandRowHTML, cnt, rDem, applyDemandFilters } from './views/demanda.js';
 import { rIns, rAlu, applyInstructorFilters, preencherFiltroDeHabilitacoes, mostrarVistaDosInstrutores, abrirPainelDoInstrutor, fecharPainelDoInstrutor, atualizarLinhaDoCadastro, atualizarLinhaDoAluno, rPainelDoInstrutor, rLimites, podeEditarLimites } from './views/cadastros.js';
 import { LIMITES_DA_LEI, normalizarLimites, comHorasExternas } from './limites.js';
@@ -685,8 +686,9 @@ document.addEventListener('click', e => {
   if (a === 'rev-log') {
     const logId = +b.dataset.logid;
     const entry = AUDIT_LOG.find(x => x.id === logId);
-    if (!entry || !entry.revert) return;
-    const rev = entry.revert;
+    // A reversão gravada só vale no formato que o app produz (revisão de 14/11)
+    const rev = entry ? validarReversao(entry.revert, S.frota) : null;
+    if (!rev) return;
 
     if (rev.kind === 'setFly') {
       const st = stuBy(rev.stuId);
@@ -707,12 +709,12 @@ document.addEventListener('click', e => {
         logChange(rev.val ? 'inc' : 'exc', `Revertido: ${ins.nm} ${rev.val ? 'disponível' : 'indisponível'}`, null, entry.id);
         save(); rIns();
       }
-    } else if (rev.kind === 'restaurarFixos' && rev.fixos && typeof rev.fixos === 'object') {
+    } else if (rev.kind === 'restaurarFixos') {
       // Um reparo desfeito: os voos voltam a ser fixos como antes dele
       S.fixos = normalizarFixos({ ...(S.fixos || {}), ...rev.fixos });
       logChange('mod', `Revertido: ${entry.desc}`, null, entry.id);
       save();
-    } else if (rev.kind === 'readicionarRecurso' && rev.recurso && !S.frota.some(f => f.reg === rev.recurso.reg)) {
+    } else if (rev.kind === 'readicionarRecurso') {
       // Um recurso retirado volta para a frota, como estava
       S.frota.push({ ...rev.recurso });
       S.av[rev.recurso.reg] = rev.av !== false;
