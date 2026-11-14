@@ -2,7 +2,8 @@
 // cadastro (e os documentos da fase 2) ficam na tabela documentos e são gravados por salvar_documento;
 // dia:AAAA-MM-DD fica na tabela dias e é gravado por salvar_dia. O histórico é a tabela historico.
 // - Gravações do mesmo documento saem em série, sempre com o conteúdo mais recente
-// - Se outra pessoa gravou antes (conflito), o backend para de gravar e avisa por aoConflito
+// - Se outra pessoa gravou antes (conflito), o backend para de gravar e avisa por aoConflito (formato: true quando a
+//   recusa é pelo formato dos dados, de uma versão mais nova do app)
 // - Erros de rede avisam por aoErro; a próxima alteração tenta gravar de novo (aoGravar avisa quando der certo)
 const DOCUMENTO_DIA = /^dia:(\d{4}-\d{2}-\d{2})$/;
 
@@ -31,7 +32,7 @@ export function criarBackendSupabase(cliente, { aoConflito = () => {}, aoErro = 
           delete pendentes[documento];
           if (error.code === 'PT409') {
             bloqueado = true;
-            aoConflito(documento);
+            aoConflito(documento, { formato: error.hint === 'formato' });
           } else {
             aoErro(error, documento);
           }

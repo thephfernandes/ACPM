@@ -3,7 +3,7 @@
 import { ApiClient } from './storage.js';
 import { criarBackendSupabase } from './backends/supabase.js';
 import { backendLocal } from './backends/local.js';
-import { setRole } from './actions.js';
+import { setRole, travarAposConflito } from './actions.js';
 import { $, mostrarAviso, avisoAberto, fecharAviso, avisarDoLink } from './dom.js';
 import { amanhaISO, esc } from './format.js';
 import { ROTULOS, operaEscala, gerenciaContas, soPainel } from './perfis.js';
@@ -111,7 +111,7 @@ export async function iniciarSessaoSupabase(projeto) {
 
   delete document.body.dataset.login;
   ApiClient.backend = criarBackendSupabase(cliente, {
-    aoConflito: () => mostrarAviso('conflito', 'Outra pessoa alterou a escala enquanto você editava. Recarregue para ver a versão atual; a sua última alteração não foi salva.'),
+    aoConflito: (documento, motivo) => travarAposConflito(motivo),
     aoErro: () => { if (avisoAberto() !== 'conflito') mostrarAviso('erro', 'Não foi possível salvar a última alteração. Verifique a conexão: a próxima alteração tentará salvar de novo.'); },
     aoGravar: () => fecharAviso('erro')
   });

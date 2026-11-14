@@ -24,7 +24,7 @@ async function novoContexto(browser) {
 }
 
 test.describe('Modo compartilhado: gravação, conflitos e link da escala', () => {
-  test('conflito: aviso fixo, nada mais é enviado e "Recarregar" mostra a versão do colega', async ({ browser }) => {
+  test('conflito: aviso fixo, a tela fica só para consulta, nada mais é enviado e "Recarregar" mostra a versão do colega', async ({ browser }) => {
     const contexto = await novoContexto(browser);
     const servidor = await instalarSupabaseFalso(contexto, comDados());
     const page = await contexto.newPage();
@@ -38,11 +38,15 @@ test.describe('Modo compartilhado: gravação, conflitos e link da escala', () =
     await irPara(page, 'rec');
     await page.locator('#eqs input[data-id="PR-BTB"]').uncheck();
     await expect(page.locator('#aviso-sync')).toBeVisible();
-    await expect(page.locator('#aviso-sync')).toContainText('Outra pessoa alterou a escala');
+    await expect(page.locator('#aviso-sync-texto')).toHaveText(
+      'Outra pessoa alterou a escala enquanto você editava. A tela ficou só para consulta: recarregue para ver a versão atual e continuar (a sua última alteração não foi salva).');
+    // Só para consulta (revisão de 14/11): sem os controles de edição
+    await expect(page.locator('body')).toHaveAttribute('data-role', 'gestor');
+    await expect(page.locator('[data-act="addi"]')).toBeHidden();
 
     await page.waitForTimeout(300);
     const enviadas = servidor.gravacoes.length;
-    await page.locator('#eqs input[data-id="PR-JPL"]').uncheck();
+    await page.locator('#eqs input[data-id="PR-JPL"]').evaluate(el => { el.checked = false; el.dispatchEvent(new Event('change', { bubbles: true })); });
     await page.waitForTimeout(300);
     expect(servidor.gravacoes.length, 'depois do conflito nada mais é enviado').toBe(enviadas);
 
@@ -51,6 +55,24 @@ test.describe('Modo compartilhado: gravação, conflitos e link da escala', () =
     await expect(page.locator('#aviso-sync')).toBeHidden();
     await expect(page.locator('#eqs input[data-id="PR-IGU"]')).not.toBeChecked();
     await expect(page.locator('#eqs input[data-id="PR-BTB"]')).toBeChecked();
+    expect(erros).toEqual([]);
+    await contexto.close();
+  });
+
+  test('a versão anterior do app aberta numa aba: o servidor recusa pelo formato e o app pede para recarregar', async ({ browser }) => {
+    const contexto = await novoContexto(browser);
+    const servidor = await instalarSupabaseFalso(contexto, comDados());
+    const page = await contexto.newPage();
+    const erros = vigiarErros(page, { statusEsperados: [409] });
+    await entrar(page, CONTAS.operador);
+    // Os dados foram atualizados por uma versão mais nova do app (o cadastro está num formato à frente deste)
+    const cadastro = structuredClone(servidor.banco.get('cadastro').conteudo);
+    servidor.alterarPorOutraPessoa('cadastro', { ...cadastro, esquema: cadastro.esquema + 1 });
+
+    await irPara(page, 'rec');
+    await page.locator('#eqs input[data-id="PR-BTB"]').uncheck();
+    await expect(page.locator('#aviso-sync-texto')).toHaveText('O app foi atualizado. Recarregue a página para continuar (a sua última alteração não foi salva).');
+    await expect(page.locator('body')).toHaveAttribute('data-role', 'gestor');
     expect(erros).toEqual([]);
     await contexto.close();
   });

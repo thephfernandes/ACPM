@@ -50,7 +50,8 @@ test.describe('Login e perfis (modo compartilhado)', () => {
     await irPara(page, 'alu');
     await page.locator('[data-act="adds"]').click();
     await expect.poll(() => servidor.banco.get('cadastro').conteudo.stu.length).toBe(1);
-    expect(servidor.gravacoes.find(g => g.chave === `dia:${AMANHA}`)).toEqual({ chave: `dia:${AMANHA}`, versaoLida: 1, por: CONTAS.operador.email });
+    // O dia sai depois do cadastro (revisão de 14/11)
+    await expect.poll(() => servidor.gravacoes.find(g => g.chave === `dia:${AMANHA}`)).toEqual({ chave: `dia:${AMANHA}`, versaoLida: 1, por: CONTAS.operador.email });
     await expect.poll(() => servidor.historico.map(h => [h.data, h.autor])).toContainEqual([AMANHA, 'Operador de Teste']);
   });
 

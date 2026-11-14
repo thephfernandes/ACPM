@@ -34,7 +34,7 @@ function clienteFalso(documentos = {}, { atraso = 0, dias = {} } = {}) {
   const esquema = conteudo => (conteudo && typeof conteudo.esquema === 'number' ? Math.floor(conteudo.esquema) : 0);
   const salvar = (mapa, chave, conteudo, versaoLida) => {
     const atual = mapa.get(chave);
-    if (atual && esquema(conteudo) < esquema(atual.conteudo)) return { data: null, error: { code: 'PT409', message: 'formato mais novo' } };
+    if (atual && esquema(conteudo) < esquema(atual.conteudo)) return { data: null, error: { code: 'PT409', message: 'formato mais novo', hint: 'formato' } };
     const versaoAtual = atual ? atual.versao : 0;
     if (versaoLida !== versaoAtual) return { data: null, error: { code: 'PT409', message: 'alterado por outra pessoa' } };
     mapa.set(chave, { conteudo, versao: versaoAtual + 1 });
@@ -196,15 +196,24 @@ describe('Backend Supabase', () => {
   it('conflito: avisa, não grava mais nada e responde false', async () => {
     const cliente = clienteFalso({ estado: { conteudo: 'meu', versao: 4 } });
     const conflitos = [];
-    const backend = criarBackendSupabase(cliente, { aoConflito: doc => conflitos.push(doc) });
+    const backend = criarBackendSupabase(cliente, { aoConflito: (doc, motivo) => conflitos.push([doc, motivo]) });
     await backend.ler('estado');
     cliente.banco.set('estado', { conteudo: 'do colega', versao: 5 });
 
     assert.equal(await backend.gravar('estado', 'minha alteração'), false);
-    assert.deepEqual(conflitos, ['estado']);
+    assert.deepEqual(conflitos, [['estado', { formato: false }]]);
     assert.equal(await backend.gravar('historico', []), false);
     assert.equal(cliente.rpcs.length, 1, 'depois do conflito nada mais é enviado');
     assert.deepEqual(cliente.banco.get('estado'), { conteudo: 'do colega', versao: 5 });
+  });
+
+  it('recusa pelo formato (uma versão mais nova do app atualizou os dados): o conflito diz que é o formato', async () => {
+    const cliente = clienteFalso({ cadastro: { conteudo: { esquema: 19 }, versao: 2 } });
+    const conflitos = [];
+    const backend = criarBackendSupabase(cliente, { aoConflito: (doc, motivo) => conflitos.push([doc, motivo]) });
+    await backend.ler('cadastro');
+    assert.equal(await backend.gravar('cadastro', { esquema: 18 }), false);
+    assert.deepEqual(conflitos, [['cadastro', { formato: true }]]);
   });
 
   it('erro de rede: avisa e a próxima alteração tenta de novo', async () => {

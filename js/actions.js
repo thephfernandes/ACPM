@@ -3,7 +3,7 @@ import { isoMenosDias, fimDoMes, rotuloDaData, hojeISO, LIMITE_DO_NOME } from '.
 import { runAllocationEngine } from './engine.js';
 import { ApiClient } from './storage.js';
 import { S, RES, AUDIT_LOG, BI_HISTORY, DATA, setS, setRES, setAuditLog, setBIHistory, setData, isGestor } from './state.js';
-import { $ } from './dom.js';
+import { $, mostrarAviso } from './dom.js';
 import { rBI } from './views/bi.js';
 import { renderAuditPanel, rOut } from './views/escala.js';
 import { rDem } from './views/demanda.js';
@@ -51,6 +51,16 @@ export function setRole(role, lockShared = false) {
   // Agenda: quem pode registrar pedidos (operadores e secretaria; no modo local, fora do perfil Gestor)
   document.body.dataset.agenda = podeEditarAgenda() ? 'edita' : 'consulta';
   atualizarSeloDaAgenda();
+}
+
+// Depois de um conflito nada mais é gravado (revisão de 14/11): a tela fica só para consulta até recarregar, com o aviso
+export function travarAposConflito({ formato = false } = {}) {
+  setRole('gestor', true);
+  rRec(); rIns(); rAlu(); rDem();
+  if (RES) rOut();
+  mostrarAviso('conflito', formato
+    ? 'O app foi atualizado. Recarregue a página para continuar (a sua última alteração não foi salva).'
+    : 'Outra pessoa alterou a escala enquanto você editava. A tela ficou só para consulta: recarregue para ver a versão atual e continuar (a sua última alteração não foi salva).');
 }
 
 // A escala acompanha os dados: cada alteração do operador refaz a escala da data (o motor leva milissegundos) e
