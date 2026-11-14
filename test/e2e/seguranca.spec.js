@@ -16,6 +16,7 @@ const XS = "x' onmouseover='window.__xss=1' data-x='";
 const nada = async page => {
   expect(await page.evaluate(() => window.__xss), 'nenhum script injetado rodou').toBeUndefined();
   expect(await page.locator('[onerror],[onload],[onmouseover]').count(), 'nenhum atributo de evento injetado').toBe(0);
+  expect(await page.evaluate(() => window.__csp || []), 'nada bloqueado pela política de segurança').toEqual([]);
 };
 
 // O cadastro, os dias (hoje, para a TV, e amanhã, a data que abre) e o histórico, no formato atual, com o dia de amanhã
@@ -51,6 +52,11 @@ function documentos(mudar) {
 }
 
 async function abrirCom(page, docs, url = './') {
+  // O que a política de segurança de conteúdo bloquear fica registrado
+  await page.addInitScript(() => {
+    window.__csp = [];
+    document.addEventListener('securitypolicyviolation', e => window.__csp.push(`${e.violatedDirective} ${e.blockedURI}`));
+  });
   await page.addInitScript(json => {
     if (localStorage.getItem('acpm4_cadastro')) return;
     for (const [chave, valor] of Object.entries(JSON.parse(json))) localStorage.setItem(chave, JSON.stringify(valor));

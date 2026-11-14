@@ -3,6 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!-- Política de segurança de conteúdo (revisão de 14/11): só os scripts e estilos abaixo e os servidores do Supabase do
+     app (js/config-supabase.js). Uma biblioteca nova, ou uma versão nova, precisa entrar aqui (test/unit/csp.test.js). -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0/; style-src 'self' https://fonts.googleapis.com 'unsafe-inline'; style-src-elem 'self' https://fonts.googleapis.com; style-src-attr 'unsafe-inline'; font-src https://fonts.gstatic.com; img-src 'self'; connect-src 'self' https://iszaomkinojwxymyglmh.supabase.co https://llylkdgfuagzdaualvqa.supabase.co https://acpm-teste.supabase.invalid; object-src 'none'; base-uri 'self'; form-action 'self'">
 <title>Painel - AutoEscala - ACPM</title>
 <meta name="application-name" content="AutoEscala - ACPM">
 <meta name="description" content="Painel de partidas e chegadas do Aeroclube de Pará de Minas, para a TV da recepção.">
