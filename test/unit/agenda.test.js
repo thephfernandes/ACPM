@@ -64,8 +64,9 @@ describe('Importar as solicitações da agenda para a demanda', () => {
     const e = estado();
     importarSolicitacoes(e, [pedido(2, 1001)]);
     assert.equal(e.stu[1].mis, 'IFR', 'a missão que ele já tinha continua');
-    assert.deepEqual(e.stu[1].extra.map(x => [x.mid, x.mis, x.jan]), [[2000, 'Voo Local', 'tarde']]);
-    assert.equal(e.nid, 2001);
+    // A missão extra é numerada no aluno (revisão de 14/11): o número do cadastro (nid) não muda
+    assert.deepEqual(e.stu[1].extra.map(x => [x.mid, x.mis, x.jan]), [[1, 'Voo Local', 'tarde']]);
+    assert.equal(e.nid, 2000);
   });
 
   it('aluno já voando a mesma missão: só atualiza a disponibilidade (sem duplicar)', () => {

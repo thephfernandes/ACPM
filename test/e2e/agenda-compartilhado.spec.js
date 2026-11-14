@@ -69,4 +69,25 @@ test.describe('Agenda de Solicitações (modo compartilhado)', () => {
     await expect(page.locator('#form-agenda')).toBeHidden();
     await expect(page.locator('#agenda-lista [data-act="cancelar-pedido"]')).toBeHidden();
   });
+
+  // Revisão de 14/11: a importação que termina depois de trocar de data não grava nada na data nova
+  test('trocar de data durante a importação da agenda cancela a importação', async ({ page, context }) => {
+    const servidor = await instalarSupabaseFalso(context, documentosAtuais({ ...estadoSintetico(), stu: [aluno(1000, { fly: false })] }, AMANHA));
+    servidor.solicitacoes.push({
+      id: 1, data: AMANHA, aluno: 1000, aluno_nome: 'Aluno 1000', missao: 'Voo Local', janela: 'tarde', horario: null, observacao: null,
+      registrado_por: 'Secretaria', registrado_em: '2026-11-10T12:00:00.000Z', excecao: false, cancelada_em: null, cancelada_por: null
+    });
+    await entrar(page, CONTAS.operador);
+    await page.locator('#nav button[data-t="dem"]').click();
+    const liberar = servidor.segurar('/rest/v1/solicitacoes');
+    await page.locator('#importar-agenda').click();
+    await page.locator('#dt-prox').click();
+    // A data nova já aberta (o rótulo muda depois de carregar)
+    await expect(page.locator('#dt-rotulo')).toContainText('12/11');
+    liberar();
+    await expect(page.locator('#toast-box')).toContainText('A data mudou durante a importação da agenda: nada foi importado.');
+    const dia = servidor.dias.get('2026-11-12');
+    expect(dia && dia.conteudo.pedidos[1000] && dia.conteudo.pedidos[1000].fly).toBeFalsy();
+    expect(servidor.dias.get(AMANHA).conteudo.pedidos[1000].fly).toBe(false);
+  });
 });

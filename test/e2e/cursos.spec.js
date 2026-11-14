@@ -164,4 +164,22 @@ test.describe('Cursos no servidor (modo compartilhado)', () => {
     expect(gestor.erros).toEqual([]);
     await gestor.contexto.close();
   });
+
+  // Revisão de 14/11: a resposta que chega depois de trocar de data não vai para a data nova
+  test('o resultado registrado antes de trocar de data fica no histórico da data do voo', async ({ browser }) => {
+    const estado = { ...cenario({ ins: [instrutor(1, 9)], stu: [aluno(1000, { p1: 500, p2: -1, etapa: 'PP-01' }, { curso: 'PP' })] }), cursos: PROGRAMA };
+    const servidor = criarSupabaseFalso(documentosAtuais(estado, AMANHA));
+    const operador = await entrar(browser, servidor, CONTAS.operador);
+    await abrirEscala(operador.page);
+    const liberar = servidor.segurar('/rpc/registrar_resultado');
+    await operador.page.locator('#out tbody tr:not(.win)', { hasText: 'Aluno 1000' }).locator('[data-resultado]').selectOption('aprovado');
+    await operador.page.locator('#dt-prox').click();
+    // A data nova já aberta (o rótulo muda depois de carregar)
+    await expect(operador.page.locator('#dt-rotulo')).toContainText('12/11');
+    liberar();
+    await expect.poll(() => servidor.historico.filter(h => h.descricao.startsWith('Resultado de')).map(h => h.data)).toEqual([AMANHA]);
+    expect(servidor.resultados.map(r => r.data)).toEqual([AMANHA]);
+    expect(operador.erros).toEqual([]);
+    await operador.contexto.close();
+  });
 });

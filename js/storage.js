@@ -3,7 +3,7 @@
 import { WIN, DEFAULT_LIM } from './config.js';
 import { FROTA_INICIAL, normalizarFrota } from './frota.js';
 import { pad, LIMITE_DO_NOME } from './format.js';
-import { normalizeMissionFields } from './rules.js';
+import { normalizeMissionFields, proximoMid } from './rules.js';
 import { HORARIOS_INICIAIS, normalizarHorarios } from './horarios.js';
 import { backendLocal, CHAVES_LOCAIS, CHAVE_LEGADA } from './backends/local.js';
 import { separar, juntar, diaPadrao, diaParaCopiar, converterLegado, biDosDias } from './dias.js';
@@ -150,7 +150,7 @@ export const ApiClient = {
       normalizeMissionFields(s);
       if (!Array.isArray(s.extra)) s.extra = [];
       s.extra.forEach(ex => {
-        if (!Number.isInteger(ex.mid) || ex.mid <= 0) ex.mid = x.nid++;
+        if (!Number.isInteger(ex.mid) || ex.mid <= 0) ex.mid = proximoMid(x, s);
         normalizeMissionFields(ex);
       });
     });

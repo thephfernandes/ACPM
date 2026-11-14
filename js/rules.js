@@ -48,6 +48,17 @@ export function doesGroundGateFlight(gMis, flightReq) {
   return false;
 }
 
+// O número da próxima missão extra de um aluno (revisão de 14/11): depois das missões dele e do que o dia ainda guarda
+// para ele (voo fixo, status ou detalhe de uma missão retirada), para não herdar o voo de outra missão. Numerada no
+// aluno, a missão extra não muda o cadastro (o número do cadastro, nid, fica para as pessoas novas)
+export function proximoMid(estado, aluno) {
+  const prefixo = `${aluno.id}_`;
+  const doDia = [estado.fixos, estado.fStatus, estado.fObs].flatMap(m => Object.keys(m && typeof m === 'object' ? m : {}))
+    .filter(fKey => fKey.startsWith(prefixo)).map(fKey => Number(fKey.split('_')[1]));
+  const doAluno = (aluno.extra || []).map(ex => ex.mid).filter(Number.isInteger);
+  return Math.max(0, ...doAluno, ...doDia.filter(Number.isInteger)) + 1;
+}
+
 export const blank = () => ({ fly: false, mis: 'Voo Local', eq: 'C152', p1: T[1], p2: T[2], nb: 1, ss: 1, pr: 3 });
 
 export function migrateLegacyMissionName(mis) {

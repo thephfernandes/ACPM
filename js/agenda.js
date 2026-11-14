@@ -1,7 +1,7 @@
 // Agenda de solicitações da secretaria: a regra do prazo (a mesma do servidor, no horário de São Paulo) e o pedido
 // da demanda que cada solicitação vira ao ser importada.
 import { MIS } from './config.js';
-import { disponibilidadeAtual, disponibilidadeDoAluno, normalizeMissionFields } from './rules.js';
+import { disponibilidadeAtual, disponibilidadeDoAluno, normalizeMissionFields, proximoMid } from './rules.js';
 import { horariosDaMissao, preferenciasPadrao, paraMinuto } from './horarios.js';
 import { normalizarCursos } from './cursos.js';
 import { situacaoPorMissao, proximaMissao } from './resultados.js';
@@ -87,7 +87,7 @@ export function importarSolicitacoes(estado, solicitacoes, { situacao = [] } = {
       Object.assign(aluno, pedido);
       resumo.novos++;
     } else {
-      aluno.extra = [...(aluno.extra || []), { mid: estado.nid++, ...pedido }];
+      aluno.extra = [...(aluno.extra || []), { mid: proximoMid(estado, aluno), ...pedido }];
       resumo.novos++;
     }
   }

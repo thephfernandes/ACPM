@@ -2,7 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   isGroundMission, doesGroundGateFlight, migrateLegacyMissionName, normalizeMissionFields, blank, disponibilidadeDoAluno, disponibilidadeAtual,
-  rotuloDaDisponibilidade, opcoesDeDisponibilidade
+  rotuloDaDisponibilidade, opcoesDeDisponibilidade, proximoMid
 } from '../../js/rules.js';
 import { podeFazer, descreverExigencias } from '../../js/habilitacoes.js';
 
@@ -86,5 +86,21 @@ describe('Regras de missão', () => {
     const a = blank();
     assert.deepEqual(a, { fly: false, mis: 'Voo Local', eq: 'C152', p1: 500, p2: 610, nb: 1, ss: 1, pr: 3 });
     assert.notEqual(blank(), a);
+  });
+});
+
+// Revisão de 14/11: a missão extra é numerada no aluno, e não pelo número do cadastro (que fica no documento de todas
+// as datas: cada missão extra regravava o cadastro, e duas pessoas em datas diferentes recebiam conflito)
+describe('Número da missão extra', () => {
+  it('o próximo depois das missões do aluno e do que o dia ainda guarda (voo fixo, status ou detalhe de uma missão retirada)', () => {
+    const estado = { nid: 5000, stu: [{ id: 1000, extra: [] }, { id: 1001, extra: [{ mid: 1003 }, { mid: 7 }] }], fixos: {}, fStatus: {}, fObs: {} };
+    assert.equal(proximoMid(estado, estado.stu[0]), 1);
+    assert.equal(proximoMid(estado, estado.stu[1]), 1004);
+    estado.fixos = { '1000_4_1': { a: 390 } };
+    estado.fStatus = { '1000_9_1': 'Cancelado', '1001_2000_1': 'Atrasado' };
+    estado.fObs = { '1000_12_1': { motivo: 'Outro' } };
+    assert.equal(proximoMid(estado, estado.stu[0]), 13, 'não reaproveita o número de uma missão retirada que o dia ainda guarda');
+    assert.equal(proximoMid(estado, estado.stu[1]), 2001);
+    assert.equal(estado.nid, 5000, 'o número do cadastro não muda');
   });
 });

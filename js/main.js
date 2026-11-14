@@ -17,7 +17,7 @@ import { WIN, NI, T, GROUND_EQ_TYPE, GROUND_REG, GROUND_DURATION_MIN, GROUND_DUR
 import { novoRecurso, matriculasDoTipo } from './frota.js';
 import { HORARIOS_PADRAO, DE_30_EM_30, horariosDaMissao, ajustarPreferencias, paraMinuto } from './horarios.js';
 import { hm, fmtH, fmtDurLabel, pad, amanhaISO, isoMenosDias, nomeLimpo, dataIsoValida } from './format.js';
-import { isGroundMission, blank, rotuloDaDisponibilidade, normalizeMissionFields } from './rules.js';
+import { isGroundMission, blank, rotuloDaDisponibilidade, normalizeMissionFields, proximoMid } from './rules.js';
 import { habilitacoesDoNivel, normalizarHabilitacoes, nomeDaHabilitacao, podeFazer } from './habilitacoes.js';
 import { ApiClient } from './storage.js';
 import { S, RES, AUDIT_LOG, DATA, setS, setRES, setAuditLog, setTLMode, isGestor, insBy, stuBy, getMissionTarget } from './state.js';
@@ -534,11 +534,17 @@ document.addEventListener('click', e => {
 // pedido de novo)
 async function importarDaAgenda() {
   if (isGestor()) return;
+  const data = DATA;
   let solicitacoes;
   try {
-    solicitacoes = await ApiClient.agenda(DATA, DATA);
+    solicitacoes = await ApiClient.agenda(data, data);
   } catch (e) {
     showToast('Não foi possível ler a agenda. Verifique a conexão e tente de novo.');
+    return;
+  }
+  // A resposta chegou depois de trocar de data: os pedidos são de outra data (revisão de 14/11)
+  if (DATA !== data) {
+    showToast('A data mudou durante a importação da agenda: nada foi importado. Importe de novo na data certa.');
     return;
   }
   const pendentes = solicitacoes.filter(s => !s.cancelada_em && !S.importadas.includes(s.id));
@@ -637,7 +643,7 @@ document.addEventListener('click', e => {
     if (!s) return;
     if (!Array.isArray(s.extra)) s.extra = [];
     const newEx = {
-      mid: S.nid++,
+      mid: proximoMid(S, s),
       fly: true,
       mis: 'Voo Local',
       eq: 'C152',
@@ -964,8 +970,13 @@ document.addEventListener('change', async e => {
     const novo = { id, ...registro, registrado_em: new Date().toISOString(), registrado_por: ApiClient.autorAtual || null };
     const atual = S.resultados || { situacao: [], doDia: [] };
     const mesmaMissao = r => r.aluno === novo.aluno && r.curso === novo.curso && r.missao === novo.missao;
-    S.resultados = { situacao: [...atual.situacao.filter(r => !mesmaMissao(r)), novo], doDia: [...atual.doDia, novo] };
-    logChange('mod', `Resultado de ${o.s} em ${o.etapa}: ${sel.value}`);
+    // A situação de cada missão vale para todas as datas; os registros do dia e o histórico, só para a data do voo (a
+    // resposta pode chegar depois de trocar de data: revisão de 14/11)
+    const mesmaData = DATA === registro.data;
+    S.resultados = { situacao: [...atual.situacao.filter(r => !mesmaMissao(r)), novo], doDia: mesmaData ? [...atual.doDia, novo] : atual.doDia };
+    const descricao = `Resultado de ${o.s} em ${o.etapa}: ${registro.resultado}`;
+    if (mesmaData) logChange('mod', descricao);
+    else ApiClient.registrarHistorico(registro.data, { tipo: 'mod', descricao });
   } catch (err) {
     showToast('Não foi possível registrar o resultado. Verifique a conexão e tente de novo.');
   }

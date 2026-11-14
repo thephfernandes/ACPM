@@ -129,6 +129,23 @@ test.describe('Modo compartilhado: gravação, conflitos e link da escala', () =
   });
 
   // Revisão de 14/11: sem conexão, as alterações esperam e são gravadas sozinhas
+  test('uma missão extra grava só o dia (o cadastro, de todas as datas, não muda)', async ({ browser }) => {
+    const contexto = await novoContexto(browser);
+    const estado = estadoSintetico();
+    const servidor = await instalarSupabaseFalso(contexto, documentosAtuais({ ...estado, stu: comExemplo(estado).stu.slice(0, 3) }, AMANHA));
+    const page = await contexto.newPage();
+    const erros = vigiarErros(page);
+    await entrar(page, CONTAS.operador);
+    const versaoDoCadastro = servidor.banco.get('cadastro').versao;
+    await irPara(page, 'dem');
+    await page.locator('#dem [data-act="add-mis"]').first().click();
+    await expect.poll(() => servidor.gravacoes.filter(g => g.chave === `dia:${AMANHA}`).length).toBe(1);
+    expect(servidor.banco.get('cadastro').versao).toBe(versaoDoCadastro);
+    expect(servidor.dias.get(AMANHA).conteudo.pedidos).toBeTruthy();
+    expect(erros).toEqual([]);
+    await contexto.close();
+  });
+
   // Revisão de 14/11: a sessão que expira não perde a alteração nem vira "sem conexão"
   test('sessão expirada: o app pede a senha de novo, sem perder a alteração, e grava depois do login', async ({ browser }) => {
     const contexto = await novoContexto(browser);
