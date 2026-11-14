@@ -77,6 +77,80 @@ describe('Voos fixos', () => {
   });
 });
 
+// Revisão de 14/11: o voo fixo é conferido de novo a cada cálculo, com as mesmas regras do motor. O que não vale mais
+// vira conflito, com o texto e o código (o código decide as sugestões de reparo)
+describe('Voos fixos conferidos de novo', () => {
+  const VOO = { a: 390, b: 450, r: 'PR-VOB', insId: 1 };
+  const fixado = (pedido = {}, extra = {}, pinoDoVoo = VOO) => ({
+    ...cenario({ ins: [instrutor(1, 9)], stu: [aluno(1000, { p1: 390, p2: -1, ...pedido })] }),
+    fixos: { '1000_0_1': pinoDoVoo }, ...extra
+  });
+  const conflitoDe = estado => {
+    const [voo] = runAllocationEngine(estado).out;
+    return { conflito: voo.conflito, codigos: voo.conflitoCodigos };
+  };
+
+  it('o voo fixo que continua valendo fica sem conflito', () => {
+    assert.deepEqual(conflitoDe(fixado()), { conflito: undefined, codigos: undefined });
+  });
+
+  it('Parafuso fora do avião "Só Parafuso", e outra missão nele', () => {
+    assert.deepEqual(conflitoDe(fixado({ mis: 'Parafuso' })),
+      { conflito: ['o Parafuso só voa no PR-JPL'], codigos: ['so-parafuso'] });
+    assert.deepEqual(conflitoDe(fixado({}, {}, { ...VOO, r: 'PR-JPL' })),
+      { conflito: ['o PR-JPL é só para o Parafuso'], codigos: ['so-parafuso'] });
+  });
+
+  it('peso do aluno e do instrutor acima do limite, mesmo com o mínimo de combustível', () => {
+    assert.deepEqual(conflitoDe(fixado({}, { stu: [aluno(1000, { p1: 390, p2: -1 }, { kg: 160 })] })),
+      { conflito: ['o peso do aluno e do instrutor passa do limite do avião, mesmo com o mínimo de combustível'], codigos: ['peso'] });
+  });
+
+  it('o avião passaria da revisão de 50 horas', () => {
+    assert.deepEqual(conflitoDe(fixado({}, { horas: { 'PR-VOB': 49.5 } })),
+      { conflito: ['o avião passaria da revisão de 50 horas'], codigos: ['revisao'] });
+  });
+
+  it('o instrutor passaria dos limites da lei (o repouso depois de ontem)', () => {
+    const horasDosInstrutores = { 1: { mes: 0, semestre: 0, ano: 0, fimAnterior: 1410 } };
+    assert.deepEqual(conflitoDe(fixado({}, { horasDosInstrutores })),
+      { conflito: ['o instrutor passaria do limite da lei (repouso)'], codigos: ['limite-da-lei'] });
+  });
+
+  it('o aluno não voa com o instrutor', () => {
+    assert.deepEqual(conflitoDe(fixado({}, { stu: [aluno(1000, { p1: 390, p2: -1 }, { bl: [1] })] })),
+      { conflito: ['o aluno não voa com este instrutor'], codigos: ['bloqueio'] });
+  });
+
+  it('o período fechado nesta data e fora da disponibilidade do aluno', () => {
+    const fechado = fixado();
+    fechado.win = fechado.win.map((v, w) => (w === 0 ? false : v));
+    assert.deepEqual(conflitoDe(fechado), { conflito: ['o horário está fechado nesta data'], codigos: ['horario-fechado'] });
+    assert.deepEqual(conflitoDe(fixado({ jan: 'tarde' })),
+      { conflito: ['o horário está fora da disponibilidade do aluno'], codigos: ['disponibilidade'] });
+  });
+
+  it('a duração do pedido mudou', () => {
+    assert.deepEqual(conflitoDe(fixado({ nb: 2 })), { conflito: ['a duração do pedido mudou'], codigos: ['duracao'] });
+  });
+
+  it('o pedido passou de voo para Ground, e de Ground para voo', () => {
+    assert.deepEqual(conflitoDe(fixado(GROUND_C152)), { conflito: ['o pedido passou de voo para Ground'], codigos: ['ground-ou-voo'] });
+    const turma = { a: 390, b: 480, r: 'SALA-GROUND', insId: 1, classKey: 'GND_Ground C152_0_1' };
+    assert.deepEqual(conflitoDe(fixado({}, {}, turma)), { conflito: ['o pedido passou de Ground para voo'], codigos: ['ground-ou-voo'] });
+  });
+
+  it('os conflitos de antes ganham código', () => {
+    assert.deepEqual(conflitoDe(fixado({}, { ins: [{ ...instrutor(1, 9), on: false }] })),
+      { conflito: ['o instrutor não está disponível'], codigos: ['instrutor-indisponivel'] });
+    assert.deepEqual(conflitoDe(fixado({ eq: 'C172' })), { conflito: ['a missão ou o avião do pedido mudou'], codigos: ['tipo-de-aviao'] });
+  });
+
+  it('o voo fixo cancelado não é conferido', () => {
+    assert.deepEqual(conflitoDe(fixado({ nb: 2 }, { fStatus: { '1000_0_1': 'Cancelado' } })), { conflito: undefined, codigos: undefined });
+  });
+});
+
 describe('Voos fixos: em 100 dias gerados', async () => {
   const { gerarCenario } = await import('../helpers/cenarios.js');
 

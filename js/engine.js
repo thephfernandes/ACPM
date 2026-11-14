@@ -9,7 +9,8 @@ import { podeFazer, descreverExigencias } from './habilitacoes.js';
 import { categoriaDoRodizio, ajustarFilas } from './rodizio.js';
 import { avisosDeAtraso } from './status.js';
 import { sobrepoe, livre, cobre, pesoCabe, cabeNoSaldo } from './viabilidade.js';
-import { reducaoNecessaria, combustivelDoVoo } from './combustivel.js';
+import { reducaoNecessaria, combustivelDoVoo, pesoECombustivel } from './combustivel.js';
+import { LIMITE_DO_MOTIVO } from './conflitos.js';
 import { normalizarHangar, posicaoNoHangar } from './hangar.js';
 import { normalizarLimites, dentroDosLimites } from './limites.js';
 import { compactar, custoDaEscala } from './compactar.js';
@@ -114,6 +115,14 @@ function manterInstrutorNoMesmoAviao(out, state, saldo, frota, posicao) {
       }
     }
   }
+}
+
+// A duração (em minutos) da sessão j de K de um pedido: o Ground tem 01h30; o voo, as horas do pedido divididas entre
+// as sessões (as primeiras ficam com a hora que sobra)
+function duracaoDaSessao(d, ground, j, K) {
+  if (ground) return GROUND_DURATION_MIN;
+  const H = Math.max(1, Math.round(+d.nb || 1));
+  return (Math.floor(H / K) + (j < H % K ? 1 : 0)) * 60;
 }
 
 // Comparação de chaves de ordenação: a primeira posição diferente decide
@@ -313,21 +322,42 @@ export function runAllocationEngine(state, opcoes = {}) {
       const status = (state.fStatus && state.fStatus[fKey]) || 'Confirmado';
       const tipo = ground ? GROUND_EQ_TYPE : d.eq;
       const daMesmaTurma = ground && out.some(o => o.classKey === classKey && o.stuId !== stuId);
-      const conflito = [];
+      // Conferido de novo com as regras do motor (revisão de 14/11): cada conflito com o texto e o código
+      const conflito = [], conflitoCodigos = [];
+      const marcar = (codigo, texto) => { conflito.push(texto); conflitoCodigos.push(codigo); };
+      // Pedido que passou de voo para Ground (ou o contrário): o pino é de outro tipo de recurso
+      const mudouDeTipo = ground !== (r === GROUND_REG);
       if (status !== 'Cancelado') {
-        if (!x) conflito.push('o instrutor saiu do cadastro');
+        if (!x) marcar('instrutor-saiu', 'o instrutor saiu do cadastro');
         else {
-          if (!x.on || !cobre(x.aw, a, b)) conflito.push('o instrutor não está disponível');
-          if (!podeFazer(x, d.mis, tipo)) conflito.push('o instrutor não tem a habilitação da missão');
-          if (!daMesmaTurma && !free(busy, x.id, a, b)) conflito.push('o instrutor já tem outro compromisso neste horário');
+          if (!x.on || !cobre(x.aw, a, b)) marcar('instrutor-indisponivel', 'o instrutor não está disponível');
+          if (!podeFazer(x, d.mis, tipo)) marcar('habilitacao', 'o instrutor não tem a habilitação da missão');
+          if (!daMesmaTurma && !free(busy, x.id, a, b)) marcar('instrutor-ocupado', 'o instrutor já tem outro compromisso neste horário');
+          if ((stu.bl || []).includes(x.id)) marcar('bloqueio', 'o aluno não voa com este instrutor');
+          if (!daMesmaTurma) {
+            const lei = dentroDosLimites({ compromissos: compromissos[x.id] || [], novo: { a, b, voo: AIRCRAFT_EQ_TYPES.includes(tipo) }, historico: historico(x.id), limites });
+            if (!lei.ok) marcar('limite-da-lei', `o instrutor passaria do limite da lei (${LIMITE_DO_MOTIVO[lei.motivo] || lei.motivo})`);
+          }
+          if (!ground && !mudouDeTipo && !pesoECombustivel({ stuKg: stu.kg, insKg: x.kg, tipo: d.eq, minutos: b - a, mis: d.mis }).cabe) {
+            marcar('peso', 'o peso do aluno e do instrutor passa do limite do avião, mesmo com o mínimo de combustível');
+          }
         }
-        if (!ground) {
+        if (mudouDeTipo) marcar('ground-ou-voo', ground ? 'o pedido passou de voo para Ground' : 'o pedido passou de Ground para voo');
+        else if (!ground) {
           const recurso = frota.find(f => f.reg === r);
-          if (!recurso || recurso.tipo !== d.eq) conflito.push('a missão ou o avião do pedido mudou');
-          else if (!state.av[r]) conflito.push('o avião está indisponível');
-          if (!free(used, r, a, b)) conflito.push('o avião já está ocupado neste horário');
-        } else if (!daMesmaTurma && !free(used, GROUND_REG, a, b)) conflito.push('a sala de Ground já está ocupada neste horário');
-        if (!free(stuBusy, stuId, a, b)) conflito.push('o aluno já tem outro voo neste horário');
+          if (!recurso || recurso.tipo !== d.eq) marcar('tipo-de-aviao', 'a missão ou o avião do pedido mudou');
+          else if (!state.av[r]) marcar('aviao-indisponivel', 'o avião está indisponível');
+          if (!free(used, r, a, b)) marcar('aviao-ocupado', 'o avião já está ocupado neste horário');
+          if (recurso && recurso.tipo === d.eq && d.eq === 'C152' && Boolean(recurso.soParafuso) !== (d.mis === 'Parafuso')) {
+            marcar('so-parafuso', d.mis === 'Parafuso' ? `o Parafuso só voa no ${nomesSoParafuso}` : `o ${r} é só para o Parafuso`);
+          }
+          if (!cabeNoSaldo(eu[r] || 0, (b - a) / 60, saldo(r))) marcar('revisao', 'o avião passaria da revisão de 50 horas');
+        } else if (!daMesmaTurma && !free(used, GROUND_REG, a, b)) marcar('sala-ocupada', 'a sala de Ground já está ocupada neste horário');
+        if (!free(stuBusy, stuId, a, b)) marcar('aluno-ocupado', 'o aluno já tem outro voo neste horário');
+        if (!state.win[periodoDoMinuto(a)]) marcar('horario-fechado', 'o horário está fechado nesta data');
+        const permitidas = disponibilidadeDoAluno(d.jan);
+        if (permitidas && !permitidas(a)) marcar('disponibilidade', 'o horário está fora da disponibilidade do aluno');
+        if (!mudouDeTipo && b - a !== duracaoDaSessao(d, ground, j, chaves.length)) marcar('duracao', 'a duração do pedido mudou');
         // Ocupa o avião (ou a sala), o instrutor e o aluno; a turma ocupa a sala e o instrutor uma vez só
         const h = ground ? GROUND_DURATION_H : (b - a) / 60;
         if (!daMesmaTurma) {
@@ -370,7 +400,7 @@ export function runAllocationEngine(state, opcoes = {}) {
         stuKg: stu.kg || 0, insKg: (x && x.kg) || 0, limKg: lim, kg: stu.kg && x && x.kg ? stu.kg + x.kg : 0,
         ...(ground || !x ? {} : combustivelDoVoo(stu.kg, x.kg, d.eq, b - a, d.mis)),
         baseTag, tag: baseTag, status, fixo: true,
-        ...(conflito.length ? { conflito } : {})
+        ...(conflito.length ? { conflito, conflitoCodigos } : {})
       });
       if (conflito.length) al.push({ t: 'conf', s: mid ? `${stu.nm} (${d.mis})` : stu.nm, fKey, m: `Conflito na escala aprovada: ${conflito.join('; ')}.` });
     }

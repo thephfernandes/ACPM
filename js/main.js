@@ -984,8 +984,8 @@ document.addEventListener('change', async e => {
 });
 
 // Sugestões para um conflito (fase 12): a gaveta abre pelo botão do conflito. "Aplicar" muda o voo fixo (na turma de
-// Ground, a turma inteira) e o histórico guarda os fixos de antes, para reverter; cancelar abre o diálogo do status, já
-// com o motivo do conflito marcado
+// Ground, a turma inteira) e "Soltar" o tira dos fixos; o histórico guarda os fixos de antes, para reverter. Cancelar
+// abre o diálogo do status, já com o motivo do conflito marcado
 document.addEventListener('click', e => {
   const abrirSugestoes = e.target.closest('[data-reparo]');
   if (abrirSugestoes) { if (!isGestor()) abrirPainelDeReparo(abrirSugestoes.dataset.reparo); return; }
@@ -996,18 +996,19 @@ document.addEventListener('click', e => {
   if (!escolha) return;
   const { fKey, voo, opcao } = escolha;
   fecharPainelDeReparo();
-  if (!opcao.mudancas) {
+  if (!opcao.mudancas && !opcao.soltar) {
     pedirDetalheDoStatus({ voo, status: 'Cancelado', detalhe: opcao.motivo ? { motivo: opcao.motivo } : null, aoConfirmar: detalhe => aplicarStatus(fKey, 'Cancelado', detalhe) });
     return;
   }
   const antes = S.fixos || {};
   S.fixos = aplicarReparo(antes, RES, fKey, opcao);
-  const mudados = Object.keys(S.fixos).filter(k => S.fixos[k] !== antes[k]);
+  // Os voos que mudaram ou saíram dos fixos (soltar): o histórico guarda como estavam
+  const mudados = Object.keys(antes).filter(k => S.fixos[k] !== antes[k]);
   save();
-  logChange('mod', `Reparo: ${voo.s} (${hm(voo.a)}–${hm(voo.b)}): ${opcao.texto}`, {
+  logChange('mod', `Reparo: ${voo.s} (${hm(voo.a)}–${hm(voo.b)}): ${opcao.soltar ? 'Soltar o voo' : opcao.texto}`, {
     kind: 'restaurarFixos', fixos: Object.fromEntries(mudados.map(k => [k, antes[k]])), label: '↶ Reverter'
   });
-  showToast('Sugestão aplicada: o voo continua fixo.', 'ok');
+  showToast(opcao.soltar ? 'Voo solto: o app escalou de novo.' : 'Sugestão aplicada: o voo continua fixo.', 'ok');
 });
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape' && painelDeReparoAberto() && !dialogoDeStatusAberto()) fecharPainelDeReparo(true);

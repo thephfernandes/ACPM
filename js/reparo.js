@@ -2,8 +2,9 @@
 // ficou impossível. No mesmo horário: outro avião do mesmo tipo (um que já saiu, com a menor folga, e depois o da
 // frente do hangar), outro instrutor (habilitado, disponível, livre, sem bloqueio do aluno, dentro do peso e da lei; o
 // tanque cheio primeiro, depois quem tem menos horas no dia e menos habilitações) ou os dois. Sem nada no mesmo horário,
-// o primeiro horário mais tarde no mesmo dia, dentro da disponibilidade do aluno. Por último, cancelar. Cada sugestão é
-// uma mudança no voo fixo; na turma de Ground, em todos os alunos dela.
+// o primeiro horário mais tarde no mesmo dia, dentro da disponibilidade do aluno. Depois, soltar o voo (o motor o escala
+// de novo; quando o pedido mudou, é a única sugestão) e, por último, cancelar. Cada sugestão é uma mudança no voo fixo;
+// na turma de Ground, em todos os alunos dela.
 import { AIRCRAFT_EQ_TYPES, GROUND_EQ_TYPE, GROUND_REG, REVISAO_H, T, NI } from './config.js';
 import { FROTA_INICIAL, matriculasDoTipo } from './frota.js';
 import { podeFazer } from './habilitacoes.js';
@@ -15,6 +16,7 @@ import { HORARIOS_INICIAIS, horariosDaMissao, periodoDoMinuto } from './horarios
 import { disponibilidadeDoAluno, doesGroundGateFlight } from './rules.js';
 import { nomeDoRecurso } from './categorias.js';
 import { hm } from './format.js';
+import { gruposDoConflito } from './conflitos.js';
 
 const menorPrimeiro = (a, b) => (a === b ? 0 : a - b);
 // Os voos uma vez cada (a turma de Ground tem um item por aluno)
@@ -65,14 +67,18 @@ export function sugerirReparos(estado, resultado, fKey, { maximo = 3, depoisDe =
       || (p.hab || []).length - (q.hab || []).length || p.id - q.id);
   const comCombustivel = (texto, x, a, b) => { const gal = reducao(x, a, b); return gal > 0 ? `${texto} · reduzir ${gal} gal` : texto; };
 
-  const problemaNoAviao = voo.conflito.some(c => /avião|sala/.test(c));
-  const problemaNoInstrutor = voo.conflito.some(c => /instrutor/.test(c));
-  const problemaNoAluno = voo.conflito.some(c => /aluno/.test(c));
+  // O que o conflito pede, pelo código (revisão de 14/11): o pedido mudou (só soltar), o horário não serve (outro
+  // horário), ou o avião e o instrutor
+  const grupos = gruposDoConflito(voo);
+  const pedidoMudou = grupos.has('pedido');
+  const problemaNoAviao = grupos.has('aviao');
+  const problemaNoInstrutor = grupos.has('instrutor');
+  const problemaNoAluno = grupos.has('horario');
   const atual = estado.ins.find(x => x.id === voo.insId);
   const opcoes = [];
 
   // No mesmo horário
-  if (!problemaNoAluno) {
+  if (!problemaNoAluno && !pedidoMudou) {
     const { a, b } = voo;
     const avioes = avioesPara(a, b), instrutores = instrutoresPara(a, b);
     if (problemaNoAviao && !problemaNoInstrutor) avioes.forEach(r => opcoes.push({ tipo: 'aviao', texto: `Trocar o avião: ${nomeDoRecurso(r)}`, mudancas: { r } }));
@@ -88,7 +94,7 @@ export function sugerirReparos(estado, resultado, fKey, { maximo = 3, depoisDe =
   // Sem nada no mesmo horário: o primeiro horário mais tarde, no mesmo dia, com o avião e o instrutor de antes quando
   // eles servem. Vale a disponibilidade de cada aluno; a sessão fica antes da seguinte do mesmo pedido, e o Ground
   // termina antes dos voos que dependem dele
-  if (!opcoes.length) {
+  if (!opcoes.length && !pedidoMudou) {
     const duracao = voo.b - voo.a;
     const inicios = voo.isGround ? T.slice(0, NI) : horariosDaMissao(estado.horarios || HORARIOS_INICIAIS, voo.mis, tipo);
     const fimDoDia = voo.mis === 'Noturno' ? 1440 : T[NI];
@@ -116,7 +122,10 @@ export function sugerirReparos(estado, resultado, fKey, { maximo = 3, depoisDe =
     }
   }
 
-  return [...opcoes.slice(0, maximo), { tipo: 'cancelar', texto: 'Cancelar o voo (pede o motivo)', mudancas: null, motivo: motivoDoConflito(voo.conflito) }];
+  // Soltar: o voo deixa de ser fixo e o motor o escala de novo, em volta dos outros (não vale para o voo em andamento)
+  const emAndamento = grupo.some(v => ['Em Voo', 'Atrasado'].includes(statusDe(v)));
+  const soltar = emAndamento ? [] : [{ tipo: 'soltar', texto: 'Soltar o voo: o app escolhe de novo o horário, o avião e o instrutor', mudancas: null, soltar: true }];
+  return [...opcoes.slice(0, maximo), ...soltar, { tipo: 'cancelar', texto: 'Cancelar o voo (pede o motivo)', mudancas: null, motivo: motivoDoConflito(voo.conflito) }];
 }
 
 // O motivo de cancelamento que o conflito sugere (o diálogo do status já abre com ele marcado)
@@ -126,10 +135,12 @@ function motivoDoConflito(conflito) {
   return null;
 }
 
-// A sugestão aplicada nos voos fixos (devolve os fixos novos): na turma de Ground, em todos os alunos fixos dela
+// A sugestão aplicada nos voos fixos (devolve os fixos novos): na turma de Ground, em todos os alunos fixos dela. Soltar
+// tira o voo (ou a turma) dos fixos
 export function aplicarReparo(fixos, resultado, fKey, opcao) {
   const voo = resultado.out.find(o => o.fKey === fKey);
-  if (!voo || !opcao || !opcao.mudancas) return fixos;
+  if (!voo || !opcao || !(opcao.mudancas || opcao.soltar)) return fixos;
   const chaves = doGrupo(resultado, voo).map(o => o.fKey).filter(k => fixos[k]);
+  if (opcao.soltar) return Object.fromEntries(Object.entries(fixos).filter(([k]) => !chaves.includes(k)));
   return { ...fixos, ...Object.fromEntries(chaves.map(k => [k, { ...fixos[k], ...opcao.mudancas }])) };
 }

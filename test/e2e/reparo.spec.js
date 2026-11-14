@@ -69,6 +69,29 @@ test.describe('Sugestões para um conflito', () => {
     await expect(botao).toBeFocused();
   });
 
+  // Revisão de 14/11: o pedido mudou depois da aprovação (a duração); a única sugestão é soltar o voo
+  test('soltar o voo: o app escala de novo, sem o cadeado; o histórico desfaz', async ({ page }) => {
+    const estado = { ...dia(), stu: [aluno(1000, { p1: 390, p2: -1, nb: 2 })], fixos: { '1000_0_1': { a: 390, b: 450, r: 'PP-LJV', insId: 1 } }, aprovacao: { em: '2026-11-10T21:05:00.000Z', por: 'Rayane' } };
+    await abrir(page, { estado });
+    await abrirEscala(page);
+    await expect(page.locator('#out details.conflitos')).toContainText('a duração do pedido mudou');
+    await page.locator('#out details.conflitos [data-reparo]').click();
+    const opcoes = gaveta(page).locator('.opcoes-reparo li');
+    await expect(opcoes).toHaveCount(2);
+    await expect(opcoes.first()).toContainText('Soltar o voo: o app escolhe de novo o horário, o avião e o instrutor');
+    await opcoes.first().getByRole('button', { name: 'Soltar' }).click();
+    await expect(gaveta(page)).toBeHidden();
+    await expect(page.locator('#out details.conflitos')).toHaveCount(0);
+    await expect(linha(page, 'Aluno 1000').locator('.fixo')).toHaveCount(0);
+    await expect(linha(page, 'Aluno 1000').locator('.c-hr')).toContainText('06:30–08:30');
+
+    await page.locator('#btn-open-log').click();
+    await expect(page.locator('#audit-log-list')).toContainText('Reparo: Aluno 1000 (06:30–07:30): Soltar o voo');
+    await page.locator('#audit-log-list [data-act="rev-log"]').first().click();
+    await page.keyboard.press('Escape');
+    await expect(page.locator('#out details.conflitos')).toHaveCount(1);
+  });
+
   test('no Gestor, a caixa de conflitos aparece sem o botão Sugestões', async ({ page }) => {
     const estado = { ...dia(), ins: [instrutor(1, 9, { on: false }), instrutor(2, 9)], fixos: { '1000_0_1': { a: 390, b: 450, r: 'PP-LJV', insId: 1 } }, aprovacao: { em: '2026-11-10T21:05:00.000Z', por: 'Rayane' } };
     await abrir(page, { estado, url: './?role=gestor' });

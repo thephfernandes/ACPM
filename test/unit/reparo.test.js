@@ -115,6 +115,44 @@ describe('Sugestões para um conflito', () => {
     for (const o of opcoes.filter(op => op.mudancas && 'a' in op.mudancas)) assert.ok(o.mudancas.b <= segunda.a, o.texto);
   });
 
+  // Revisão de 14/11: as sugestões vêm do código do conflito, não do texto; "Soltar o voo" devolve o pedido ao motor
+  it('o pedido mudou (a duração): só soltar ou cancelar; solto, o voo volta para a escala sem conflito', () => {
+    const base = cenario({ ins: [instrutor(1, 9)], stu: [aluno(1000, { p1: 390, p2: -1 })] });
+    const { estado, resultado } = aprovadoEMudado(base, e => ({ ...e, stu: [aluno(1000, { p1: 390, p2: -1, nb: 2 })] }));
+    assert.deepEqual(resultado.out[0].conflitoCodigos, ['duracao']);
+    const opcoes = sugerirReparos(estado, resultado, '1000_0_1');
+    assert.deepEqual(opcoes.map(o => o.tipo), ['soltar', 'cancelar']);
+    assert.deepEqual(opcoes[0], { tipo: 'soltar', texto: 'Soltar o voo: o app escolhe de novo o horário, o avião e o instrutor', mudancas: null, soltar: true });
+    const solto = aplicar(estado, resultado, '1000_0_1', opcoes[0]);
+    assert.deepEqual(solto.fixos, {});
+    const [voo] = runAllocationEngine(solto).out;
+    assert.deepEqual([voo.b - voo.a, voo.fixo, voo.conflito], [120, undefined, undefined]);
+  });
+
+  it('o horário fechado nesta data: um horário mais tarde, não outro avião nem outro instrutor', () => {
+    const base = cenario({ ins: [instrutor(1, 9), instrutor(2, 9)], stu: [aluno(1000, { p1: 390, p2: -1 })] });
+    const { estado, resultado } = aprovadoEMudado(base, e => ({ ...e, win: e.win.map((v, w) => (w === 0 ? false : v)) }));
+    assert.deepEqual(resultado.out[0].conflitoCodigos, ['horario-fechado']);
+    const opcoes = sugerirReparos(estado, resultado, '1000_0_1');
+    assert.deepEqual(opcoes.map(o => o.tipo), ['horario', 'soltar', 'cancelar']);
+    const [voo] = runAllocationEngine(aplicar(estado, resultado, '1000_0_1', opcoes[0])).out;
+    assert.equal(voo.conflito, undefined);
+    assert.ok(voo.a >= 450);
+  });
+
+  it('o voo em andamento (Em Voo ou Atrasado) não é solto', () => {
+    const base = cenario({ ins: [instrutor(1, 9), instrutor(2, 9)], stu: [aluno(1000, { p1: 390, p2: -1 })] });
+    const { estado, resultado } = aprovadoEMudado(base, e => ({ ...semInstrutor(e.fixos['1000_0_1'].insId)(e), fStatus: { '1000_0_1': 'Em Voo' } }));
+    assert.ok(!sugerirReparos(estado, resultado, '1000_0_1').some(o => o.tipo === 'soltar'));
+  });
+
+  it('a escala gravada antes dos códigos: as sugestões vêm do texto, como antes', () => {
+    const base = cenario({ ins: [instrutor(1, 1), instrutor(2, 9)], stu: [aluno(1000, { p1: 390, p2: -1 })] });
+    const { estado, resultado } = aprovadoEMudado(base, semInstrutor(1));
+    const semCodigos = { ...resultado, out: resultado.out.map(({ conflitoCodigos, ...o }) => o) };
+    assert.equal(sugerirReparos(estado, semCodigos, '1000_0_1')[0].tipo, 'instrutor');
+  });
+
   it('o voo sem conflito não tem sugestões', () => {
     const base = cenario({ ins: [instrutor(1, 9)], stu: [aluno(1000, { p1: 390, p2: -1 })] });
     const { estado, resultado } = aprovadoEMudado(base, e => e);

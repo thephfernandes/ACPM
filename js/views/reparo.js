@@ -1,8 +1,9 @@
 // Gaveta das sugestões para um conflito na escala aprovada (fase 12): o voo, o motivo do conflito e o que pode voar no
-// lugar, cada sugestão com "Aplicar"; por último, cancelar o voo (pede o motivo, como no status). Na escala de hoje, só
+// lugar, cada sugestão com "Aplicar"; soltar o voo (o app escala de novo); por último, cancelar o voo (pede o motivo, como no status). Na escala de hoje, só
 // horários que ainda não passaram
 import { S, RES, DATA } from '../state.js';
 import { sugerirReparos } from '../reparo.js';
+import { GRUPO_DO_CONFLITO } from '../conflitos.js';
 import { nomeDoRecurso } from '../categorias.js';
 import { esc, hm, hojeISO } from '../format.js';
 import { $ } from '../dom.js';
@@ -21,18 +22,21 @@ export function abrirPainelDeReparo(fKey, { focar = true } = {}) {
   opcoesAbertas = sugerirReparos(S, RES, fKey, { depoisDe: DATA === hojeISO() ? minutoDeAgora() : null });
   painel.dataset.fkey = fKey;
   const sugestoes = opcoesAbertas.filter(o => o.mudancas);
+  const pedidoMudou = (voo.conflitoCodigos || []).some(c => GRUPO_DO_CONFLITO[c] === 'pedido');
   painel.innerHTML = `<div class="gaveta-cab">
       <h2 id="painel-reparo-titulo">Resolver o conflito <small>${esc(voo.s)}</small></h2>
       <button class="x" type="button" id="btn-fechar-reparo" aria-label="Fechar as sugestões">✕</button>
     </div>
     <p class="h">${[`${hm(voo.a)}–${hm(voo.b)}`, voo.mis, nomeDoRecurso(voo.r), voo.ins].map(esc).join(' · ')}</p>
     <p class="motivo-conflito"><b>Conflito:</b> ${esc(voo.conflito.join('; '))}.</p>
-    <p class="h">${sugestoes.length
-      ? 'O que pode voar no lugar, sem mexer nos outros voos. Aplicada, a sugestão vale para o voo fixo e fica no histórico (dá para reverter).'
-      : 'Nenhum avião ou instrutor serve neste horário, nem mais tarde hoje.'}</p>
-    <ol class="opcoes-reparo">${opcoesAbertas.map((o, i) => `<li class="${o.tipo}">
-      <span>${esc(o.mudancas ? o.texto : o.motivo ? `Motivo: ${o.motivo}` : 'Pede o motivo')}</span>
-      <button type="button" class="btn${o.mudancas ? '' : ' sec'}" data-reparo-aplicar="${i}">${o.mudancas ? 'Aplicar' : 'Cancelar o voo'}</button>
+    <p class="h">${pedidoMudou
+      ? 'O pedido mudou depois da aprovação: solte o voo para o app escalar de novo, ou cancele. Fica no histórico (dá para reverter).'
+      : sugestoes.length
+        ? 'O que pode voar no lugar, sem mexer nos outros voos. Aplicada, a sugestão vale para o voo fixo e fica no histórico (dá para reverter).'
+        : 'Nenhum avião ou instrutor serve neste horário, nem mais tarde hoje.'}</p>
+    <ol class="opcoes-reparo">${opcoesAbertas.map((o, i) => `<li class="${esc(o.tipo)}">
+      <span>${esc(o.mudancas || o.soltar ? o.texto : o.motivo ? `Motivo: ${o.motivo}` : 'Pede o motivo')}</span>
+      <button type="button" class="btn${o.mudancas ? '' : ' sec'}" data-reparo-aplicar="${i}">${o.mudancas ? 'Aplicar' : o.soltar ? 'Soltar' : 'Cancelar o voo'}</button>
     </li>`).join('')}</ol>`;
   painel.hidden = false;
   const primeiro = painel.querySelector('[data-reparo-aplicar]');
