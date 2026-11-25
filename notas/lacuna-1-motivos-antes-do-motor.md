@@ -1,6 +1,6 @@
 # Lacuna: which rejection reasons can be decided before the engine, and how the engine picks the reason
 
-Worktree read: `/Users/pedrofernandes/ACPM/.redesenho/wt-plano` (branch `linha-0-plano`, `48875e3`). Paths are relative to it; evidence is `path:line`.
+Worktree read: `~/ACPM/.redesenho/wt-plano` (branch `linha-0-plano`, `48875e3`). Paths are relative to it; evidence is `path:line`.
 "(measured)" = run with node, read-only, on the worktree's modules, or on a scratch copy outside the repo. The copy of `js/engine.js` only adds a debug field to each rejection (the request's ids, the branch and the counters); with that field dropped its output equals the worktree engine's on the 41 golden states. Only generated, fictitious states were used (`test/helpers/cenarios.js`, `test/helpers/montar.js`). "(inferred)" = not proven by a line I read or by a run. Nothing in the worktree was changed.
 
 ## Answer

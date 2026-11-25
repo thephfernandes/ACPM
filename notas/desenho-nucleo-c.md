@@ -1,7 +1,7 @@
 # Desenho: The core data flow: from approved pedidos to the engine input, and the operator restrictions
 
 Architect C. Lens: the operator's day and the data already in production. Read at the worktree
-`/Users/pedrofernandes/ACPM/.redesenho/wt-plano` (`linha-0-plano`, 48875e3); paths are relative to it. Nothing in it
+`~/ACPM/.redesenho/wt-plano` (`linha-0-plano`, 48875e3); paths are relative to it. Nothing in it
 was changed. "(ran)" = run with `node`, read-only, from a scratch folder outside the repo, with fictitious names only.
 Words: *pedido* = a row of `solicitacoes`; *request* = the day's record (`dia.pedidos`, `S.stu[]` and `extra[]`);
 *voo* = one request seen as a flight, key `fKey = <stuId>_<mid>_1`.

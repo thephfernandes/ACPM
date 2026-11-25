@@ -8,14 +8,14 @@ export const meta = {
   ],
 }
 
-const W = '/Users/pedrofernandes/ACPM/.redesenho/wt-f0a'
-const N = '/Users/pedrofernandes/ACPM/.redesenho/notas'
+const W = '~/ACPM/.redesenho/wt-f0a'
+const N = '~/ACPM/.redesenho/notas'
 const MODELO = 'opus'
 
 const CONTEXTO = `You work on AutoEscala, the ACPM flight school's scheduling app (vanilla ES modules, no build step, no new dependencies; UI, identifiers, file names and commit messages in Portuguese). The step is F0a of the production-line redesign: "Test drivers", which changes NO behaviour of the app and NO assertion of any test.
 
 WHERE
-- Your worktree: ${W}, branch linha-f0a-testes (on linha-0-plano). Work only there, with absolute paths. node_modules and the Playwright browsers are installed. Never touch /Users/pedrofernandes/ACPM itself or any other worktree. Never push, never open a PR, never run npm run test:db, never use Supabase or the network.
+- Your worktree: ${W}, branch linha-f0a-testes (on linha-0-plano). Work only there, with absolute paths. node_modules and the Playwright browsers are installed. Never touch ~/ACPM itself or any other worktree. Never push, never open a PR, never run npm run test:db, never use Supabase or the network.
 - The plan: ${W}/docs/PLAN.md, section "Linha de produção" (from line 463): read "Pedro's decisions (2026-11-24)", the stack table, the paragraph that starts "Every step:", the F0a entry and the deletion table's F0a row.
 - The design behind it, in ${N}: desenho-entrega.md section 2.2 g (lines 252-290: the drivers, their exports and owners, the split of cadastros.spec.js, the fake server split, the ports, package.json, publicado.spec.js, testar-banco.mjs), the F0a rows of its sections 2.3, 5 and 6 (grep -n F0a), and desenho-conciliacao.md section 3.2, row F0a (the file list, settled). Where they disagree the conciliation wins, then the plan.
 

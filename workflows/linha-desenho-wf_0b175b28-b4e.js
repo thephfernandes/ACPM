@@ -9,14 +9,14 @@ export const meta = {
   ],
 }
 
-const W = '/Users/pedrofernandes/ACPM/.redesenho/wt-plano'
-const N = '/Users/pedrofernandes/ACPM/.redesenho/notas'
+const W = '~/ACPM/.redesenho/wt-plano'
+const N = '~/ACPM/.redesenho/notas'
 
 const REGRAS = `You are part of the DESIGN of a large redesign of AutoEscala (the ACPM flight school's daily scheduling app: vanilla ES modules, no build step, no dependencies, GitHub Pages, Supabase). A discovery already mapped the code; you design from those maps and check the code when a decision depends on a detail. Your output is working material for the plan that will be written into docs/PLAN.md and shown to Pedro for approval. Nothing is implemented now.
 
 WHERE TO WORK
 - The code is the git worktree at ${W} (branch linha-0-plano, at upstream/main 48875e3). Use absolute paths under it.
-- The session's current directory, /Users/pedrofernandes/ACPM, is a STALE checkout: never read code from it. The only thing you use there is the notes folder ${N}.
+- The session's current directory, ~/ACPM, is a STALE checkout: never read code from it. The only thing you use there is the notes folder ${N}.
 - Change NOTHING in the worktree (no edits, no git command that writes, no npm install). Never run npm run test:db, never use the network, never touch Supabase. You may run read-only commands (grep -n, wc, sed -n, git log, git show) and, when an experiment is the fastest way to settle a fact, node -e on pure modules or on a scratch copy OUTSIDE the worktree (under /tmp or the notes folder), never writing inside the worktree.
 - You write at most one file, the one named in your brief, inside ${N}. If writing is refused, say so in what you return and put the content there.
 

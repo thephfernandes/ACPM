@@ -1,6 +1,6 @@
 # Mapa: Recursos — the fleet, take-off times, Janelas de operação, the hangar and the habilitações registry
 
-Read at worktree `/Users/pedrofernandes/ACPM/.redesenho/wt-plano` (branch `linha-0-plano`, `48875e3`). Paths are relative to it.
+Read at worktree `~/ACPM/.redesenho/wt-plano` (branch `linha-0-plano`, `48875e3`). Paths are relative to it.
 Words: *resource* = one item of `cadastro.frota` (aircraft or simulator); *reg* = its matrícula; *type* = `tipo` (5 values); *category* = the grouping of the filters (4, plus Sala Ground); *roster* = the `cadastro` document (all dates); *day* = the document `dia:<AAAA-MM-DD>` (one date).
 Profiles: **Op/Adm** = Operador and Administrador (in local mode, `#role-sel` on Operador); **Gestor** = read-only; **all** = everyone who sees the tab (Op/Adm and Gestor). The Secretaria has no Recursos tab (`css/app.css:184-186` hides every `#nav` button except `age`, `esc`, `ins`, `alu`, `cur`); the TV profile only sees `painel.html`.
 The area's 10 unit files pass at this commit (121 tests, `node --test`).

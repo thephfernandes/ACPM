@@ -8,14 +8,14 @@ export const meta = {
   ],
 }
 
-const W = '/Users/pedrofernandes/ACPM/.redesenho/wt-plano'
-const N = '/Users/pedrofernandes/ACPM/.redesenho/notas'
+const W = '~/ACPM/.redesenho/wt-plano'
+const N = '~/ACPM/.redesenho/notas'
 
 const REGRAS = `You are part of a read-only discovery of the AutoEscala code base (the ACPM flight school's daily scheduling app: vanilla ES modules, no build step, GitHub Pages, Supabase) before a large redesign. What you write is working material for the people who will write the redesign plan in docs/PLAN.md. They will not re-read the code you read, so precision matters more than brevity.
 
 WHERE TO WORK
 - The code to read is the git worktree at ${W} (branch linha-0-plano, at upstream/main 48875e3). Use absolute paths under it.
-- The session's current directory, /Users/pedrofernandes/ACPM, is a STALE checkout, many versions behind: never read code from it. The only thing you use there is the notes folder ${N}.
+- The session's current directory, ~/ACPM, is a STALE checkout, many versions behind: never read code from it. The only thing you use there is the notes folder ${N}.
 - This is discovery: change NOTHING in the worktree (no edits, no git command that writes, no npm install, no formatter). Never run npm run test:db, never use the network, never touch Supabase. You may run read-only commands (grep -n, wc, sed -n, git log, git show, git blame) and, when running something is the fastest way to confirm a fact about a pure module, node -e or node --test on a unit test file.
 - You write at most one file, the one named in your brief, inside ${N}. If writing it is refused, say so in what you return and put the most important content there instead.
 

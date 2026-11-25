@@ -8,8 +8,8 @@ export const meta = {
   ],
 }
 
-const W = '/Users/pedrofernandes/ACPM/.redesenho/wt-plano'
-const N = '/Users/pedrofernandes/ACPM/.redesenho/notas'
+const W = '~/ACPM/.redesenho/wt-plano'
+const N = '~/ACPM/.redesenho/notas'
 const SECAO = N + '/secao-do-plan.md'
 const MODELO = 'opus'
 const CHAVES = ['nucleo', 'casca', 'lista', 'cadastros', 'disponibilidade', 'pedidos', 'escala-aprovar', 'entrega']

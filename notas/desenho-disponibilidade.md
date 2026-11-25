@@ -2,7 +2,7 @@
 
 # Desenho: INVA availability as ranges (C) and the end of Janelas de operação (B)
 
-Code read at `/Users/pedrofernandes/ACPM/.redesenho/wt-plano` (`linha-0-plano`, `48875e3`). **Every path and line below is
+Code read at `~/ACPM/.redesenho/wt-plano` (`linha-0-plano`, `48875e3`). **Every path and line below is
 as of 48875e3**; F0 renames some of the files before B and C start (table below). Maps are cited as `mapa-<nome> §n`,
 sibling design notes as `desenho-<nome>`.
 

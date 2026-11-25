@@ -1,6 +1,6 @@
 # Mapa: The shell: header, navigation, the open date, layout and CSS
 
-Read at the worktree `/Users/pedrofernandes/ACPM/.redesenho/wt-plano` (branch `linha-0-plano`, 48875e3). Paths are relative to the worktree root. Ids, data attributes and UI labels are verbatim. "(inferred)" marks a conclusion with no single line that proves it. "(computed)" marks a number I calculated (with `test/helpers/contraste.js`, or from the CSS) that is not written in the repo. Playwright was not run: every statement about layout comes from the code and the tests, not from a browser.
+Read at the worktree `~/ACPM/.redesenho/wt-plano` (branch `linha-0-plano`, 48875e3). Paths are relative to the worktree root. Ids, data attributes and UI labels are verbatim. "(inferred)" marks a conclusion with no single line that proves it. "(computed)" marks a number I calculated (with `test/helpers/contraste.js`, or from the CSS) that is not written in the repo. Playwright was not run: every statement about layout comes from the code and the tests, not from a browser.
 
 ## 1. What exists
 

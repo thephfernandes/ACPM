@@ -1,6 +1,6 @@
 # Mapa: O motor: contrato de entrada, win, aw e os goldens
 
-Worktree read: `/Users/pedrofernandes/ACPM/.redesenho/wt-plano` (branch `linha-0-plano`, `48875e3`). Paths below are relative to it.
+Worktree read: `~/ACPM/.redesenho/wt-plano` (branch `linha-0-plano`, `48875e3`). Paths below are relative to it.
 Evidence is `path:line`. "(measured)" = obtained by running node read-only against the worktree, or against a scratch copy outside the repo (nothing in the worktree was changed). "(inferred)" = not proven by a line I read.
 
 ## 1. What exists

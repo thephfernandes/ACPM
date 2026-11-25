@@ -1,6 +1,6 @@
 # Desenho: The core data flow: from approved pedidos to the engine input, and the operator restrictions
 
-Architect B, lens **truly derived**: the day stores only what cannot be derived; the requests the engine reads are rebuilt at every load and before every save. Code read at `/Users/pedrofernandes/ACPM/.redesenho/wt-plano` (48875e3); paths are relative to it.
+Architect B, lens **truly derived**: the day stores only what cannot be derived; the requests the engine reads are rebuilt at every load and before every save. Code read at `~/ACPM/.redesenho/wt-plano` (48875e3); paths are relative to it.
 Words: **pedido** = a row of `solicitacoes`; **request** = what the engine reads (`stu[]` fields, `stu[].extra[]`); **flight key** = `<stuId>_<mid>_1`; **own flight** = a flight that has no pedido behind it (a booking, or a request stored before format 28).
 "(ran)" = run with node on a scratch copy of `js/` outside the worktree (`…/scratchpad/nucleo-b/proto*.mjs`), fictitious names and weights only:
 

@@ -1,6 +1,6 @@
 # Mapa: Tests, CI, the Manual, the glossary and the README
 
-Read on 2026-11-21 from the worktree `/Users/pedrofernandes/ACPM/.redesenho/wt-plano` (branch `linha-0-plano`, upstream/main `48875e3`). Paths are relative to the worktree root. `(measured)` = result of a read-only command run for this map (unit suite, lint, `playwright test --list`, grep counts); `(inferred)` = not proven by a line I read. Counts of selectors are text occurrences in `test/e2e/*.spec.js` (a selector kept in a local helper counts once, so they are lower bounds of the tests that depend on it).
+Read on 2026-11-21 from the worktree `~/ACPM/.redesenho/wt-plano` (branch `linha-0-plano`, upstream/main `48875e3`). Paths are relative to the worktree root. `(measured)` = result of a read-only command run for this map (unit suite, lint, `playwright test --list`, grep counts); `(inferred)` = not proven by a line I read. Counts of selectors are text occurrences in `test/e2e/*.spec.js` (a selector kept in a local helper counts once, so they are lower bounds of the tests that depend on it).
 
 ## 1. What exists
 

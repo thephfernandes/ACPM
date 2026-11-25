@@ -1,6 +1,6 @@
 # Mapa: Operator restrictions — pins, the chosen instructor, booking, Sugestões, status and reverts
 
-Read at worktree `/Users/pedrofernandes/ACPM/.redesenho/wt-plano` (branch `linha-0-plano`, `48875e3`). Paths are relative to it.
+Read at worktree `~/ACPM/.redesenho/wt-plano` (branch `linha-0-plano`, `48875e3`). Paths are relative to it.
 Words: *pin* = "voo fixo" (an entry of `fixos`); *request* = "pedido da Demanda" (`stu[]` fields or one `stu[].extra[]`); *pedido* = a row of the Agenda (`solicitacoes`); *fKey* = flight key `<stuId>_<mid>_1`.
 
 ## 1. What exists
