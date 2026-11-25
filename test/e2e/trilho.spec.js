@@ -1,10 +1,10 @@
 // O trilho (F1b): o calendário da data aberta no lugar das setas e do campo da data. Ao lado da tela a partir de 1280 px
 // (por padrão), ou um painel aberto pelo botão da data; os dias (hoje, a data aberta, domingo, os pedidos de cada um), as
 // teclas, "Fixar ao lado", o celular e a gaveta do Histórico à esquerda dele. Os padrões do produto, de propósito
-import { test, expect, abrir, abrirComExemplo, entrar, irPara, abrirHistorico, AMANHA, dataAberta, botaoDaData, trilho, diaDoCalendario, mudarData, larguraDaPagina, paradasDoCalendario, rotuloDaData } from './fixtures.js';
+import { test, expect, abrir, abrirComExemplo, entrar, irPara, abrirHistorico, AMANHA, dataAberta, botaoDaData, trilho, diaDoCalendario, mudarData, larguraDaPagina, paradasDoCalendario, rotuloDaData, avisosNoTrilho, contagemDeAvisos, abrirSintetico } from './fixtures.js';
 import { instalarSupabaseFalso, documentosAtuais, CONTAS } from './supabase-falso.js';
 import { estadoSintetico } from '../helpers/estado.js';
-import { aluno } from '../helpers/montar.js';
+import { aluno, cenario, instrutor } from '../helpers/montar.js';
 
 test.use({ preferencias: false });
 
@@ -178,4 +178,31 @@ test('o link para um domingo abre a segunda, com o aviso', async ({ page }) => {
   await abrir(page, { url: './?data=2026-11-15' });
   await expect(dataAberta(page)).toHaveAttribute('data-data', '2026-11-16');
   await expect(page.locator('#toast-box')).toContainText('O aeroclube não opera aos domingos: abrimos segunda-feira, 16/11.');
+});
+
+test.describe('Os avisos da data', () => {
+  test('a missão que não entrou e os avisos, com o horário e o link para a Escala; o número deles no botão da data', async ({ page }) => {
+    await abrir(page, { estado: cenario({ ins: [instrutor(1, 1)], stu: [aluno(1000, { mis: 'Multimotor', eq: 'PA-34' }), aluno(1001, {}, { kg: 0 })] }) });
+    const itens = avisosNoTrilho(page);
+    await expect(itens).toHaveCount(2);
+    // O erro primeiro (sem horário); o aviso do voo, com o horário dele
+    await expect(itens.nth(0)).toHaveClass(/\berro\b/);
+    await expect(itens.nth(0)).toContainText('Aluno 1000');
+    await expect(itens.nth(0).locator('.aviso-hora')).toContainText('—');
+    await expect(itens.nth(1)).toHaveClass(/\baviso\b/);
+    await expect(itens.nth(1).locator('time')).toHaveText(/^\d\d:\d\d$/);
+    await expect(contagemDeAvisos(page)).toBeVisible();
+    await expect(contagemDeAvisos(page)).toContainText('2');
+    await expect(botaoDaData(page)).toHaveAccessibleName(/2 avisos nesta data/);
+    await irPara(page, 'alu');
+    await itens.nth(0).locator('a').click();
+    await expect(page.locator('#s-esc h2')).toBeFocused();
+  });
+
+  test('sem nada a resolver: a frase, e o botão da data sem número', async ({ page }) => {
+    await abrirSintetico(page);
+    await expect(avisosNoTrilho(page)).toHaveCount(0);
+    await expect(page.locator('#avisos-vazio')).toHaveText('Nada a resolver nesta data.');
+    await expect(contagemDeAvisos(page)).toBeHidden();
+  });
 });

@@ -85,6 +85,7 @@
     <svg class="ico" aria-hidden="true"><use href="#i-calendario"/></svg>
     <span class="sr">Data da escala: </span><span id="dt-rotulo"></span>
     <span class="topo-data-rel" id="dt-rel" hidden></span>
+    <span class="badge-cnt" id="avisos-cnt" hidden><span aria-hidden="true"></span><span class="sr"></span></span>
     <svg class="ico hd-seta" aria-hidden="true"><use href="#i-baixo"/></svg>
   </button>
   <div class="hd-tools">
@@ -197,6 +198,8 @@
   <table class="cal" id="cal" role="grid" aria-labelledby="cal-mes"></table>
   <div class="trilho-avisos" role="region" aria-labelledby="trilho-data">
     <h2 class="trilho-data" id="trilho-data"></h2>
+    <ol class="avisos-da-data" id="avisos-da-data"></ol>
+    <p class="h" id="avisos-vazio" hidden>Nada a resolver nesta data.</p>
   </div>
 </aside>
 
@@ -525,7 +528,7 @@
       <h3>Primeiros passos: a rotina do operador</h3>
       <ol>
         <li><b>Confira a data no topo.</b> O sistema abre na Escala, na data de amanhã.
-        Use as setas ‹ › ao lado da data, ou clique nela para escolher no calendário.
+        Para outra data, use o calendário ao lado da tela (na tela menor, ele abre pelo botão da data, no topo): cada dia mostra quantos pedidos tem, e um clique abre a data.
         Tudo o que você vê e altera, em qualquer tela, vale para essa data.
         Uma data nova começa com os aviões,
         as janelas
@@ -567,6 +570,7 @@
       Ao lado do título da Escala aparece a hora da última atualização (por exemplo, “Atualizada às 10:42”).</p>
       <p class="manual-destaque">Uma data que você só abriu para consultar não é gravada.
       Ela passa a contar (no BI, nas horas dos aviões e no rodízio da data seguinte) quando você altera alguma coisa nela ou baixa o CSV, o PDF ou o Excel.</p>
+      <p>Embaixo do calendário ficam os avisos da data aberta (as missões que não entraram, os conflitos e os avisos da escala, os aviões perto da revisão, os pedidos que ainda não estão na demanda), cada um com o horário do voo e um link para onde ele se resolve; o número deles aparece no botão da data.</p>
       <p>A linha, no alto, avisa o que pede atenção: cada cartão tem um número e um estado (feito, pendente, precisa de atenção ou falhou, cada um com o seu símbolo).
       Aberta (o botão no fim dela), ela mostra as tarefas de cada etapa, e cada tarefa leva à tela onde ela se resolve: na Agenda, os pedidos que ainda não estão na demanda; na Escala, as missões que não entraram e os conflitos e avisos.
       O link de Recursos mostra os aviões parados ou perto da revisão de 50 horas (na <i>Disponibilidade do dia</i>, cujo botão mostra o mesmo número).</p>
@@ -599,7 +603,7 @@
       <p>A linha, no alto, segue as etapas do dia, cada uma num cartão: Agenda, Demanda, Escala e Aprovar.
       Ao lado dela (ou embaixo, quando não cabe) ficam os cadastros (Alunos, Instrutores, Recursos e Cursos), o Rodízio e o BI.</p>
       <h4>Agenda</h4>
-      <p>A agenda de pedidos da secretaria, com um calendário.
+      <p>A agenda de pedidos da secretaria: a lista dos pedidos da data aberta e o formulário de um pedido novo, com a data do pedido no próprio formulário (<i>Data do pedido</i>), que começa na primeira data que ainda aceita pedidos.
       Cada pedido tem o aluno, a missão, o horário (os horários da missão: o Multimotor, por exemplo, tem os do PA-34), a duração (fracionada, até 5 h; o Ground tem 01h30) e quem anotou.
       No máximo 6 voos locais (Voo Local, Voo Solo e TGL) saem no mesmo horário (determinação da diretoria): ao agendar o 7º, o horário fica indisponível, e o app diz o próximo horário possível.
       O Voo Solo sai sempre às 06:30.
@@ -915,7 +919,7 @@
       <h3>Para o gestor</h3>
       <p>Com o perfil Gestor você vê tudo, sem risco de alterar nada: os campos ficam travados.</p>
       <ul>
-        <li><b>Escala do dia:</b> na Escala; para outro dia, use as setas ou o calendário da data no topo.
+        <li><b>Escala do dia:</b> na Escala; para outro dia, use o calendário ao lado da tela (ou o botão da data, no topo).
         Uma data que o operador ainda não preparou começa com a demanda vazia (a demanda vem da agenda).</li>
         <li><b>PDF, CSV e Excel:</b> os mesmos botões do operador, na barra da escala.</li>
         <li><b>BI:</b> horas por recurso, instrutor e missão, no dia, na semana e no mês.</li>

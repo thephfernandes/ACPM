@@ -2,10 +2,11 @@
 // sentido fixo por cartão, dito na dica), o estado (o pior das tarefas) e as tarefas, que levam à tela onde cada coisa se
 // resolve; e o selo de Recursos. Uma função por cartão: cada passo seguinte muda só a do cartão dele.
 // contexto: { S, RES, pedidos: lista | null, leituraDosPedidos: 'lendo' | 'erro' | 'lidos', perfil, opera, horasLidas,
-// data, hoje } (js/views/linha.js, contextoDoDia)
+// naoLidos: [{ parte, texto }], data, hoje } (js/views/linha.js, contextoDoDia). Os avisos da data, no trilho:
+// avisosDaData
 import { REVISAO_H } from './config.js';
 import { inativo, inativoValeEm } from './inativos.js';
-import { ESTAGIOS } from './telas.js';
+import { ESTAGIOS, podeVer } from './telas.js';
 
 // Os estados, do pior ao melhor; "nenhum" não entra na conta do cartão
 const GRAVIDADE = ['falhou', 'atencao', 'andamento', 'pendente', 'feito'];
@@ -152,4 +153,39 @@ export function selosDosCadastros(ctx) {
   const n = avioesPertoDaRevisao(ctx);
   if (!n) return {};
   return { rec: { valor: String(n), estado: 'atencao', dica: `${plural(n, 'avião parado', 'aviões parados')} ou perto da revisão de 50 horas` } };
+}
+
+// Os avisos da data, no trilho: cada recusa, conflito e aviso do motor (com o horário do voo, quando ele está na escala), os
+// aviões parados ou perto da revisão, os pedidos que ainda não estão na demanda (para quem opera), os pedidos que não foram
+// lidos e os dados que não foram lidos. Na ordem: erro, aviso, info; em cada uma, os sem horário primeiro, depois pelo
+// minuto. destino: a tela onde ele se resolve (null, quando o perfil não a vê ou não há tela: o aviso do alto tem "Tentar de
+// novo"). [{ id, gravidade, minuto, duracaoMin?, titulo, texto, destino }]
+const ORDEM = ['erro', 'aviso', 'info'];
+export function avisosDaData(ctx) {
+  const avisos = [];
+  const destino = tela => (podeVer(tela, ctx.perfil) ? { tela } : null);
+  const voos = new Map(((ctx.RES && ctx.RES.out) || []).map(o => [o.fKey, o]));
+  ((ctx.RES && ctx.RES.al) || []).forEach((a, i) => {
+    const voo = a.fKey && voos.get(a.fKey);
+    avisos.push({
+      id: `${a.t}:${a.fKey || i}`, gravidade: a.t === 'warn' ? 'aviso' : 'erro', minuto: voo ? voo.a : null,
+      ...(voo ? { duracaoMin: voo.b - voo.a } : {}), titulo: a.s || '', texto: a.m || '', destino: destino('esc')
+    });
+  });
+  const avioes = avioesPertoDaRevisao(ctx);
+  if (avioes) avisos.push({ id: 'recursos', gravidade: 'aviso', minuto: null, titulo: `${plural(avioes, 'avião parado', 'aviões parados')} ou perto da revisão de 50 horas`, texto: '', destino: destino('rec') });
+  if (ctx.leituraDosPedidos === 'erro') {
+    avisos.push({ id: 'pedidos-nao-lidos', gravidade: 'aviso', minuto: null, titulo: 'Não foi possível ler os pedidos desta data.', texto: '', destino: destino('age') });
+  } else if (ctx.opera && ctx.leituraDosPedidos === 'lidos') {
+    const { n } = contagemDosPedidos(ctx);
+    if (n) avisos.push({ id: 'pedidos-nao-importados', gravidade: 'aviso', minuto: null, titulo: `${plural(n, 'pedido da agenda ainda não está', 'pedidos da agenda ainda não estão')} na demanda`, texto: '', destino: destino('age') });
+  }
+  for (const { parte, texto } of ctx.naoLidos || []) {
+    avisos.push({ id: `nao-lido:${parte}`, gravidade: parte === 'horas' ? 'erro' : 'aviso', minuto: null, titulo: texto, texto: '', destino: null });
+  }
+  const chave = a => [ORDEM.indexOf(a.gravidade), a.minuto === null ? -1 : a.minuto];
+  return avisos.sort((x, y) => {
+    const [gx, mx] = chave(x), [gy, my] = chave(y);
+    return gx - gy || mx - my || (x.id < y.id ? -1 : x.id > y.id ? 1 : 0);
+  });
 }

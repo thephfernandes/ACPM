@@ -93,6 +93,9 @@ export const rotuloDaData = page => page.locator('#dt-rotulo');
 export const relativoDaData = page => page.locator('#dt-rel');
 export const trilho = page => page.locator('#trilho');
 export const diaDoCalendario = (page, dia) => page.locator(`#cal .cal-dia[data-dia="${dia}"]`);
+// Os avisos da data, no trilho, e o número deles no botão da data
+export const avisosNoTrilho = page => page.locator('#avisos-da-data > li');
+export const contagemDeAvisos = page => page.locator('#avisos-cnt');
 // Os dias do calendário que recebem o Tab (uma parada só)
 export const paradasDoCalendario = page => page.locator('#cal .cal-dia[tabindex="0"]');
 

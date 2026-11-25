@@ -46,3 +46,19 @@
 /* A linha da data aberta (os avisos dela vêm embaixo) */
 #trilho .trilho-avisos { border-top: 1px solid var(--ln); margin-top: 10px; padding-top: 8px; }
 #trilho .trilho-data { margin: 0 0 6px; font: 600 14.5px 'Barlow Semi Condensed', sans-serif; }
+
+/* Os avisos da data: o horário (ou "—"), a barra da gravidade (vermelha, âmbar ou discreta), o título e o texto */
+#avisos-da-data { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+#avisos-da-data .aviso-link {
+  display: grid; grid-template-columns: 44px 4px minmax(0, 1fr); gap: 8px; align-items: start; padding: 6px 4px;
+  border-radius: 6px; color: var(--ink); text-decoration: none;
+}
+#avisos-da-data a.aviso-link:hover { background: var(--pn2); }
+#avisos-da-data .aviso-hora { font: 600 13px 'Barlow', sans-serif; color: var(--mu); display: flex; flex-direction: column; }
+#avisos-da-data .aviso-hora small { font-weight: 400; font-size: 11px; }
+#avisos-da-data .aviso-barra { align-self: stretch; border-radius: 2px; background: var(--mu); }
+#avisos-da-data .erro .aviso-barra { background: var(--er); }
+#avisos-da-data .aviso .aviso-barra { background: var(--wa); }
+#avisos-da-data .aviso-titulo { display: block; font-weight: 600; font-size: 13.5px; }
+#avisos-da-data .aviso-texto { display: block; color: var(--mu); font-size: 12.5px; }
+

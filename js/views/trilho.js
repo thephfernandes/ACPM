@@ -1,10 +1,13 @@
-// O trilho (aside#trilho): o calendário da data aberta, com os pedidos de cada dia, e a linha da data. Fica ao lado da tela
+// O trilho (aside#trilho): o calendário da data aberta, com os pedidos de cada dia, a linha da data e os avisos dela. Fica ao lado da tela
 // (fixo, da largura média em diante, quando a pessoa escolhe; na larga, por padrão) ou abre como painel entre a linha e a
 // tela pelo botão da data (#btn-data). Só "Fixar ao lado" fica guardado, por classe de largura (acpm_trilho)
 import { $, trocarConteudo } from '../dom.js';
-import { esc, hojeISO, rotuloDaData } from '../format.js';
+import { esc, fmtH, hm, hojeISO, rotuloDaData } from '../format.js';
 import { semanasDoMes, paradaDoTab, descricaoDoDia, linhaDaData, nomeDoMes } from '../calendario.js';
+import { dadosLidos } from '../actions.js';
+import { avisosDaData } from '../linha-do-dia.js';
 import { DATA } from '../state.js';
+import { contextoDoDia } from './linha.js';
 
 const ABREVIADOS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
 const CABECA = [['D', 'domingo'], ['S', 'segunda-feira'], ['T', 'terça-feira'], ['Q', 'quarta-feira'], ['Q', 'quinta-feira'], ['S', 'sexta-feira'], ['S', 'sábado']];
@@ -78,6 +81,30 @@ export function rTrilho() {
   const corpo = `<tbody>${semanas.map(semana => `<tr>${semana.map(dia => botaoDoDia(dia, { mes, hoje, parada })).join('')}</tr>`).join('')}</tbody>`;
   trocarConteudo($('#cal'), cabeca + corpo);
   $('#trilho-data').textContent = abrindo ? `Abrindo ${rotuloDaData(abrindo, hoje).dia}…` : linhaDaData(DATA, hoje);
+}
+
+// Os avisos da data: um item por aviso, com o horário (ou "—", sem horário), a barra da gravidade, o título e o texto; com
+// destino, um link para a tela onde ele se resolve. O botão da data conta os erros e os avisos
+const DITO = { erro: 'erro', aviso: 'aviso', info: 'informação' };
+function itemDoAviso(a) {
+  const hora = a.minuto === null
+    ? '<span class="aviso-hora">—<span class="sr">sem horário</span></span>'
+    : `<span class="aviso-hora"><time>${hm(a.minuto)}</time>${a.duracaoMin ? `<small>${fmtH(a.duracaoMin / 60)}</small>` : ''}</span>`;
+  const corpo = `${hora}<span class="aviso-barra" aria-hidden="true"></span><span class="aviso-corpo"><b class="aviso-titulo">${esc(a.titulo)}</b>${a.texto ? `<small class="aviso-texto">${esc(a.texto)}</small>` : ''}</span><span class="sr">, ${DITO[a.gravidade]}</span>`;
+  const href = a.destino && `#/${a.destino.tela}${a.destino.item ? `/${a.destino.item}` : ''}`;
+  return `<li class="aviso ${a.gravidade}" data-aviso="${esc(a.id)}">${href ? `<a class="aviso-link" href="${href}" data-focar>${corpo}</a>` : `<div class="aviso-link">${corpo}</div>`}</li>`;
+}
+export function rAvisos() {
+  const lista = $('#avisos-da-data');
+  if (!lista || !dadosLidos) return;
+  const avisos = avisosDaData(contextoDoDia());
+  trocarConteudo(lista, avisos.map(itemDoAviso).join(''));
+  $('#avisos-vazio').hidden = avisos.length > 0;
+  const n = avisos.filter(a => a.gravidade !== 'info').length;
+  const marca = $('#avisos-cnt');
+  marca.hidden = !n;
+  marca.firstElementChild.textContent = n ? String(n) : '';
+  marca.lastElementChild.textContent = n ? `, ${n} ${n === 1 ? 'aviso' : 'avisos'} nesta data` : '';
 }
 
 // O dia do calendário que recebe o foco: o pedido ou a parada do Tab

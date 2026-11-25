@@ -44,7 +44,7 @@ export function setRole(role, somenteConsulta = false) {
 // no cadastro, esperando a conversão): o aviso fica até a leitura dar certo, e o que depende disso fica desligado
 // (Aprovar escala; a próxima missão, o progresso e o resultado). Os textos dos programas são os que a aba Cursos mostra
 // no lugar deles
-const SEM_OS_DADOS = {
+export const SEM_OS_DADOS = {
   horas: 'Não foi possível ler as horas de voo dos instrutores: os limites do mês e do ano não estão sendo conferidos, e Aprovar escala fica desligado.',
   resultados: 'Não foi possível ler os resultados das missões dos cursos: a próxima missão e o registro de resultados ficam desligados.',
   ...SEM_OS_PROGRAMAS

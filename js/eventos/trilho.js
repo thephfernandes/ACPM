@@ -11,7 +11,7 @@ import { ApiClient } from '../storage.js';
 import { classeDaLargura, trilhoFixo, lerPreferencias } from '../telas.js';
 import { registrarDesenho } from '../redesenho.js';
 import {
-  rTrilho, rRotuloDaData, mostrarTrilho, estadoDoTrilho, mostrarMes, mesDoTrilho, marcarAbrindo, diaAbrindo,
+  rTrilho, rAvisos, rRotuloDaData, mostrarTrilho, estadoDoTrilho, mostrarMes, mesDoTrilho, marcarAbrindo, diaAbrindo,
   guardarContagem, semanasAVista, focarNoCalendario
 } from '../views/trilho.js';
 
@@ -46,6 +46,8 @@ registrarDesenho('rotulo-da-data', rRotuloDaData, { em: ['data-aberta'], ordem: 
 registrarDesenho('mes-do-trilho', () => { if (DATA) mostrarMes(DATA.slice(0, 7)); }, { em: ['data-aberta'], ordem: 3 });
 registrarDesenho('trilho', rTrilho, { em: ['data-aberta', 'dados', 'consulta', 'releitura', 'escala', 'perfil', 'pedidos'], ordem: 97 });
 registrarDesenho('contagem-do-trilho', lerContagem, { em: ['dados', 'pedidos'], ordem: 98 });
+// Os avisos da data: com os dados dela (enquanto outra data abre, ficam os da aberta)
+registrarDesenho('avisos-da-data', rAvisos, { em: ['dados', 'consulta', 'releitura', 'escala', 'perfil', 'pedidos'], ordem: 97 });
 
 function preferencias() {
   try {

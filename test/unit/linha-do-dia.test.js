@@ -2,11 +2,11 @@
 // estado (o pior das tarefas) e as tarefas, e o selo de Recursos. Dados fictícios, sem o motor
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { linhaDoDia, selosDosCadastros } from '../../js/linha-do-dia.js';
+import { linhaDoDia, selosDosCadastros, avisosDaData } from '../../js/linha-do-dia.js';
 
 const DATA = '2026-11-11', HOJE = '2026-11-10';
 
-function contexto({ pedidos = [], leitura = 'lidos', out = [], al = [], tot = 0, res = true, frota, av = {}, ins, importadas = [], aprovacao = null, revisao = {}, perfil = null, opera = true, horasLidas = true, stu = [] } = {}) {
+function contexto({ pedidos = [], leitura = 'lidos', out = [], al = [], tot = 0, res = true, frota, av = {}, ins, importadas = [], aprovacao = null, revisao = {}, perfil = null, opera = true, horasLidas = true, stu = [], naoLidos = [] } = {}) {
   return {
     S: {
       frota: frota ?? [{ reg: 'PR-AAA', tipo: 'C152' }, { reg: 'PR-BBB', tipo: 'C152' }],
@@ -16,7 +16,7 @@ function contexto({ pedidos = [], leitura = 'lidos', out = [], al = [], tot = 0,
     RES: res ? { out, al, tot, revisao } : null,
     pedidos: leitura === 'lidos' ? pedidos : null,
     leituraDosPedidos: leitura,
-    perfil, opera, horasLidas, data: DATA, hoje: HOJE
+    perfil, opera, horasLidas, naoLidos, data: DATA, hoje: HOJE
   };
 }
 const pedido = (id, extra = {}) => ({ id, data: DATA, aluno: 1000 + id, cancelada_em: null, ...extra });
@@ -156,5 +156,38 @@ describe('O selo de Recursos', () => {
     const inativo = contexto({ frota: [{ reg: 'PR-AAA', tipo: 'C152', inativo: true }], revisao: { 'PR-AAA': { paraAs: 600, fim: 50 } } });
     assert.deepEqual(selosDosCadastros(inativo), {});
     assert.equal(selosDosCadastros(contexto({ revisao: { 'PR-AAA': { paraAs: null, fim: 46 } } })).rec.dica, '1 avião parado ou perto da revisão de 50 horas');
+  });
+});
+
+describe('Os avisos da data', () => {
+  it('um item por recusa, conflito e aviso do motor, com o horário do voo; erros antes dos avisos, os sem horário primeiro', () => {
+    const out = [{ fKey: '1001_0_1', a: 500, b: 560 }, { fKey: '1002_0_1', a: 400, b: 460 }];
+    const al = [{ t: 'warn', s: 'Aluno 1001', m: 'sem peso', fKey: '1001_0_1' }, { t: 'err', s: 'Aluno 1003', m: 'não entrou' }, { t: 'conf', s: 'Aluno 1002', m: 'Conflito', fKey: '1002_0_1' }];
+    const avisos = avisosDaData(contexto({ out, al, tot: 3 }));
+    assert.deepEqual(avisos.map(a => [a.id, a.gravidade, a.minuto]), [['err:1', 'erro', null], ['conf:1002_0_1', 'erro', 400], ['warn:1001_0_1', 'aviso', 500]]);
+    assert.deepEqual(avisos[1], { id: 'conf:1002_0_1', gravidade: 'erro', minuto: 400, duracaoMin: 60, titulo: 'Aluno 1002', texto: 'Conflito', destino: { tela: 'esc' } });
+  });
+
+  it('os aviões perto da revisão levam a Recursos; para a Secretaria, sem destino', () => {
+    const revisao = { 'PR-AAA': { paraAs: 600, fim: 50 } };
+    assert.deepEqual(avisosDaData(contexto({ revisao })).map(a => [a.titulo, a.destino]), [['1 avião parado ou perto da revisão de 50 horas', { tela: 'rec' }]]);
+    assert.equal(avisosDaData(contexto({ revisao, perfil: 'secretaria', opera: false }))[0].destino, null);
+  });
+
+  it('os pedidos que ainda não estão na demanda, para quem opera; a leitura que falhou, para todos', () => {
+    const pedidos = [pedido(1), pedido(2)];
+    assert.deepEqual(avisosDaData(contexto({ pedidos })).map(a => a.titulo), ['2 pedidos da agenda ainda não estão na demanda']);
+    assert.deepEqual(avisosDaData(contexto({ pedidos, opera: false })), []);
+    assert.deepEqual(avisosDaData(contexto({ leitura: 'erro', opera: false })).map(a => [a.titulo, a.destino]), [['Não foi possível ler os pedidos desta data.', { tela: 'age' }]]);
+  });
+
+  it('os dados não lidos: as horas dos instrutores são erro; os outros, aviso; sem destino', () => {
+    const naoLidos = [{ parte: 'resultados', texto: 'Sem os resultados.' }, { parte: 'horas', texto: 'Sem as horas.' }];
+    assert.deepEqual(avisosDaData(contexto({ naoLidos })).map(a => [a.gravidade, a.titulo, a.destino]), [['erro', 'Sem as horas.', null], ['aviso', 'Sem os resultados.', null]]);
+  });
+
+  it('sem nada: a lista vazia', () => {
+    assert.deepEqual(avisosDaData(contexto()), []);
+    assert.deepEqual(avisosDaData(contexto({ res: false, leitura: 'lendo' })), []);
   });
 });
