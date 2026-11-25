@@ -264,7 +264,7 @@ test.describe('A escala abrindo: nada é gravado antes de os dados da data chega
     await preencherLogin(page, CONTAS.operador);
     await expect(page.locator('#usuario')).toBeVisible();
     await irPara(page, 'age');
-    await page.locator('[data-cal][data-dia="2026-11-13"]').click();
+    await escolherNoCalendario(page, '2026-11-13');
     liberar();
     // O dia 13 espera: nada dele é lido enquanto a abertura lê
     await page.waitForTimeout(300);
@@ -305,7 +305,7 @@ test.describe('A escala abrindo: nada é gravado antes de os dados da data chega
     await preencherLogin(page, CONTAS.operador);
     await expect(page.locator('#usuario')).toBeVisible();
     await irPara(page, 'age');
-    await page.locator('[data-cal][data-dia="2026-11-13"]').click();
+    await escolherNoCalendario(page, '2026-11-13');
     liberar();
     await expect(page.locator('body[data-pronto]')).toBeAttached();
     await irPara(page, 'alu');

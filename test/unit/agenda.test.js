@@ -2,7 +2,7 @@
 // importação para a demanda: test/unit/processamento.test.js).
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { prazoDaAgendaPermite, primeiraDataAberta, disponibilidadeDaSolicitacao, pedidoDaSolicitacao } from '../../js/agenda.js';
+import { prazoDaAgendaPermite, primeiraDataAberta, disponibilidadeDaSolicitacao, pedidoDaSolicitacao, datasParaRegistrar } from '../../js/agenda.js';
 
 const em = iso => new Date(iso);
 
@@ -97,5 +97,40 @@ describe('Agenda: o limite de voos locais no mesmo horário', async () => {
   it('outra missão não tem o limite; o Solo (só às 06:30) não tem próximo horário', () => {
     assert.deepEqual(vagaDeVooLocal(seisAs('08:20'), { data: '2026-11-11', horario: '08:20', missao: 'Navegação' }), { ok: true });
     assert.deepEqual(vagaDeVooLocal(seisAs('06:30'), { data: '2026-11-11', horario: '06:30', missao: 'Voo Solo' }), { ok: false, proximo: null });
+  });
+});
+
+// O campo "Data do pedido" da Agenda: a data do pedido é dele, não a data aberta no app
+describe('As datas para registrar um pedido', () => {
+  const agora = em('2026-11-10T12:00:00-03:00');
+  it('os dias de operação de hoje a hoje + 14, sem os domingos; o rótulo curto, com hoje e amanhã', () => {
+    const datas = datasParaRegistrar({ aberta: '2026-11-11', excecao: true, agora });
+    assert.equal(datas[0].data, '2026-11-10');
+    assert.equal(datas.at(-1).data, '2026-11-24');
+    assert.ok(!datas.some(d => d.data === '2026-11-15' || d.data === '2026-11-22'));
+    assert.equal(datas.length, 13);
+    assert.equal(datas[0].rotulo, 'ter 10/11 (hoje) · prazo encerrado');
+    assert.equal(datas[1].rotulo, 'qua 11/11 (amanhã)');
+    assert.equal(datas[2].rotulo, 'qui 12/11');
+  });
+
+  it('a data aberta, quando é depois desses dias, entra no fim', () => {
+    const datas = datasParaRegistrar({ aberta: '2026-12-15', excecao: true, agora });
+    assert.equal(datas.at(-1).data, '2026-12-15');
+    assert.equal(datasParaRegistrar({ aberta: '2026-11-29', excecao: true, agora }).at(-1).data, '2026-11-24');
+  });
+
+  it('quem não usa a exceção (a Secretaria) só vê as datas dentro do prazo', () => {
+    const datas = datasParaRegistrar({ aberta: '2026-11-11', excecao: false, agora });
+    assert.equal(datas[0].data, '2026-11-11');
+    assert.ok(datas.every(d => !d.encerrado));
+  });
+
+  it('depois das 13:00, amanhã também fecha: a primeira data aberta é depois de amanhã', () => {
+    const tarde = em('2026-11-10T13:30:00-03:00');
+    const datas = datasParaRegistrar({ aberta: '2026-11-11', excecao: false, agora: tarde });
+    assert.equal(datas[0].data, '2026-11-12');
+    assert.equal(datas[0].data, primeiraDataAberta(tarde));
+    assert.equal(datasParaRegistrar({ aberta: '2026-11-11', excecao: true, agora: tarde })[1].rotulo, 'qua 11/11 (amanhã) · prazo encerrado');
   });
 });

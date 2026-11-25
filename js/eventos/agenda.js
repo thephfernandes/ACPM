@@ -1,36 +1,31 @@
-// A Agenda: o calendário e registrar e cancelar pedidos (importar os pedidos da data para a Demanda:
-// js/eventos/importacao.js)
-import { carregarData } from '../actions.js';
-import { vagaDeVooLocal, ehDomingo } from '../agenda.js';
+// A Agenda: registrar e cancelar pedidos, com a data do pedido no formulário (importar os pedidos da data para a
+// Demanda: js/eventos/importacao.js). A data aberta muda pelo trilho
+import { vagaDeVooLocal } from '../agenda.js';
 import { DURACAO_MAXIMA_H, LIMITE_DE_VOOS_LOCAIS } from '../config.js';
 import { $, showToast } from '../dom.js';
-import { dataIsoValida } from '../format.js';
 import { duracaoDigitada, ERRO_DA_DURACAO } from '../rules.js';
-import { S, DATA } from '../state.js';
+import { S } from '../state.js';
 import { ApiClient } from '../storage.js';
 import { confirmado } from './confirmacao.js';
 import { aoAcionar } from './registro.js';
-import { abrirAgenda, carregarMes, mudarMes, escolherDia, diaDaAgenda, lembrarRegistradoPor, podeEditarAgenda, rAgenda, preencherHorariosDaAgenda, pedidosDoAluno, descreverPedido, pedidosCarregados } from '../views/agenda.js';
+import { mostrarAgenda, diaDoPedido, escolherDataDoPedido, lerOutraData, pedidosDaData, lembrarRegistradoPor, podeEditarAgenda, rAgenda, preencherHorariosDaAgenda, pedidosDoAluno, descreverPedido } from '../views/agenda.js';
 import { lerPedidosDaData } from '../views/selos.js';
 import { registrarDesenho } from '../redesenho.js';
 import { registrarTela } from '../views/telas.js';
 
-// O desenho da Agenda (js/redesenho.js), pelo papel: os pedidos. Ele não faz nada até a Agenda ser aberta
-registrarDesenho('pedidos', rAgenda, { em: ['dados'], ordem: 95 });
-// Aberta, a Agenda lê o mês: no dia do item (o dia escolhido nela enquanto os dados da abertura chegavam) ou no dia padrão
-registrarTela('age', { aoMostrar: item => abrirAgenda(dataIsoValida(item) ? item : undefined) });
+// O desenho da Agenda (js/redesenho.js), pelo papel: os pedidos. Ele não faz nada até a Agenda ser aberta; depois, segue os
+// dados da data, os pedidos lidos, a data aberta e o perfil
+registrarDesenho('pedidos', rAgenda, { em: ['dados', 'pedidos', 'data-aberta', 'perfil'], ordem: 95 });
+// Aberta, a Agenda lê os pedidos da data aberta (a lista e a linha usam a mesma leitura)
+registrarTela('age', { aoMostrar: () => { mostrarAgenda(); lerPedidosDaData(); } });
 
-// Agenda: o calendário é livre para navegar (inclusive para o Gestor)
-document.addEventListener('click', e => {
-  const cal = e.target.closest('[data-cal]');
-  if (!cal) return;
-  if (cal.dataset.cal === 'mes') { mudarMes(+cal.dataset.delta); return; }
-  escolherDia(cal.dataset.dia);
-  // O dia escolhido na agenda abre no app inteiro (as outras abas ficam nessa data); o domingo não tem escala
-  if (cal.dataset.dia !== DATA && dataIsoValida(cal.dataset.dia) && !ehDomingo(cal.dataset.dia)) {
-    carregarData(cal.dataset.dia).catch(() => showToast('Não foi possível abrir essa data. Verifique a conexão e tente de novo.'));
-  }
-});
+// A data do pedido: o prazo e a Exceção da Coordenação seguem ela; os pedidos dela são lidos para os avisos do formulário
+$('#ag-data').onchange = () => {
+  escolherDataDoPedido($('#ag-data').value);
+  desarmarConfirmacaoDaAgenda();
+  lerOutraData($('#ag-data').value);
+  rAgenda();
+};
 
 // Os campos do pedido com erro (aria-invalid): o leitor de tela diz qual campo e lê o motivo (#ag-erro é a descrição deles)
 const marcarInvalidos = (...ids) => ['#ag-aluno', '#ag-horario', '#ag-horas', '#ag-por'].forEach(id => $(id).setAttribute('aria-invalid', String(ids.includes(id))));
@@ -54,13 +49,15 @@ async function registrarPedido(excecao) {
     marcarInvalidos('#ag-horas');
     return;
   }
-  const dia = diaDaAgenda(), confirmacao = `${aluno.id}|${dia}`;
+  const dia = diaDoPedido(), confirmacao = `${aluno.id}|${dia}`;
+  // Os pedidos da data do pedido (sem a leitura deles, os dois avisos ficam de fora; o servidor confere o limite)
+  const doDia = pedidosDaData(dia) || [];
   // No máximo 6 voos locais no mesmo horário: o horário está indisponível, com o próximo
   const pedido = { data: dia, horario: $('#ag-horario').value, missao: $('#ag-missao').value };
-  const vaga = vagaDeVooLocal(pedidosCarregados(), pedido, S.horarios);
+  const vaga = vagaDeVooLocal(doDia, pedido, S.horarios);
   if (!vaga.ok) { $('#ag-erro').textContent = semVagaDeVooLocal(pedido, vaga.proximo); marcarInvalidos('#ag-horario'); return; }
   // O aluno que já tem voo marcado na data: pode ser um reagendamento feito por outra pessoa; o segundo clique confirma
-  const marcados = pedidosDoAluno(aluno.id, dia);
+  const marcados = pedidosDoAluno(doDia, aluno.id, dia);
   if (marcados.length && $('#form-agenda').dataset.confirmado !== confirmacao) {
     $('#form-agenda').dataset.confirmado = confirmacao;
     $('#form-agenda [type="submit"]').textContent = 'Registrar mesmo assim';
@@ -79,7 +76,7 @@ async function registrarPedido(excecao) {
       23514: 'Pedido incompleto: confira aluno, missão, horário e quem anotou.',
       22023: `Pedido inválido: o horário é obrigatório, e a duração vai de 0,1 h a ${DURACAO_MAXIMA_H} h.`,
       // Outra pessoa agendou o 6º local no mesmo horário enquanto isso: o servidor recusou
-      PT422: semVagaDeVooLocal(pedido, vagaDeVooLocal([...pedidosCarregados(), ...Array.from({ length: LIMITE_DE_VOOS_LOCAIS }, () => ({ ...pedido, janela: 'horario', cancelada_em: null }))], pedido, S.horarios).proximo)
+      PT422: semVagaDeVooLocal(pedido, vagaDeVooLocal([...doDia, ...Array.from({ length: LIMITE_DE_VOOS_LOCAIS }, () => ({ ...pedido, janela: 'horario', cancelada_em: null }))], pedido, S.horarios).proximo)
     }[err.code] || 'Não foi possível registrar o pedido. Verifique a conexão e tente de novo.';
     return;
   }
@@ -88,7 +85,7 @@ async function registrarPedido(excecao) {
   $('#ag-obs').value = '';
   $('#ag-aluno').value = '';
   showToast(excecao ? 'Pedido registrado pela Exceção da Coordenação.' : 'Pedido registrado.', 'ok');
-  await carregarMes();
+  await lerOutraData(dia);
   lerPedidosDaData();
 }
 // O horário sem vaga de voo local: o motivo e o próximo horário possível
@@ -121,7 +118,6 @@ async function cancelarPedido(b) {
   } catch {
     $('#ag-erro').textContent = 'Não foi possível cancelar o pedido. Verifique a conexão e tente de novo.';
   }
-  await carregarMes();
   lerPedidosDaData();
 }
 aoAcionar('cancelar-pedido', cancelarPedido, { confereAPermissao: true });

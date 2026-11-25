@@ -1,18 +1,7 @@
-/* A Agenda de solicitações: o calendário, o formulário e a lista do dia */
+/* A Agenda de solicitações: o formulário e a lista da data aberta (o calendário é o do trilho) */
 /* Agenda de Solicitações */
-.agenda { display: grid; gap: 12px; grid-template-columns: minmax(260px, 340px) 1fr; align-items: start; }
+.agenda { display: grid; gap: 12px; grid-template-columns: minmax(0, 1fr); align-items: start; }
 .agenda > * { min-width: 0; }
-@media (max-width: 760px) {
-  .agenda { grid-template-columns: 1fr; }
-}
-.cal-cab { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-.cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
-.cal .sem { font-size: 11px; color: var(--mu); text-align: center; }
-.cal .dia { position: relative; border: 1px solid var(--ln); border-radius: 4px; background: var(--pn); color: var(--ink); padding: 8px 0; font: inherit; cursor: pointer; }
-.cal .dia.fora { opacity: .45; }
-.cal .dia.fechado { color: var(--mu); background: transparent; }
-.cal .dia.sel { outline: 2px solid var(--ac); }
-.cal .dia .qtd { position: absolute; top: 1px; right: 2px; font-size: 10px; line-height: 14px; background: var(--ac); color: var(--acT); border-radius: 7px; padding: 0 4px; }
 #form-agenda { display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); align-items: end; margin-bottom: 12px; }
 #form-agenda label { display: flex; flex-direction: column; gap: 2px; font-size: 13px; }
 #ag-erro { color: var(--er); margin: 0; grid-column: 1 / -1; }
@@ -25,7 +14,3 @@ body:not([data-agenda="edita"]) .agenda-acao { display: none !important; }
 #agenda-lista tr.cancel td { color: var(--mu); }
 #agenda-lista tr.cancel td b { font-weight: 500; text-decoration: line-through; }
 #agenda-importar { margin: 10px 0 8px; }
-@media (max-width: 640px) {
-  .cal .dia { min-height: 44px; }
-  .cal { gap: 2px; }
-}

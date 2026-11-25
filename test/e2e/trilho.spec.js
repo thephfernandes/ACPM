@@ -1,7 +1,7 @@
 // O trilho (F1b): o calendário da data aberta no lugar das setas e do campo da data. Ao lado da tela a partir de 1280 px
 // (por padrão), ou um painel aberto pelo botão da data; os dias (hoje, a data aberta, domingo, os pedidos de cada um), as
 // teclas, "Fixar ao lado", o celular e a gaveta do Histórico à esquerda dele. Os padrões do produto, de propósito
-import { test, expect, abrir, abrirComExemplo, entrar, irPara, abrirHistorico, AMANHA, dataAberta, botaoDaData, trilho, diaDoCalendario, mudarData, larguraDaPagina } from './fixtures.js';
+import { test, expect, abrir, abrirComExemplo, entrar, irPara, abrirHistorico, AMANHA, dataAberta, botaoDaData, trilho, diaDoCalendario, mudarData, larguraDaPagina, paradasDoCalendario, rotuloDaData } from './fixtures.js';
 import { instalarSupabaseFalso, documentosAtuais, CONTAS } from './supabase-falso.js';
 import { estadoSintetico } from '../helpers/estado.js';
 import { aluno } from '../helpers/montar.js';
@@ -41,7 +41,7 @@ test.describe('O trilho ao lado', () => {
     await expect(diaDoCalendario(page, '2026-11-12')).toHaveAttribute('aria-current', 'date');
     await expect(page.locator('#anuncio')).toHaveText('Data aberta: quinta-feira, 12/11');
     await expect(diaDoCalendario(page, '2026-11-12')).toBeFocused();
-    await expect(page.locator('#dt-rotulo')).toHaveText('quinta-feira, 12/11', { useInnerText: true });
+    await expect(rotuloDaData(page)).toHaveText('quinta-feira, 12/11', { useInnerText: true });
   });
 
   test('as teclas andam pela grade, e a página do mês segue o dia', async ({ page }) => {
@@ -49,7 +49,7 @@ test.describe('O trilho ao lado', () => {
     await botaoDaData(page).click();
     await expect(diaDoCalendario(page, AMANHA)).toBeFocused();
     // Uma parada só do Tab na grade
-    await expect(page.locator('#cal .cal-dia[tabindex="0"]')).toHaveCount(1);
+    await expect(paradasDoCalendario(page)).toHaveCount(1);
     await page.keyboard.press('ArrowRight');
     await expect(diaDoCalendario(page, '2026-11-12')).toBeFocused();
     await page.keyboard.press('ArrowDown');

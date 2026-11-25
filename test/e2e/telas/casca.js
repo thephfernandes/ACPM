@@ -93,6 +93,8 @@ export const rotuloDaData = page => page.locator('#dt-rotulo');
 export const relativoDaData = page => page.locator('#dt-rel');
 export const trilho = page => page.locator('#trilho');
 export const diaDoCalendario = (page, dia) => page.locator(`#cal .cal-dia[data-dia="${dia}"]`);
+// Os dias do calendário que recebem o Tab (uma parada só)
+export const paradasDoCalendario = page => page.locator('#cal .cal-dia[tabindex="0"]');
 
 const ehDomingo = iso => new Date(iso + 'T12:00:00Z').getUTCDay() === 0;
 const somarDias = (iso, dias) => new Date(Date.parse(iso + 'T12:00:00Z') + dias * 864e5).toISOString().slice(0, 10);
@@ -116,12 +118,13 @@ export async function mudarData(page, data) {
   await expect(dataAberta(page)).toHaveAttribute('data-data', data);
 }
 
-// O dia de operação seguinte e o anterior (o domingo fica de fora), pelo trilho
+// O dia de operação seguinte e o anterior à data aberta (o domingo fica de fora), escolhido no trilho, sem esperar a data
+// abrir (como o clique nas setas de antes: os testes da abertura seguram a leitura dela)
 async function andarDias(page, dias) {
   const aberta = await dataAberta(page).getAttribute('data-data');
   let destino = somarDias(aberta, dias);
   if (ehDomingo(destino)) destino = somarDias(destino, dias);
-  await mudarData(page, destino);
+  await escolherNoCalendario(page, destino);
 }
 export const diaSeguinte = page => andarDias(page, 1);
 export const diaAnterior = page => andarDias(page, -1);

@@ -47,7 +47,7 @@ import { ApiClient } from './storage.js';
 import { iniciarTema } from './eventos/topo.js';
 import { avisoDeDomingo } from './eventos/trilho.js';
 import { programaSendoGravado } from './eventos/cursos.js';
-import { diaDaAgenda, podeEditarAgenda } from './views/agenda.js';
+import { podeEditarAgenda } from './views/agenda.js';
 import { carregarDadosPessoais } from './views/dados-pessoais.js';
 import { rOut } from './views/escala.js';
 import { lerPedidosDaData } from './views/selos.js';
@@ -142,11 +142,10 @@ window.addEventListener('beforeunload', e => {
 
   // A tela da abertura: a que a pessoa escolheu enquanto os dados carregavam (um clique, Voltar, um endereço digitado), a do
   // endereço ou a do perfil (a Agenda para a Secretaria, a Escala para os outros). Ela é mostrada de novo agora, com os
-  // dados lidos e o perfil conferido; a Agenda, no dia que já estiver escolhido nela
+  // dados lidos e o perfil conferido
   // (o destino lido no começo: o item do endereço vale uma vez e já saiu dele)
   const destino = telaFoiEscolhida() ? { tela: telaAberta(), item: null } : (doEndereco || { tela: telaDeAbertura(ApiClient.perfil), item: null });
-  const item = destino.tela === 'age' && !destino.item ? diaDaAgenda() : destino.item;
-  await mostrarTela(destino.tela, { item, nativo: Boolean(destino.nativo), historico: 'substituir' });
+  await mostrarTela(destino.tela, { item: destino.item, nativo: Boolean(destino.nativo), historico: 'substituir' });
 
   lerPedidosDaData();
   carregarBI();

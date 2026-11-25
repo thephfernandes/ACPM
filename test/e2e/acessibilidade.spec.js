@@ -1,6 +1,6 @@
 // Acessibilidade: cada botão e cada campo tem um nome para o leitor de tela, e nenhum se chama só "✕" (que o leitor
 // lê como "multiplicação"). Vale para todas as abas, o Histórico e o painel de habilitações.
-import { test, expect, abrir, abrirComExemplo, irPara, entrar, abrirEscala, abrirCaixa, prepararContexto, vigiarErros, REGIOES, abasVisiveis, abrirHistorico, aprovar, botaoAprovar, botaoDoHistorico, botaoDoMenuDaConta, percorrerTelas, relativoDaData, rotuloDaData, semNome, alternarVem, botoesDasAbas, botaoDaData, mudarData } from './fixtures.js';
+import { test, expect, abrir, abrirComExemplo, irPara, entrar, abrirEscala, abrirCaixa, prepararContexto, vigiarErros, REGIOES, abasVisiveis, abrirHistorico, aprovar, botaoAprovar, botaoDoHistorico, botaoDoMenuDaConta, percorrerTelas, relativoDaData, rotuloDaData, semNome, alternarVem, botoesDasAbas, botaoDaData, mudarData, diaDoCalendario } from './fixtures.js';
 import { instalarSupabaseFalso, documentosAtuais, CONTAS } from './supabase-falso.js';
 import { comExemplo } from '../helpers/exemplo.js';
 import { estadoSintetico } from '../helpers/estado.js';
@@ -38,10 +38,10 @@ test.describe('O foco do teclado na barra do topo', () => {
       await abrirComExemplo(page);
       await page.evaluate(t => { document.documentElement.dataset.theme = t; }, tema);
       const fundo = await page.locator('header.topo').evaluate(el => getComputedStyle(el).backgroundColor);
-      // A data (as setas), o perfil, o Histórico, o Manual (um link) e o menu da conta
+      // O botão da data, o perfil, o Histórico, o Manual (um link) e o menu da conta
       const controles = page.locator('header.topo :is(button, select, a[href]):visible:not(:disabled)');
       const total = await controles.count();
-      expect(total).toBeGreaterThanOrEqual(6);
+      expect(total).toBeGreaterThanOrEqual(5);
       const fracos = [];
       for (let i = 0; i < total; i++) {
         const controle = controles.nth(i);
@@ -299,15 +299,11 @@ test.describe('O leitor de tela e o teclado', () => {
     await irPara(page, 'cur');
     await expect(atual).toHaveCount(1);
     await expect(atual).toHaveAttribute('href', '#/cur');
-    // O dia escolhido no calendário da agenda, e o que passa a ser escolhido
-    await irPara(page, 'age');
-    const escolhido = page.locator('#agenda-cal [aria-current="date"]');
-    await expect(escolhido).toHaveCount(1);
-    await expect(escolhido).toHaveClass(/\bsel\b/);
-    const outro = page.locator('#agenda-cal [data-cal="dia"]:not(.sel):not(.fora)').first();
-    const dia = await outro.getAttribute('data-dia');
-    await outro.click();
-    await expect(escolhido).toHaveAttribute('data-dia', dia);
+    // A data aberta, no calendário do trilho (aria-current="date"), e a que passa a ser a aberta
+    await expect(diaDoCalendario(page, '2026-11-11')).toHaveAttribute('aria-current', 'date');
+    await mudarData(page, '2026-11-12');
+    await expect(diaDoCalendario(page, '2026-11-12')).toHaveAttribute('aria-current', 'date');
+    await expect(diaDoCalendario(page, '2026-11-11')).not.toHaveAttribute('aria-current');
   });
 
   test('o pedido de confirmação é dito na região de status (o nome trocado do botão nem sempre é lido)', async ({ page }) => {
