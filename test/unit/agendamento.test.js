@@ -4,10 +4,11 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  contextoInicial, horariosDoAgendamento, encaixarHorario, duracaoDoAgendamento, naOrdemDoMotor, opcoesDeAluno, opcoesDeMissao,
+  contextoInicial, horariosDoAgendamento, encaixarHorario, duracaoDoAgendamento, opcoesDeAluno, opcoesDeMissao,
   opcoesDeRecurso, opcoesDeInstrutor, formularioDoAgendamento, aplicarAgendamento, simularAgendamento, avaliarAgendamento, comPesos,
   assinaturaDosAvisos, descricaoDoAgendamento, reversaoDoAgendamento, historicoDosPesos, escolhasDaAlternativa, nomeDaData
 } from '../../js/agendamento.js';
+import { naOrdemDoMotor } from '../../js/rejeicoes.js';
 import { ocupacaoDaEscala } from '../../js/candidatos.js';
 import { runAllocationEngine } from '../../js/engine.js';
 import { validarReversao, desfazerAgendamento, motivoParaNaoDesfazer } from '../../js/reversoes.js';
@@ -44,8 +45,8 @@ function agendar(estado, { amb = ambiente(), contexto = 'dia', escolhas = {}, to
   if (!formulario.proposta) return { base, formulario, avaliacao: avaliarAgendamento({ estado, baseComPesos: base, formulario, ambiente: amb }) };
   const comOsPesos = comPesos(estado, formulario.proposta);
   const baseComPesos = comOsPesos === estado ? base : runAllocationEngine(comOsPesos);
-  const { sim, fKey } = simularAgendamento(estado, base, formulario.proposta);
-  return { base, formulario, sim, fKey, avaliacao: avaliarAgendamento({ estado, base, baseComPesos, sim, fKey, formulario, ambiente: amb }) };
+  const { sim, estadoDaSim, fKey } = simularAgendamento(estado, base, formulario.proposta);
+  return { base, formulario, sim, fKey, avaliacao: avaliarAgendamento({ estado, base, baseComPesos, sim, estadoDaSim, fKey, formulario, ambiente: amb }) };
 }
 
 // Dois instrutores; o Aluno 1000 voa às 06:30 (o app escolheu); o Aluno 1001, do PP, não voa hoje

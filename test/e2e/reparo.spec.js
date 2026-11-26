@@ -119,3 +119,82 @@ test.describe('Sugestões para um conflito', () => {
     await expect(page.locator('#out details.conflitos [data-reparo]')).toBeHidden();
   });
 });
+
+// O voo cancelado também tem sugestões (F1e): o aluno não perde o voo porque o instrutor faltou. O motivo do cancelamento
+// sai da busca (aqui, o instrutor); aplicada, a sugestão volta o voo para Pendente com o outro instrutor; o Histórico desfaz
+test.describe('Sugestões para um voo cancelado', () => {
+  const doisInstrutores = () => cenario({ ins: [instrutor(1, 9), instrutor(2, 9)], stu: [aluno(1000, { p1: 610, p2: -1 })] });
+
+  test('cancelado por "Instrutor indisponível": outro instrutor no mesmo horário; aplicada, Pendente; o histórico desfaz', async ({ page }) => {
+    await abrir(page, { estado: doisInstrutores() });
+    await abrirEscala(page);
+    const voo = linha(page, 'Aluno 1000');
+    const instrutor = (await voo.locator('.c-instr').innerText()).trim();
+    await voo.locator('.st-sel').selectOption('Cancelado');
+    await page.locator('#dlg-status').getByLabel('Instrutor indisponível').check();
+    await page.locator('#dlg-status').getByRole('button', { name: 'Confirmar' }).click();
+    await expect(voo).toHaveClass(/\bst-Cancelado\b/);
+
+    await voo.getByRole('button', { name: 'Sugestões' }).click();
+    await expect(gaveta(page)).toBeVisible();
+    await expect(gaveta(page).locator('h2')).toContainText('Aproveitar o voo cancelado');
+    await expect(gaveta(page)).toContainText('Cancelado: Instrutor indisponível.');
+    const primeira = gaveta(page).locator('.opcoes-reparo li').first();
+    await expect(primeira).toContainText('10:10');
+    await expect(primeira).not.toContainText(instrutor);
+    await primeira.getByRole('button', { name: 'Aplicar' }).click();
+    await expect(gaveta(page)).toBeHidden();
+    await expect(voo.locator('.st-sel')).toHaveValue('Pendente');
+    await expect(voo.locator('.c-instr')).not.toHaveText(instrutor);
+    await expect(voo.locator('.fixo')).toHaveCount(1);
+
+    await abrirHistorico(page);
+    await expect(page.locator('#audit-log-list')).toContainText('Voo cancelado aproveitado: Aluno 1000 (10:10–11:10)');
+    await page.locator('#audit-log-list [data-act="rev-log"]').first().click();
+    await page.keyboard.press('Escape');
+    await expect(voo.locator('.st-sel')).toHaveValue('Cancelado');
+    await expect(voo.locator('.st-detalhe')).toHaveText('Instrutor indisponível');
+  });
+
+  test('cancelado porque o aluno faltou: sem "Sugestões"', async ({ page }) => {
+    await abrir(page, { estado: doisInstrutores() });
+    await abrirEscala(page);
+    const voo = linha(page, 'Aluno 1000');
+    await voo.locator('.st-sel').selectOption('Cancelado');
+    await page.locator('#dlg-status').getByLabel('Aluno ausente').check();
+    await page.locator('#dlg-status').getByRole('button', { name: 'Confirmar' }).click();
+    await expect(voo).toHaveClass(/\bst-Cancelado\b/);
+    await expect(voo.getByRole('button', { name: 'Sugestões' })).toHaveCount(0);
+  });
+
+  test('sem nada que sirva: "Impossível nesta data", com o porquê', async ({ page }) => {
+    await abrir(page, { estado: cenario({ ins: [instrutor(1, 9)], stu: [aluno(1000, { p1: 610, p2: -1 })] }) });
+    await abrirEscala(page);
+    const voo = linha(page, 'Aluno 1000');
+    await voo.locator('.st-sel').selectOption('Cancelado');
+    await page.locator('#dlg-status').getByLabel('Instrutor indisponível').check();
+    await page.locator('#dlg-status').getByRole('button', { name: 'Confirmar' }).click();
+    await voo.getByRole('button', { name: 'Sugestões' }).click();
+    await expect(gaveta(page)).toContainText('Impossível nesta data.');
+    await expect(gaveta(page).locator('.impossivel li')).toHaveCount(3);
+  });
+});
+
+// A recusa do pedido cujo instrutor escolhido não serve também tem "Sugestões" (F1e): outro instrutor que o encaixa sem
+// mudar outro voo; aplicada, a escolha do pedido muda e ele entra; o histórico desfaz
+test('o pedido recusado pelo instrutor escolhido: "Sugestões" na linha da recusa encaixa com outro instrutor', async ({ page }) => {
+  await abrir(page, { estado: cenario({ ins: [instrutor(1, 9, { on: false }), instrutor(2, 9)], stu: [aluno(1000, { p1: 610, p2: -1, insId: 1 })] }) });
+  await abrirEscala(page);
+  await abrirCaixa(page, 'erros');
+  await page.locator('#out details.caixa.erros').getByRole('button', { name: 'Sugestões' }).click();
+  await expect(gaveta(page).locator('h2')).toContainText('Encaixar o pedido');
+  const primeira = gaveta(page).locator('.opcoes-reparo li').first();
+  await expect(primeira).toContainText('Com Instrutor 02');
+  await primeira.getByRole('button', { name: 'Aplicar' }).click();
+  await expect(gaveta(page)).toBeHidden();
+  await expect(linha(page, 'Aluno 1000').locator('.c-instr')).toContainText('Instrutor 02');
+  await abrirHistorico(page);
+  await page.locator('#audit-log-list [data-act="rev-log"]').first().click();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#out details.caixa.erros')).toContainText('Aluno 1000');
+});

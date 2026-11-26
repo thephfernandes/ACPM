@@ -8,10 +8,10 @@ import { novoRecurso, MATRICULA, ATRIBUTOS_DO_RECURSO } from './frota.js';
 import { normalizarFixos, fixoPeloStatus, pinoDeVoltaNaTurma } from './fixos.js';
 import { CATEGORIAS_COM_HORARIOS, normalizarHorarios } from './horarios.js';
 import { disponibilidadeValida, normalizeMissionFields } from './rules.js';
-import { MINUTOS_DO_DIA, MIS, WIN } from './config.js';
+import { MINUTOS_DO_DIA, MIS, WIN, FLIGHT_STATUSES } from './config.js';
 import { CHAVE_DO_VOO, chaveDoVoo, pedidoDoAluno } from './voo.js';
 import { CAMPOS_DO_PEDIDO } from './dias.js';
-import { STATUS_EM_ANDAMENTO } from './status.js';
+import { STATUS_EM_ANDAMENTO, normalizarDetalhes } from './status.js';
 
 const idValido = v => Number.isInteger(v) && v > 0;
 const rotuloValido = v => typeof v === 'string' && v.length <= 40;
@@ -89,6 +89,22 @@ export function validarReversao(rev, frota) {
       && preferencia(p.p1) && preferencia(p.p2) && (p.jan === undefined || disponibilidadeValida(p.jan))
       ? { stuId: p.stuId, mid: p.mid, p1: p.p1, p2: p.p2, ...(p.jan === undefined ? {} : { jan: p.jan }) } : null));
     return pedidos.every(Boolean) ? { kind: 'restaurarHorarios', cat: rev.cat, lista, pedidos, label } : null;
+  }
+  // O voo cancelado aproveitado pelas Sugestões: o pino, o status e o detalhe de antes de cada voo (null: não havia) e o
+  // pedido de antes de cada aluno (os campos do pedido, como no agendamento)
+  if (rev.kind === 'aproveitarCancelado') {
+    if (!Array.isArray(rev.voos) || !rev.voos.length || rev.voos.length > 100 || !Array.isArray(rev.pedidos) || rev.pedidos.length > 100) return null;
+    const voos = rev.voos.map(v => {
+      if (!objeto(v) || typeof v.fKey !== 'string' || !CHAVE_DO_VOO.test(v.fKey)) return null;
+      const fixo = ausente(v.fixo) ? null : normalizarFixos({ [v.fKey]: v.fixo })[v.fKey] || null;
+      const status = ausente(v.status) ? null : FLIGHT_STATUSES.includes(v.status) ? v.status : undefined;
+      const detalhe = ausente(v.detalhe) ? null : normalizarDetalhes({ [v.fKey]: v.detalhe }, { [v.fKey]: v.status })[v.fKey] || undefined;
+      if ((!ausente(v.fixo) && !fixo) || status === undefined || detalhe === undefined) return null;
+      return { fKey: v.fKey, fixo, status, detalhe };
+    });
+    const pedidos = rev.pedidos.map(p => (objeto(p) && idValido(p.stuId) && Number.isInteger(p.mid) && p.mid >= 0 && pedidoDeAntes(p.pedido)
+      ? { stuId: p.stuId, mid: p.mid, pedido: pedidoDeAntes(p.pedido) } : null));
+    return voos.every(Boolean) && pedidos.every(Boolean) ? { kind: 'aproveitarCancelado', voos, pedidos, label } : null;
   }
   if (rev.kind === 'readicionarRecurso') {
     const { recurso } = novoRecurso(frota, rev.recurso && typeof rev.recurso === 'object' ? rev.recurso : {});

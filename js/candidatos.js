@@ -35,7 +35,7 @@ const primeiraDaUnidade = lista => {
 // horário novo (sem ele, o marcado); soFixos: só os voos fixos (os outros, o motor encaixa de novo em volta). A turma
 // ocupa a sala e o instrutor pelo primeiro aluno dela na lista que não foi cancelado, como no motor (o primeiro que ele
 // confere): com atrasos diferentes na turma, quem precisa do intervalo do motor passa os voos na ordem dele
-// (js/agendamento.js, naOrdemDoMotor)
+// (js/rejeicoes.js, naOrdemDoMotor)
 export function ocupacaoDaEscala(out, { fStatus = {}, fObs = {}, efetivo = false, exceto = [], soFixos = false } = {}) {
   const fora = new Set(exceto);
   const voos = out.filter(o => !fora.has(o.fKey) && (!soFixos || o.fixo) && statusDoVoo(o, fStatus) !== 'Cancelado')

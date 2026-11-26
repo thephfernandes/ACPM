@@ -24,6 +24,7 @@ import { indiceDoPrograma, percursoDoCurso, rotuloDaFase, rotuloDaMissao, noturn
 import { chaveDoVoo, statusDoVoo, pedidoDoAluno, ocupacaoDoVoo } from './voo.js';
 import { CAMPOS_DO_PEDIDO } from './dias.js';
 import { runAllocationEngine } from './engine.js';
+import { naOrdemDoMotor, rejeicoesDosPedidos } from './rejeicoes.js';
 import { CODIGOS_DO_AGENDADO, GRUPO_DO_CONFLITO } from './conflitos.js';
 import { fixoPeloStatus, motivoDoFixo } from './fixos.js';
 import { STATUS_EM_ANDAMENTO, rotuloDoStatus, intervaloEfetivo } from './status.js';
@@ -126,35 +127,6 @@ export function duracaoDoAgendamento({ mis, missao = null, pedido = null }) {
 // ---------------------------------------------------------------------------------------------------------------------
 // A ocupação do dia: os voos fixos (que o agendamento não tira do lugar) e todos (os outros, o motor reorganiza)
 
-// Os voos da escala na ordem em que o motor confere os fixos (js/engine.js): a volta do noturno de ontem, os fixos pelo
-// status, pela escala aprovada e pelo instrutor escolhido, os agendados e os outros; em cada grupo, a ordem dos pedidos do
-// motor (o Ground antes, o instrutor escolhido, a prioridade, o "Priorizar com", a agenda, o cadastro e a missão). A turma
-// de Ground ocupa a sala e o instrutor pelo primeiro aluno dela que o motor confere (js/candidatos.js)
-export function naOrdemDoMotor(estado, out) {
-  const fixos = estado.fixos || {};
-  const alunos = new Map(estado.stu.map((s, i) => [s.id, { s, i }]));
-  const noCadastro = new Set(estado.ins.map(x => x.id));
-  const chave = o => {
-    const { s, i } = alunos.get(o.stuId) || {};
-    const ref = s && !o.trecho ? pedidoDoAluno(s, o.mid || 0) : null;
-    if (!ref) return [o.trecho ? 0 : 4];
-    const pino = fixos[o.fKey];
-    return [
-      !pino ? 3 : pino.agendado ? 2 : 1, isGroundMission(ref.mis) ? 0 : 1, ref.insId && noCadastro.has(ref.insId) ? 0 : 1, -(ref.pr || 3),
-      (s.voaCom || []).length ? 0 : 1, Number.isInteger(ref.solicitacao) ? ref.solicitacao : Infinity, i,
-      o.mid ? (s.extra || []).findIndex(ex => ex.mid === o.mid) + 1 : 0
-    ];
-  };
-  const comparar = (p, q) => {
-    for (let k = 0; k < Math.max(p.length, q.length); k++) {
-      const x = p[k] ?? 0, y = q[k] ?? 0;
-      if (x !== y) return x < y ? -1 : 1;
-    }
-    return 0;
-  };
-  return out.map((o, k) => ({ o, k, c: chave(o) })).sort((p, q) => comparar(p.c, q.c) || p.k - q.k).map(p => p.o);
-}
-
 // Calculada uma vez por escala (a base do diálogo) e voo que muda de lugar. exceto: as chaves dos voos que não contam (o
 // voo movido não ocupa o lugar de onde sai)
 const ocupacoesDaBase = new WeakMap();
@@ -231,9 +203,15 @@ const FORA_DA_ESCALA = {
   'limite-da-lei': 'o limite da lei', peso: 'o peso acima do limite', 'limite-de-locais': 'o limite de voos locais no horário',
   'instrutor-escolhido': 'o instrutor escolhido não serve', 'habilitacao-do-aviao': 'sem a habilitação própria do avião'
 };
-// Por que o pedido ficou fora da escala (a rejeição do motor na base, pelo nome do voo)
-function motivoDeFora(base, stu, p) {
-  const err = base.al.find(al => al.t === 'err' && al.s === (p.mid ? `${stu.nm} (${p.mis})` : stu.nm));
+// As recusas da base ligadas aos pedidos (js/rejeicoes.js), uma vez por base
+const recusasDaBase = new WeakMap();
+const recusasDe = (estado, base) => {
+  if (!recusasDaBase.has(base)) recusasDaBase.set(base, rejeicoesDosPedidos(estado, base));
+  return recusasDaBase.get(base);
+};
+// Por que o pedido ficou fora da escala: a recusa do motor ligada a ele (dois alunos de mesmo nome não se confundem)
+function motivoDeFora(estado, base, stu, p) {
+  const err = recusasDe(estado, base).get(chaveDoVoo(stu.id, p.mid || 0));
   return (err && FORA_DA_ESCALA[err.codigo]) || 'sem lugar na escala';
 }
 
@@ -270,7 +248,7 @@ function voosDeHoje(estado, base, ambiente, stu, a) {
     const travado = [...STATUS_EM_ANDAMENTO, 'Cancelado'].includes(status) ? status : null;
     const doCurso = missaoDoPedido(estado, base, ambiente, stu, p, a);
     const nome = `${doCurso ? doCurso.rotulo : p.etapa || ''}${p.etapa ? ' · ' : ''}${p.mis}`;
-    const texto = `${voo ? `Mover ${nome} (${naData(dia, voo.a)}, ${nomeDoRecurso(voo.r)})` : `Encaixar ${nome} (ficou fora: ${motivoDeFora(base, stu, p)})`}`
+    const texto = `${voo ? `Mover ${nome} (${naData(dia, voo.a)}, ${nomeDoRecurso(voo.r)})` : `Encaixar ${nome} (ficou fora: ${motivoDeFora(estado, base, stu, p)})`}`
       + (travado ? ` — ${rotuloDoStatus(travado, voo).toLowerCase()}` : '');
     return {
       valor: `pedido:${mid}`, texto, desligada: Boolean(travado),
@@ -973,7 +951,7 @@ export function simularAgendamento(estado, base, proposta, motor = runAllocation
     fStatus: { ...(estado.fStatus || {}) }, fObs: { ...(estado.fObs || {}) }
   };
   const antes = aplicarAgendamento(copia, base, proposta);
-  return { sim: motor(copia), antes, fKey: chaveDoVoo(antes.stuId, antes.mid) };
+  return { sim: motor(copia), estadoDaSim: copia, antes, fKey: chaveDoVoo(antes.stuId, antes.mid) };
 }
 
 // O campo do diálogo de cada grupo de conflito (o foco vai para ele)
@@ -1037,9 +1015,10 @@ export function escolhasDaAlternativa(formulario, escolhas, tocados, valor) {
   return { escolhas: novas, tocados: novos };
 }
 
-// Por que o voo saiu da escala na simulação (a rejeição do motor, pelo nome do voo): ' (o motivo)', ou ''
-function motivoDaSaida(sim, o) {
-  const err = sim.al.find(al => al.t === 'err' && al.s === rotuloDoVoo(o));
+// Por que o voo saiu da escala na simulação: a recusa do motor ligada ao pedido dele (js/rejeicoes.js), no estado da
+// simulação: ' (o motivo)', ou ''
+function motivoDaSaida(estadoDaSim, sim, o) {
+  const err = estadoDaSim ? recusasDe(estadoDaSim, sim).get(o.fKey) : null;
   return err ? ` (${minuscula(err.m.replace(/^Rejeitado: /, '').replace(/\.$/, ''))})` : '';
 }
 
@@ -1047,7 +1026,7 @@ function motivoDaSaida(sim, o) {
 // em até LINHAS_DA_PREVIA linhas, cada voo que muda de horário, recurso ou instrutor ("Aluno 1003: 10:10 → 11:30, PR-VOB →
 // PR-VOC"), sai da escala (com o motivo do motor) ou entra nela (estava fora e agora cabe), mais "e mais N"
 const LINHAS_DA_PREVIA = 8;
-function linhasDaPrevia({ novo, movidos, saem, entram }, { antes, sim, movido }) {
+function linhasDaPrevia({ novo, movidos, saem, entram }, { antes, sim, estadoDaSim, movido }) {
   const recurso = o => nomeDoRecurso(o.r);
   const de = !movido ? '' : movido.voo ? ` (era ${hm(movido.voo.a)} ${noRecurso(movido.voo.r)})` : ' (estava fora da escala)';
   const mudancas = o => {
@@ -1057,7 +1036,7 @@ function linhasDaPrevia({ novo, movidos, saem, entram }, { antes, sim, movido })
   };
   const outras = [
     ...movidos.map(o => `${rotuloDoVoo(o)}: ${mudancas(o)}`),
-    ...saem.map(o => `Sai: ${rotuloDoVoo(o)}${motivoDaSaida(sim, o)}`),
+    ...saem.map(o => `Sai: ${rotuloDoVoo(o)}${motivoDaSaida(estadoDaSim, sim, o)}`),
     ...entram.map(o => `Entra: ${rotuloDoVoo(o)} · ${hm(o.a)}–${hm(o.b)} · ${recurso(o)}`)
   ];
   return [
@@ -1084,7 +1063,7 @@ const quandoDisponivel = jan => QUANDO_DISPONIVEL[jan] || rotuloDaDisponibilidad
 // - notas (só informação), com a vez na fila do rodízio e, no Noturno, a volta e o repouso do instrutor até ela.
 // Cada item: { codigo, texto, campo?, opcoes?, alternativas?, resumo? (o texto curto do histórico) }. previa: o voo novo,
 // os voos que mudam de lugar, saem ou entram, e as linhas que a tela mostra
-export function avaliarAgendamento({ estado, baseComPesos, base = baseComPesos, sim, fKey, formulario, ambiente = {} }) {
+export function avaliarAgendamento({ estado, baseComPesos, base = baseComPesos, sim, estadoDaSim = null, fKey, formulario, ambiente = {} }) {
   const bloqueios = [...formulario.formato], avisos = [], notas = [...formulario.notas];
   if (bloqueios.length || !sim || !formulario.selecao) return { bloqueios, avisos, notas, previa: null };
   const { stu, x, r, tipo, a, b, mis, info, horas, fixa, ground, movido, exceto } = formulario.selecao;
@@ -1184,7 +1163,7 @@ export function avaliarAgendamento({ estado, baseComPesos, base = baseComPesos, 
   const saem = baseComPesos.out.filter(o => o.fKey !== fKey && !naSim.has(o.fKey));
   if (saem.length) {
     avisos.push({
-      codigo: 'saem', texto: `Agendar aqui tira da escala: ${saem.slice(0, 8).map(o => `${rotuloDoVoo(o)}${motivoDaSaida(sim, o)}`).join('; ')}${saem.length > 8 ? ` e mais ${saem.length - 8}` : ''}.`,
+      codigo: 'saem', texto: `Agendar aqui tira da escala: ${saem.slice(0, 8).map(o => `${rotuloDoVoo(o)}${motivoDaSaida(estadoDaSim, sim, o)}`).join('; ')}${saem.length > 8 ? ` e mais ${saem.length - 8}` : ''}.`,
       resumo: `tira ${saem.length} ${saem.length === 1 ? 'voo' : 'voos'} da escala`
     });
   }
@@ -1250,7 +1229,7 @@ export function avaliarAgendamento({ estado, baseComPesos, base = baseComPesos, 
   });
   const entram = sim.out.filter(o => o.fKey !== fKey && !antes.has(o.fKey));
   const previa = { novo, movidos, saem, entram, r, a, b };
-  return { bloqueios, avisos, notas, previa: { ...previa, linhas: linhasDaPrevia(previa, { antes, sim, movido }) } };
+  return { bloqueios, avisos, notas, previa: { ...previa, linhas: linhasDaPrevia(previa, { antes, sim, estadoDaSim, movido }) } };
 }
 
 // A assinatura dos avisos: a confirmação vale para estes avisos; outro conjunto pede outra

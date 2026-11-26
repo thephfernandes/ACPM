@@ -200,8 +200,8 @@ function conferir() {
     if (!pedido.comPesos.has(chave)) pedido.comPesos.set(chave, runAllocationEngine(estadoComPesos));
     baseComPesos = pedido.comPesos.get(chave);
   }
-  const { sim, fKey } = simularAgendamento(estado, pedido.base, f.proposta);
-  pedido.avaliacao = avaliarAgendamento({ estado, base: pedido.base, baseComPesos, sim, fKey, formulario: f, ambiente: pedido.ambiente });
+  const { sim, estadoDaSim, fKey } = simularAgendamento(estado, pedido.base, f.proposta);
+  pedido.avaliacao = avaliarAgendamento({ estado, base: pedido.base, baseComPesos, sim, estadoDaSim, fKey, formulario: f, ambiente: pedido.ambiente });
   pedido.pendente = false;
   desenharConferencia();
 }

@@ -535,6 +535,12 @@
         <i>Sugestões</i>, em cada conflito, mostra o que pode voar no lugar sem mexer nos outros voos: outro avião do mesmo tipo (primeiro um que já saiu<span data-funcionalidade="hangar">, depois o da frente do hangar</span>), outro instrutor (habilitado, livre, dentro do peso e dos limites da lei; quem voa com o tanque cheio vem antes, e a sugestão diz quando é preciso reduzir o combustível), os dois, ou um horário mais tarde no mesmo dia (na escala de hoje, só os que ainda não passaram).
         <i>Aplicar</i> muda o voo, que continua fixo, e o histórico desfaz; na turma de Ground, a mudança vale para a turma inteira.
         <i>Soltar o voo</i> tira o cadeado e o app escolhe de novo o horário, o avião e o instrutor, em volta dos outros voos fixos; quando o pedido mudou, é a sugestão que resolve.
+        Sem nada no mesmo horário nem mais tarde, a lista mostra também o horário mais perto antes dele.
+        O voo <i>Cancelado</i> da data aberta (de hoje em diante) também tem <i>Sugestões</i>, para o aluno não perder o voo porque o instrutor ou o avião faltou: o motivo do cancelamento sai da busca (o instrutor, o avião, ou o horário na meteorologia e no operacional), e a lista vem nesta ordem: o mesmo horário e avião com outro instrutor, outro avião no mesmo horário, o horário mais perto (antes ou depois) e outro tipo de recurso que a missão permite.
+        O que fica fora da disponibilidade do pedido, ou em outro tipo de recurso, pede antes a confirmação com o aluno (dois cliques); as habilitações, o peso, a lei, o "Não escalar com" e os períodos fechados valem sempre.
+        Aplicada, a sugestão volta o voo para Pendente, no lugar dela, e o histórico desfaz; sem nada, a gaveta diz "Impossível nesta data", com o porquê.
+        Não há sugestões para o voo de uma data passada, o que já tem resultado e o cancelado porque o aluno faltou.
+        A recusa do pedido cujo instrutor escolhido não serve (não vem, não tem a habilitação, está em "Não escalar com") também tem <i>Sugestões</i>: outro instrutor, ou o Automático, que encaixa o pedido sem mudar nenhum outro voo.
         Por último, <i>Cancelar o voo</i> abre o pedido do motivo, já marcado pelo conflito.
         O selo ao lado do título diz quando e quem aprovou.
         <i>Reabrir</i> solta os voos (menos os que têm status de andamento: Atrasado, Em Voo, Pousou e Cancelado), e a escala volta a ser refeita inteira a cada alteração.
