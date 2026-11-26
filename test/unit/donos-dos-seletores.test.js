@@ -13,10 +13,10 @@ const E2E = fileURLToPath(new URL('../e2e/', import.meta.url));
 // #dt, e que pega o seletor montado, como `#ag-${campo}`), os drivers onde ele pode aparecer e os testes da tela dona
 // dele. Um id também é achado quando o teste o lê pelo DOM (getElementById('dt'), activeElement.id === 'dt')
 const DONOS = [
-  // A casca (F1): a data, a linha, o Histórico e o menu da conta
-  { seletor: '#dt', achar: /#dt(?![\w-])/, drivers: ['casca.js'] },
-  { seletor: '#dt-ant', achar: /#dt-ant(?![\w-])/, drivers: ['casca.js'] },
-  { seletor: '#dt-prox', achar: /#dt-prox(?![\w-])/, drivers: ['casca.js'] },
+  // A casca (F1): a data (o botão e o trilho), a linha, o Histórico e o menu da conta
+  { seletor: '#btn-data', achar: /#btn-data(?![\w-])/, drivers: ['casca.js'] },
+  { seletor: '#trilho', achar: /#trilho(?![\w-])/, drivers: ['casca.js'] },
+  { seletor: '.cal-dia', achar: /\.cal-dia(?![\w-])/, drivers: ['casca.js'] },
   { seletor: '#dt-rotulo', achar: /#dt-rotulo(?![\w-])/, drivers: ['casca.js'] },
   { seletor: '#dt-rel', achar: /#dt-rel(?![\w-])/, drivers: ['casca.js'] },
   { seletor: '#linha a[data-nav]', achar: /#linha a\[data-nav\]/, drivers: ['casca.js'] },

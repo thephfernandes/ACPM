@@ -1,4 +1,4 @@
-import { test, expect, abrir, abrirSintetico, abrirComExemplo, irPara, irParaVista, abrirEscala, filtrarHabilitacoes, filtrarCursos, filtrarCategorias, AMANHA, caixaVem, campoDaData, gradeDoDia } from './fixtures.js';
+import { test, expect, abrir, abrirSintetico, abrirComExemplo, irPara, irParaVista, abrirEscala, filtrarHabilitacoes, filtrarCursos, filtrarCategorias, AMANHA, caixaVem, dataAberta, gradeDoDia, botaoDaData } from './fixtures.js';
 import { aluno, cenario, instrutor } from '../helpers/montar.js';
 
 test.describe('Perfis de acesso', () => {
@@ -11,7 +11,8 @@ test.describe('Perfis de acesso', () => {
     await expect(page.locator('#out [data-act="rm-fly"]').first()).toBeHidden();
     // O Gestor não agenda voos na Escala
     await expect(page.locator('#btn-agendar')).toBeHidden();
-    await expect(campoDaData(page)).toBeDisabled();
+    // A data o Gestor também muda: abrir uma data não grava nada
+    await expect(botaoDaData(page)).toBeEnabled();
     await expect(page.locator('#out .st-sel').first()).toBeDisabled();
     await irPara(page, 'ins');
     await expect(page.locator('[data-act="addi"]')).toBeHidden();
@@ -29,7 +30,7 @@ test.describe('Perfis de acesso', () => {
     await irPara(page, 'ins');
     await page.locator('#s-ins [data-vista-ins="dia"]').click();
     await expect(gradeDoDia(page).locator('.cel input').first()).toBeEnabled();
-    await expect(campoDaData(page)).toBeEnabled();
+    await expect(botaoDaData(page)).toBeEnabled();
   });
 
   test('?role=gestor abre no Gestor sem travar o seletor', async ({ page }) => {
@@ -172,7 +173,7 @@ test.describe('Perfis de acesso', () => {
     await abrirComExemplo(page, { url: `./?role=gestor&share=${share}` });
     await expect(page.locator('#aviso-link-texto')).toHaveText(AVISO_DO_LINK_ANTIGO);
     await expect(page.locator('#role-sel')).toBeEnabled();
-    await expect(campoDaData(page)).toHaveValue(AMANHA);
+    await expect(dataAberta(page)).toHaveAttribute('data-data', AMANHA);
     await abrirEscala(page);
     await expect(page.locator('#out')).not.toContainText('Aluno do Link');
     expect(new URL(page.url()).searchParams.has('share')).toBe(false);

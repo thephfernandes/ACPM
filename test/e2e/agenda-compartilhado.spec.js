@@ -1,6 +1,6 @@
 // Agenda de Solicitações no modo compartilhado: a Secretaria registra pedidos (a escala ela só consulta), o
 // Operador usa a exceção da coordenação e o Gestor só consulta. O servidor falso aplica o mesmo prazo do banco.
-import { test, expect, entrar, preencherLogin, irPara, abrirMenuDaConta, AMANHA, URL_APP, botaoDaAba, campoDaAgenda, campoDaData, diaSeguinte, importarDaAgenda, rotuloDaData, rotulosDasAbas } from './fixtures.js';
+import { test, expect, entrar, preencherLogin, irPara, abrirMenuDaConta, AMANHA, URL_APP, botaoDaAba, campoDaAgenda, dataAberta, diaSeguinte, importarDaAgenda, rotuloDaData, rotulosDasAbas, escolherNoCalendario, mudarData } from './fixtures.js';
 import { instalarSupabaseFalso, documentosAtuais, CONTAS } from './supabase-falso.js';
 import { estadoSintetico } from '../helpers/estado.js';
 import { aluno } from '../helpers/montar.js';
@@ -50,13 +50,13 @@ test.describe('Agenda de Solicitações (modo compartilhado)', () => {
     await expect(campoDaAgenda(page, 'aluno').locator('option', { hasText: 'Aluno 1001' })).toHaveCount(1);
   });
 
-  test('o dia escolhido na Agenda enquanto os dados carregavam continua escolhido, na Agenda e no app', async ({ page, context }) => {
+  test('o dia escolhido no trilho enquanto os dados carregavam abre depois, na Agenda e no app', async ({ page, context }) => {
     await enquantoCarrega(page, context, async () => {
       await irPara(page, 'age');
-      await page.locator('[data-cal][data-dia="2026-11-13"]').click();
+      await escolherNoCalendario(page, '2026-11-13');
     }, CONTAS.operador);
     await expect(page.locator('#agenda-data')).toContainText('13/11');
-    await expect(campoDaData(page)).toHaveValue('2026-11-13');
+    await expect(dataAberta(page)).toHaveAttribute('data-data', '2026-11-13');
   });
 
   test('a Secretaria abre na agenda, registra pedidos e só consulta a escala', async ({ page, context }) => {
@@ -79,8 +79,9 @@ test.describe('Agenda de Solicitações (modo compartilhado)', () => {
     await expect(page.locator('#agenda-importar')).toBeHidden();
     expect(servidor.solicitacoes.map(s => [s.data, s.aluno, s.janela, s.horario, s.horas, s.registrado_por, s.usuario])).toEqual([[AMANHA, 1001, 'horario', '12:40', 2.5, 'Maria', CONTAS.secretaria.id]]);
 
-    await page.locator('#agenda-cal [data-dia="2026-11-10"]').click();
-    await expect(page.locator('#form-agenda [type="submit"]')).toBeDisabled();
+    // A Secretaria só vê as datas que ainda aceitam pedidos (hoje já fechou), e não há a Exceção da Coordenação para ela
+    await expect(campoDaAgenda(page, 'data').locator('option[value="2026-11-10"]')).toHaveCount(0);
+    await expect(campoDaAgenda(page, 'data').locator('option').first()).toHaveText('qua 11/11 (amanhã)');
     await expect(campoDaAgenda(page, 'excecao')).toBeHidden();
 
     // Ela vê a Agenda, a Escala e os Cursos (que só consulta) e, pelos dados pessoais, Instrutores e Alunos
@@ -94,7 +95,9 @@ test.describe('Agenda de Solicitações (modo compartilhado)', () => {
     const servidor = await instalarSupabaseFalso(context, comAlunos());
     await entrar(page, CONTAS.operador);
     await botaoDaAba(page, 'age').click();
-    await page.locator('#agenda-cal [data-dia="2026-11-10"]').click();
+    // A data aberta é a de hoje (a lista dela) e a data do pedido, também: fora do prazo, com a Exceção da Coordenação
+    await mudarData(page, '2026-11-10');
+    await campoDaAgenda(page, 'data').selectOption('2026-11-10');
     await campoDaAgenda(page, 'aluno').selectOption({ label: 'Aluno 1000' });
     await campoDaAgenda(page, 'por').fill('Coordenação');
     await campoDaAgenda(page, 'excecao').click();

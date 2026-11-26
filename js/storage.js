@@ -288,6 +288,13 @@ export const ApiClient = {
     return this.backend.listarSolicitacoes(de, ate);
   },
 
+  // Os pedidos não cancelados de cada dia, de de a ate: { 'AAAA-MM-DD': n } (o calendário do trilho)
+  async contagemDaAgenda(de, ate) {
+    const contagem = {};
+    for (const p of await this.agenda(de, ate)) if (!p.cancelada_em) contagem[p.data] = (contagem[p.data] || 0) + 1;
+    return contagem;
+  },
+
   registrarSolicitacao(dados) {
     return this.backend.registrarSolicitacao(dados);
   },

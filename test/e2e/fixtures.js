@@ -33,9 +33,21 @@ const LIBS = {
 // parte (browser.newContext)
 let funcionalidadesDoTeste;
 
-export async function prepararContexto(context) {
+// preferencias: o trilho solto e a linha recolhida guardados neste navegador, para os testes de cada tela verem a largura de
+// sempre; os testes da casca e do trilho (casca.spec.js, trilho.spec.js) usam os padrões do produto (false)
+export async function prepararContexto(context, { preferencias = true } = {}) {
   if (funcionalidadesDoTeste !== undefined) {
     await context.addInitScript(lista => { window.FUNCIONALIDADES_LIGADAS = lista; }, funcionalidadesDoTeste);
+  }
+  if (preferencias) {
+    await context.addInitScript(() => {
+      try {
+        if (!localStorage.getItem('acpm_trilho')) localStorage.setItem('acpm_trilho', '{"media":"solto","larga":"solto"}');
+        if (!localStorage.getItem('acpm_linha')) localStorage.setItem('acpm_linha', 'recolhida');
+      } catch {
+        // Sem o armazenamento do navegador, valem os padrões
+      }
+    });
   }
   await context.grantPermissions(['clipboard-read', 'clipboard-write']);
   await context.clock.setFixedTime(AGORA);
@@ -66,8 +78,9 @@ export const test = base.extend({
     await use();
     funcionalidadesDoTeste = undefined;
   }, { auto: true }],
-  context: async ({ context }, use) => {
-    await prepararContexto(context);
+  preferencias: [true, { option: true }],
+  context: async ({ context, preferencias }, use) => {
+    await prepararContexto(context, { preferencias });
     await use(context);
   },
   page: async ({ page }, use) => {

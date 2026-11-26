@@ -1,6 +1,6 @@
 // Revisão de 50 horas na aba Recursos: as horas disponíveis até a revisão (a operadora lança as horas disponíveis,
 // não as horas desde a revisão), o avião que para na escala e a nova data.
-import { test, expect, abrir, irPara, abrirEscala, lerEscala, escreverData, tabelaDoDia } from './fixtures.js';
+import { test, expect, abrir, irPara, abrirEscala, lerEscala, tabelaDoDia, escolherNoCalendario } from './fixtures.js';
 import { aluno, apenas, cenario, instrutor } from '../helpers/montar.js';
 
 // Três voos de 1 h (08:20, 10:10 e 12:40) e só o PP-LJV disponível no C152
@@ -45,7 +45,7 @@ test.describe('Revisão de 50 horas', () => {
     await abrir(page, { estado: tresVoosNoPPLJV() });
     await informarHoras(page, 'PP-LJV', '40');
     await abrirEscala(page);
-    await escreverData(page, '2026-11-12');
+    await escolherNoCalendario(page, '2026-11-12');
     await expect(page.locator('#bi-dt')).toHaveValue('2026-11-12');
     await irPara(page, 'rec');
     await expect(page.locator('#revisao input[data-horas="PP-LJV"]')).toHaveValue('37');

@@ -2,7 +2,7 @@
 // cursos desligados, o que continua e o que fica guardado (ligar de novo traz tudo de volta). Com elas ligadas, os testes
 // de cada tela (hangar.spec.js, cursos-no-dia.spec.js, agendamento.spec.js, cursos.spec.js e os outros com comHangar ou
 // comProgresso)
-import { test, comTodasAsFuncionalidades, expect, irPara, abrirEscala, abrirHistorico, diaSeguinte, entrar, prepararContexto, appPronto, vigiarErros, tabelaDoDia, importarDaAgenda, alternarDisponivel, escreverData, AMANHA } from './fixtures.js';
+import { test, comTodasAsFuncionalidades, expect, irPara, abrirEscala, abrirHistorico, diaSeguinte, entrar, prepararContexto, appPronto, vigiarErros, tabelaDoDia, importarDaAgenda, alternarDisponivel, escolherNoCalendario, AMANHA } from './fixtures.js';
 import { FRASES_DAS_FUNCIONALIDADES, FRASES_SEM_AS_FUNCIONALIDADES } from './manual-frases.js';
 import { instalarSupabaseFalso, documentosAtuais, CONTAS } from './supabase-falso.js';
 import { montarGlossario } from '../../js/glossario.js';
@@ -163,7 +163,7 @@ test('a data feita na ordem da frota não muda de aviões ao ser alterada no dia
   await page.clock.setFixedTime(new Date('2026-11-12T12:00:00-03:00'));
   await page.reload();
   await appPronto(page);
-  await escreverData(page, AMANHA);
+  await escolherNoCalendario(page, AMANHA);
   await expect(page.locator('#out')).toContainText('Maria');
   await abrirEscala(page);
   await voo(page, 'Maria').locator('select[data-f="fstatus"]').selectOption('Pousou');

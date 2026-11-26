@@ -8,7 +8,7 @@ import { matriculasDoTipo } from '../frota.js';
 import { habilitacoesDoNivel, podeFazer } from '../habilitacoes.js';
 import { ESQUEMA } from '../migracoes.js';
 import { isGroundMission } from '../rules.js';
-import { S, isGestor, modoCompartilhado } from '../state.js';
+import { S, DATA, isGestor, modoCompartilhado } from '../state.js';
 import { ApiClient } from '../storage.js';
 import { comConfirmacao } from './confirmacao.js';
 import { rBI } from '../views/bi.js';
@@ -18,6 +18,8 @@ import { inativo } from '../inativos.js';
 
 // O desenho do BI (js/redesenho.js): a escala refeita entra no BI da data
 registrarDesenho('bi', rBI, { em: ['escala'], ordem: 90 });
+// A data base do BI volta para a data aberta a cada troca de data
+registrarDesenho('bi-data', () => { $('#bi-dt').value = DATA; }, { em: ['data-aberta'], ordem: 2 });
 // Aberto (também de novo, pelo link dele), o BI é desenhado e lido outra vez
 registrarTela('bi', { aoMostrar: () => { rBI(); carregarBI(); } });
 
@@ -33,7 +35,7 @@ document.addEventListener('input', e => {
 // Só no modo local: grava 30 dias simulados (marcados como simulados) nas datas que ainda não têm escala
 comConfirmacao('#btn-bi-sim', 'Confirmar simulação', async () => {
   if (isGestor() || modoCompartilhado()) return;
-  const refStr = ($('#bi-dt') && $('#bi-dt').value) || ($('#dt') && $('#dt').value);
+  const refStr = ($('#bi-dt') && $('#bi-dt').value) || DATA;
   const existentes = new Set((await ApiClient.backend.listarDias(somarDias(refStr, -30), refStr)).map(d => d.data));
   const baseDate = new Date(refStr + 'T12:00:00');
   let seed = 42;

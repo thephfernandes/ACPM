@@ -1,6 +1,6 @@
 // Escala por data no modo local: cada data guarda a sua escala, a nova data começa com a demanda vazia,
 // histórico e BI por data, e os dados antigos deste navegador são convertidos na primeira abertura.
-import { test, expect, abrir, abrirSintetico, abrirComExemplo, irPara, abrirEscala, lerEscala, AMANHA, abrirHistorico, alternarDisponivel, botaoDaAba, caixaDisponivel, caixaVoa, campoDaData, escreverData, exportar, mudarData } from './fixtures.js';
+import { test, expect, abrir, abrirSintetico, abrirComExemplo, irPara, abrirEscala, lerEscala, AMANHA, abrirHistorico, alternarDisponivel, caixaDisponivel, caixaVoa, dataAberta, exportar, mudarData } from './fixtures.js';
 import { estadoSintetico } from '../helpers/estado.js';
 import { aluno } from '../helpers/montar.js';
 import { runAllocationEngine } from '../../js/engine.js';
@@ -85,22 +85,10 @@ test.describe('Escala por data', () => {
 
   test('o link com ?data= abre aquela data; uma data que não existe abre amanhã, com o aviso', async ({ page }) => {
     await abrir(page, { url: `./?data=${DEPOIS}` });
-    await expect(campoDaData(page)).toHaveValue(DEPOIS);
+    await expect(dataAberta(page)).toHaveAttribute('data-data', DEPOIS);
     await page.goto('./?data=2026-02-30');
-    await expect(campoDaData(page)).toHaveValue(AMANHA);
+    await expect(dataAberta(page)).toHaveAttribute('data-data', AMANHA);
     await expect(page.locator('#toast-box')).toContainText('A data do link não existe (2026-02-30). A escala aberta é a de amanhã.');
-  });
-
-  test('com o campo de data vazio, a tela volta para a data aberta e as alterações continuam indo para ela', async ({ page }) => {
-    await abrirSintetico(page);
-    await botaoDaAba(page, 'esc').click();
-    await escreverData(page, '');
-    await expect(campoDaData(page)).toHaveValue(AMANHA);
-    await irPara(page, 'rec');
-    await alternarDisponivel(page, 'PR-BTB', false);
-    await page.reload();
-    await irPara(page, 'rec');
-    await expect(caixaDisponivel(page, 'PR-BTB')).not.toBeChecked();
   });
 
   test('o BI soma as escalas guardadas de cada data', async ({ page }) => {

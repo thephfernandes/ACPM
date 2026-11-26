@@ -1,0 +1,64 @@
+/* O trilho (aside#trilho, js/views/trilho.js): o calendário da data aberta, com os pedidos de cada dia, e a linha da data.
+   Fixo, ao lado da tela; solto, um painel entre a linha e a tela (abaixo de 1024 px, de ponta a ponta) */
+#trilho { background: var(--pn); border: 1px solid var(--ln); border-radius: 8px; padding: 10px 12px 12px; margin-bottom: 14px; }
+@media (max-width: 1023px) { #trilho { border-radius: 0; border-left: 0; border-right: 0; padding: 10px 16px 12px; } }
+#trilho .trilho-cab { display: flex; align-items: center; gap: 2px; margin-bottom: 6px; }
+#trilho .trilho-mes { flex: 1; margin: 0; font: 600 16px 'Barlow Semi Condensed', sans-serif; }
+#trilho .trilho-cab .x { min-width: 36px; min-height: 36px; display: inline-grid; place-items: center; }
+/* "Fixar ao lado" só da largura média em diante (abaixo, o trilho nunca fica ao lado) */
+@media (max-width: 1023px) { #btn-fixar-trilho { display: none; } }
+#btn-fixar-trilho[aria-pressed="true"] { color: var(--ac); background: var(--info-bg); }
+
+/* A grade: sete colunas iguais; cada dia um botão quadrado (44 px no celular) */
+/* Sem o mínimo de 840 px das tabelas do app (css/componentes.css): o calendário cabe na largura do trilho */
+#cal { width: 100%; min-width: 0; border-collapse: collapse; table-layout: fixed; }
+#cal th { font: 600 11.5px 'Barlow', sans-serif; color: var(--mu); padding: 2px 0 4px; text-align: center; }
+#cal td { padding: 1px; text-align: center; }
+#cal .cal-dia {
+  position: relative; width: 100%; aspect-ratio: 1; min-height: 34px; display: grid; place-items: center;
+  border: 0; border-radius: 50%; background: transparent; color: var(--ink); font: 500 14px 'Barlow', sans-serif; cursor: pointer;
+}
+@media (max-width: 1023px) { #cal .cal-dia { min-width: 44px; min-height: 44px; } }
+#cal .cal-dia:hover { background: var(--pn2); }
+#cal .cal-dia:focus-visible { outline: 2px solid var(--ac); outline-offset: 1px; }
+/* Os dias dos outros meses e os domingos, discretos; o domingo não abre */
+#cal .cal-dia.fora, #cal .cal-dia.domingo { color: var(--mu); }
+#cal .cal-dia.domingo { cursor: not-allowed; }
+#cal .cal-mes-curto { position: absolute; bottom: 1px; left: 0; right: 0; font-size: 9px; line-height: 1; }
+/* Hoje: o círculo cheio; a data aberta: o anel (os dois juntos: o anel por fora do círculo) */
+#cal .cal-dia.hoje { background: var(--ac); color: var(--acT); }
+#cal .cal-dia.aberta { box-shadow: 0 0 0 2px var(--ac); font-weight: 700; }
+#cal .cal-dia.hoje.aberta { box-shadow: 0 0 0 2px var(--pn), 0 0 0 4px var(--ac); }
+/* A data abrindo: um anel que gira (parado, com o movimento reduzido) */
+#cal .cal-dia.abrindo::after {
+  content: ''; position: absolute; inset: 1px; border-radius: 50%; border: 2px solid transparent; border-top-color: var(--ac);
+  animation: cal-girar 1s linear infinite;
+}
+@keyframes cal-girar { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { #cal .cal-dia.abrindo::after { animation: none; border-color: var(--ac); border-style: dashed; } }
+/* O número de pedidos do dia, no canto */
+#cal .cal-qtd {
+  position: absolute; top: -2px; right: -2px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px;
+  font: 700 10px/16px 'Barlow', sans-serif; background: var(--ac); color: var(--acT);
+}
+#cal .cal-dia.hoje .cal-qtd { background: var(--pn); color: var(--ac); }
+
+/* A linha da data aberta (os avisos dela vêm embaixo) */
+#trilho .trilho-avisos { border-top: 1px solid var(--ln); margin-top: 10px; padding-top: 8px; }
+#trilho .trilho-data { margin: 0 0 6px; font: 600 14.5px 'Barlow Semi Condensed', sans-serif; }
+
+/* Os avisos da data: o horário (ou "—"), a barra da gravidade (vermelha, âmbar ou discreta), o título e o texto */
+#avisos-da-data { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+#avisos-da-data .aviso-link {
+  display: grid; grid-template-columns: 44px 4px minmax(0, 1fr); gap: 8px; align-items: start; padding: 6px 4px;
+  border-radius: 6px; color: var(--ink); text-decoration: none;
+}
+#avisos-da-data a.aviso-link:hover { background: var(--pn2); }
+#avisos-da-data .aviso-hora { font: 600 13px 'Barlow', sans-serif; color: var(--mu); display: flex; flex-direction: column; }
+#avisos-da-data .aviso-hora small { font-weight: 400; font-size: 11px; }
+#avisos-da-data .aviso-barra { align-self: stretch; border-radius: 2px; background: var(--mu); }
+#avisos-da-data .erro .aviso-barra { background: var(--er); }
+#avisos-da-data .aviso .aviso-barra { background: var(--wa); }
+#avisos-da-data .aviso-titulo { display: block; font-weight: 600; font-size: 13.5px; }
+#avisos-da-data .aviso-texto { display: block; color: var(--mu); font-size: 12.5px; }
+

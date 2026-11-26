@@ -9,9 +9,9 @@ import { fileURLToPath } from 'node:url';
 const RAIZ = fileURLToPath(new URL('../../', import.meta.url));
 const ler = arquivo => readFileSync(`${RAIZ}${arquivo}`, 'utf8');
 
-// A ordem é a da cascata: a base, os componentes e o painel (também da TV), a casca, a linha, cada tela, as gavetas e os diálogos;
+// A ordem é a da cascata: a base, os componentes e o painel (também da TV), a casca, a linha, o trilho, cada tela, as gavetas e os diálogos;
 // os alvos de toque por último, como estavam no fim de css/app.css
-const DO_APP = ['base', 'componentes', 'painel', 'tv', 'casca', 'linha', 'escala', 'demanda', 'agenda', 'recursos', 'instrutores', 'alunos',
+const DO_APP = ['base', 'componentes', 'painel', 'tv', 'casca', 'linha', 'trilho', 'escala', 'demanda', 'agenda', 'recursos', 'instrutores', 'alunos',
   'cadastros', 'cursos', 'rodizio', 'bi', 'conta', 'manual', 'gavetas', 'dialogos', 'toque'];
 const DA_TV = ['base', 'componentes', 'painel', 'tv', 'toque'];
 

@@ -6,6 +6,9 @@ import { instalarSupabaseFalso, documentosAtuais, CONTAS } from './supabase-fals
 import { estadoSintetico } from '../helpers/estado.js';
 import { comExemplo } from '../helpers/exemplo.js';
 
+// Os padrões do produto: nada guardado neste navegador (o trilho ao lado a partir de 1280 px, a linha pela largura)
+test.use({ preferencias: false });
+
 const atual = page => page.locator('[aria-current="page"]');
 const cartao = (page, id) => page.locator(`#linha li.estagio[data-estagio="${id}"]`);
 const endereco = page => new URL(page.url());
@@ -47,21 +50,22 @@ test.describe('A linha e as telas', () => {
     await mudarData(page, '2026-11-12');
     await irPara(page, 'cur');
     await page.goBack();
-    await expect(page.locator('#s-esc')).toBeVisible();
-    await expect(page).toHaveURL(/data=2026-11-12/);
-    // A entrada de Recursos foi criada com a data de antes: a data aberta volta para o endereço
-    await page.goBack();
     await expect(page.locator('#s-rec')).toBeVisible();
-    await expect(atual(page)).toHaveAttribute('href', '#/rec');
     await expect(page).toHaveURL(/data=2026-11-12#\/rec$/);
+    // A entrada de Alunos foi criada com a data de antes: a data aberta volta para o endereço
+    await page.goBack();
+    await expect(page.locator('#s-alu')).toBeVisible();
+    await expect(atual(page)).toHaveAttribute('href', '#/alu');
+    await expect(page).toHaveURL(/data=2026-11-12#\/alu$/);
+    await expect(page.locator('body')).toHaveAttribute('data-data', '2026-11-12');
     await page.goForward();
-    await expect(page.locator('#s-esc')).toBeVisible();
+    await expect(page.locator('#s-rec')).toBeVisible();
     await page.reload();
     await expect(page.locator('body')).toHaveAttribute('data-pronto', '1');
-    await expect(page.locator('#s-esc')).toBeVisible();
-    await expect(page).toHaveURL(/data=2026-11-12#\/esc$/);
-    await page.goBack();
     await expect(page.locator('#s-rec')).toBeVisible();
+    await expect(page).toHaveURL(/data=2026-11-12#\/rec$/);
+    await page.goBack();
+    await expect(page.locator('#s-alu')).toBeVisible();
   });
 
   // O clique é dado sem rolar até o link (o Playwright rolaria a página até ele antes de clicar)
@@ -195,15 +199,11 @@ test.describe('O desenho da linha', () => {
     expect(conteudo).toBe('none');
   });
 
-  // Aberta por padrão só com 1540 px de linha: com a moldura de 1280 px (o F1b a leva a 1612), a linha abre recolhida
-  // também a 1920 px. Aberta pelo botão, ela fica aberta ao recarregar
-  test('a 1920 × 1080, a linha abre recolhida; aberta pelo botão, mostra as tarefas e fica assim', async ({ page }) => {
+  // Aberta por padrão com 1540 px de linha e a janela alta: a 1920 × 1080 (a moldura de 1612 px), a linha abre com as
+  // tarefas. Recolhida pelo botão, ela fica assim ao recarregar
+  test('a 1920 × 1080, a linha abre com as tarefas; recolhida pelo botão, fica assim', async ({ page }) => {
     await page.setViewportSize({ width: 1920, height: 1080 });
     await abrirComExemplo(page);
-    await expect(page.locator('#linha')).toHaveAttribute('data-estado', 'recolhida');
-    await expect(page.locator('#btn-linha')).toHaveAttribute('aria-expanded', 'false');
-    await expect(page.locator('#btn-linha')).toHaveAccessibleName('Mostrar as tarefas das etapas');
-    await page.locator('#btn-linha').click();
     await expect(page.locator('#linha')).toHaveAttribute('data-estado', 'aberta');
     await expect(page.locator('#linha .estagio-tarefas').first()).toBeVisible();
     await expect(page.locator('#btn-linha')).toHaveAttribute('aria-expanded', 'true');
@@ -211,10 +211,13 @@ test.describe('O desenho da linha', () => {
     // A tarefa leva à tela dela, com o foco no título
     await page.locator('#linha a.tarefa[data-tarefa="recursos"]').click();
     await expect(page.locator('#s-rec h2')).toBeFocused();
+    await page.locator('#btn-linha').click();
+    await expect(page.locator('#linha')).toHaveAttribute('data-estado', 'recolhida');
+    await expect(page.locator('#linha .estagio-tarefas').first()).toBeHidden();
+    await expect(page.locator('#btn-linha')).toHaveAccessibleName('Mostrar as tarefas das etapas');
     await page.reload();
     await expect(page.locator('body')).toHaveAttribute('data-pronto', '1');
-    await expect(page.locator('#linha')).toHaveAttribute('data-estado', 'aberta');
-    await expect(page.locator('#linha .estagio-tarefas').first()).toBeVisible();
+    await expect(page.locator('#linha')).toHaveAttribute('data-estado', 'recolhida');
   });
 
   test('a 1280 × 720, recolhida numa fileira só, sem cortar o nome de nenhum cartão', async ({ page }) => {

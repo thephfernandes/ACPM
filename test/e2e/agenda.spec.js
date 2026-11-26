@@ -1,6 +1,6 @@
 // Aba Agenda de Solicitações (modo local): calendário, prazo das 13:00, registro com "Registrado por", exceção da
 // coordenação e cancelamento. O relógio dos testes está em 10/11/2026, 12:00 em São Paulo.
-import { test, expect, abrir, irPara, abrirEscala, lerEscala, caixaVoa, campoDaAgenda, campoDaData, diaAnterior, diaSeguinte, importarDaAgenda, registrarPedido } from './fixtures.js';
+import { test, expect, abrir, irPara, abrirEscala, lerEscala, caixaVoa, campoDaAgenda, dataAberta, diaAnterior, diaSeguinte, importarDaAgenda, registrarPedido, diaDoCalendario, mudarData, botaoDaData } from './fixtures.js';
 import { aluno, cenario } from '../helpers/montar.js';
 
 const comAlunos = () => cenario({ stu: [aluno(1000), aluno(1001)] });
@@ -21,13 +21,13 @@ test.describe('Agenda de Solicitações', () => {
     await expect(pedidos.first()).toContainText('Maria');
     await expect(pedidos.first()).toContainText('10/11 12:00');
     await expect(pedidos.first()).toContainText('Prefere o PR-BTB');
-    await expect(page.locator('#agenda-cal [data-dia="2026-11-11"] .qtd')).toHaveText('1');
+    await expect(diaDoCalendario(page, '2026-11-11').locator('.cal-qtd')).toHaveText('1');
     await expect(campoDaAgenda(page, 'por')).toHaveValue('Maria', { timeout: 1000 });
 
     await registrarPedido(page, { aluno: 'Aluno 1001', missao: 'IFR', horario: '14:30', horas: 2.6, por: 'João' });
     await expect(pedidos).toHaveCount(2);
     await expect(pedidos.nth(1)).toContainText('14:30 · 2,6 h');
-    await expect(page.locator('#agenda-cal [data-dia="2026-11-11"] .qtd')).toHaveText('2');
+    await expect(diaDoCalendario(page, '2026-11-11').locator('.cal-qtd')).toHaveText('2');
   });
 
   test('o horário oferece os horários da missão: o Multimotor (PA-34), de 30 em 30 minutos; sem períodos', async ({ page }) => {
@@ -111,7 +111,9 @@ test.describe('Agenda de Solicitações', () => {
   test('fora do prazo não registra; a exceção da coordenação registra marcado', async ({ page }) => {
     await abrir(page, { estado: comAlunos() });
     await irPara(page, 'age');
-    await page.locator('#agenda-cal [data-dia="2026-11-10"]').click();
+    // A data do pedido fica no formulário: o Operador vê também as datas encerradas, e a de hoje já fechou
+    await mudarData(page, '2026-11-10');
+    await campoDaAgenda(page, 'data').selectOption('2026-11-10');
     await expect(page.locator('#agenda-prazo')).toContainText('Prazo encerrado para 10/11');
     await expect(page.locator('#form-agenda [type="submit"]')).toBeDisabled();
     await campoDaAgenda(page, 'aluno').selectOption({ label: 'Aluno 1000' });
@@ -132,7 +134,7 @@ test.describe('Agenda de Solicitações', () => {
     const linha = page.locator('#agenda-lista tbody tr').first();
     await expect(linha.locator('.situacao')).toHaveText('Cancelado por Maria em 10/11 12:00');
     await expect(linha.locator('.situacao .tag')).toHaveAttribute('title', 'Cancelado por Maria em 10/11 12:00');
-    await expect(page.locator('#agenda-cal [data-dia="2026-11-11"] .qtd')).toHaveCount(0);
+    await expect(diaDoCalendario(page, '2026-11-11').locator('.cal-qtd')).toHaveCount(0);
     // Numa linha só, esmaecido
     await expect(linha).toHaveClass(/\bcancel\b/);
     expect(await linha.evaluate(el => el.getBoundingClientRect().height)).toBeLessThan(50);
@@ -154,10 +156,11 @@ test.describe('Agenda de Solicitações', () => {
     await irPara(page, 'dem');
     await expect(caixaVoa(page.locator('#dem tr[data-k="d"][data-id="1001"]'))).toBeChecked();
 
-    // Outro dia escolhido na agenda vira a data aberta no app: situação e importar dele
+    // Outra data aberta no app (o trilho): a Agenda mostra a lista dela, com a situação e o importar dela; o formulário
+    // começa nela
     await irPara(page, 'age');
-    await page.locator('#agenda-cal [data-dia="2026-11-12"]').click();
-    await expect(campoDaData(page)).toHaveValue('2026-11-12');
+    await mudarData(page, '2026-11-12');
+    await expect(campoDaAgenda(page, 'data')).toHaveValue('2026-11-12');
     await registrarPedido(page, { aluno: 'Aluno 1000' });
     await expect(situacao).toHaveText(['Ainda não importado']);
     await expect(importar).toHaveText('Importar 1 pedido para a demanda');
@@ -188,63 +191,63 @@ test.describe('Agenda de Solicitações', () => {
     expect(voos.find(l => l.includes('Aluno 1001'))).toMatch(/^14:30/);
   });
 
-  test('depois das 13:00, amanhã fecha e a agenda abre no dia seguinte', async ({ page, context }) => {
+  // A lista é a da data aberta (amanhã); o pedido novo começa na primeira data que ainda aceita pedidos
+  test('depois das 13:00, amanhã fecha: a lista continua na data aberta, e a data do pedido começa no dia seguinte', async ({ page, context }) => {
     await context.clock.setFixedTime(new Date('2026-11-10T13:30:00-03:00'));
     await abrir(page, { estado: comAlunos() });
     await irPara(page, 'age');
-    await expect(page.locator('#agenda-data')).toHaveText('quinta-feira, 12/11/2026');
+    await expect(page.locator('#agenda-data')).toHaveText('quarta-feira, 11/11/2026');
+    await expect(campoDaAgenda(page, 'data')).toHaveValue('2026-11-12');
     await expect(page.locator('#agenda-prazo')).toHaveText('Pedidos para quinta-feira (12/11) até amanhã (11/11) às 13:00.');
   });
 
   // Trabalhando numa data à frente, a agenda e as outras abas ficam nela
-  test('a agenda abre na data aberta no topo; escolher um dia na agenda abre aquela data no app', async ({ page }) => {
+  test('a agenda mostra a data aberta no app; outra data aberta pelo trilho, a agenda segue', async ({ page }) => {
     await abrir(page, { estado: comAlunos() });
-    await diaSeguinte(page);
-    await diaSeguinte(page);
-    await expect(campoDaData(page)).toHaveValue('2026-11-13');
+    await mudarData(page, '2026-11-13');
     await irPara(page, 'age');
     await expect(page.locator('#agenda-data')).toContainText('13/11/2026');
     await irPara(page, 'dem');
-    await expect(campoDaData(page)).toHaveValue('2026-11-13');
+    await expect(dataAberta(page)).toHaveAttribute('data-data', '2026-11-13');
     await irPara(page, 'age');
-    await page.locator('#agenda-cal [data-dia="2026-11-16"]').click();
-    await expect(campoDaData(page)).toHaveValue('2026-11-16');
+    await mudarData(page, '2026-11-16');
     await expect(page.locator('#agenda-data')).toContainText('16/11/2026');
     await irPara(page, 'esc');
-    await expect(campoDaData(page)).toHaveValue('2026-11-16');
+    await expect(dataAberta(page)).toHaveAttribute('data-data', '2026-11-16');
   });
 
   test('recarregar a página continua na data aberta', async ({ page }) => {
     await abrir(page, { estado: comAlunos() });
     await diaSeguinte(page);
-    await expect(campoDaData(page)).toHaveValue('2026-11-12');
+    await expect(dataAberta(page)).toHaveAttribute('data-data', '2026-11-12');
     await expect(page).toHaveURL(/[?&]data=2026-11-12/);
     await page.reload();
-    await expect(campoDaData(page)).toHaveValue('2026-11-12');
+    await expect(dataAberta(page)).toHaveAttribute('data-data', '2026-11-12');
   });
 
   // O aeroclube não opera aos domingos; os voos de segunda são agendados até sábado às 10:00
   test('sábado: o app abre na segunda; a agenda aceita pedidos para segunda até as 10:00; domingo não existe', async ({ page, context }) => {
     await context.clock.setFixedTime(new Date('2026-11-14T09:00:00-03:00'));
     await abrir(page, { estado: comAlunos() });
-    await expect(campoDaData(page)).toHaveValue('2026-11-16');
+    await expect(dataAberta(page)).toHaveAttribute('data-data', '2026-11-16');
     await irPara(page, 'age');
     await expect(page.locator('#agenda-prazo')).toHaveText('Pedidos para segunda-feira (16/11) até hoje às 10:00.');
-    await expect(page.locator('#agenda-cal [data-dia="2026-11-15"]')).toHaveClass(/\bfechado\b/);
-    await page.locator('#agenda-cal [data-dia="2026-11-15"]').click();
-    await expect(page.locator('#agenda-prazo')).toHaveText('O aeroclube não opera aos domingos: não há escala nem pedidos.');
-    await expect(page.locator('#form-agenda [type="submit"]')).toBeDisabled();
-    await expect(campoDaData(page)).toHaveValue('2026-11-16');
+    // O domingo não está entre as datas do pedido, e o trilho não o abre
+    await expect(campoDaAgenda(page, 'data').locator('option[value="2026-11-15"]')).toHaveCount(0);
+    await botaoDaData(page).click();
+    await diaDoCalendario(page, '2026-11-15').click({ force: true });
+    await expect(page.locator('#toast-box')).toContainText('O aeroclube não opera aos domingos: não há escala nem pedidos.');
+    await expect(dataAberta(page)).toHaveAttribute('data-data', '2026-11-16');
     // ‹ da segunda vai para o sábado (pula o domingo)
     await diaAnterior(page);
-    await expect(campoDaData(page)).toHaveValue('2026-11-14');
+    await expect(dataAberta(page)).toHaveAttribute('data-data', '2026-11-14');
     await diaSeguinte(page);
-    await expect(campoDaData(page)).toHaveValue('2026-11-16');
+    await expect(dataAberta(page)).toHaveAttribute('data-data', '2026-11-16');
   });
 
   test('um link para um domingo abre a segunda, com o aviso', async ({ page }) => {
     await abrir(page, { estado: comAlunos(), url: './?data=2026-11-15' });
-    await expect(campoDaData(page)).toHaveValue('2026-11-16');
+    await expect(dataAberta(page)).toHaveAttribute('data-data', '2026-11-16');
     await expect(page.locator('#toast-box')).toContainText('O aeroclube não opera aos domingos: abrimos segunda-feira, 16/11.');
   });
 });

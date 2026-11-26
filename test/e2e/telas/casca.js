@@ -85,36 +85,52 @@ export async function irParaVista(page, aba, vista) {
   await expect(page.locator(`#s-${aba}`)).toHaveAttribute('data-vista', vista);
 }
 
-// A data em uso, no topo: o campo (o valor é a data ISO), o rótulo ("quarta-feira, 11/11"), o "amanhã"/"hoje" ao lado
-// e as setas ‹ e ›
-export const campoDaData = page => page.locator('#dt');
+// A data em uso: a aberta (body[data-data], a ISO), o botão da data no topo, com o nome ("quarta-feira, 11/11") e o
+// "amanhã"/"hoje" ao lado, e o calendário do trilho (os dias, as setas do mês)
+export const dataAberta = page => page.locator('body');
+export const botaoDaData = page => page.locator('#btn-data');
 export const rotuloDaData = page => page.locator('#dt-rotulo');
 export const relativoDaData = page => page.locator('#dt-rel');
-export const botaoDiaAnterior = page => page.locator('#dt-ant');
-export const botaoDiaSeguinte = page => page.locator('#dt-prox');
-// Os seletores das setas, para o que roda dentro da página (as caixas da barra do topo)
-export const SETAS_DA_DATA = ['#dt-ant', '#dt-prox'];
+export const trilho = page => page.locator('#trilho');
+export const diaDoCalendario = (page, dia) => page.locator(`#cal .cal-dia[data-dia="${dia}"]`);
+// Os avisos da data, no trilho, e o número deles no botão da data
+export const avisosNoTrilho = page => page.locator('#avisos-da-data > li');
+export const contagemDeAvisos = page => page.locator('#avisos-cnt');
+// Os dias do calendário que recebem o Tab (uma parada só)
+export const paradasDoCalendario = page => page.locator('#cal .cal-dia[tabindex="0"]');
 
-export async function diaSeguinte(page) {
-  await botaoDiaSeguinte(page).click();
+const ehDomingo = iso => new Date(iso + 'T12:00:00Z').getUTCDay() === 0;
+const somarDias = (iso, dias) => new Date(Date.parse(iso + 'T12:00:00Z') + dias * 864e5).toISOString().slice(0, 10);
+
+// Escolhe o dia no calendário do trilho, como quem clica nele (sem esperar a data abrir): solto, o trilho abre pelo botão
+// da data; o mês à vista anda pelas setas até o do dia
+export async function escolherNoCalendario(page, dia) {
+  if (!await trilho(page).isVisible()) await botaoDaData(page).click();
+  await expect(trilho(page)).toBeVisible();
+  for (let i = 0; i < 24 && !await diaDoCalendario(page, dia).count(); i++) {
+    const mes = await trilho(page).getAttribute('data-mes');
+    await page.locator(dia.slice(0, 7) < mes ? '#cal-mes-ant' : '#cal-mes-prox').click();
+    await expect(trilho(page)).not.toHaveAttribute('data-mes', mes);
+  }
+  await diaDoCalendario(page, dia).click();
 }
 
-export async function diaAnterior(page) {
-  await botaoDiaAnterior(page).click();
-}
-
-// Escreve uma data no campo, como quem escolhe no calendário (sem esperar a data abrir)
-export async function escreverData(page, data) {
-  await campoDaData(page).fill(data);
-  await campoDaData(page).dispatchEvent('change');
-}
-
-// Na Escala, troca a data em uso e espera o campo mostrar a nova
+// Troca a data aberta pelo trilho e espera ela abrir. Solto, o trilho fecha sozinho quando a data abre
 export async function mudarData(page, data) {
-  await botaoDaAba(page, 'esc').click();
-  await escreverData(page, data);
-  await expect(campoDaData(page)).toHaveValue(data);
+  await escolherNoCalendario(page, data);
+  await expect(dataAberta(page)).toHaveAttribute('data-data', data);
 }
+
+// O dia de operação seguinte e o anterior à data aberta (o domingo fica de fora), escolhido no trilho, sem esperar a data
+// abrir (como o clique nas setas de antes: os testes da abertura seguram a leitura dela)
+async function andarDias(page, dias) {
+  const aberta = await dataAberta(page).getAttribute('data-data');
+  let destino = somarDias(aberta, dias);
+  if (ehDomingo(destino)) destino = somarDias(destino, dias);
+  await escolherNoCalendario(page, destino);
+}
+export const diaSeguinte = page => andarDias(page, 1);
+export const diaAnterior = page => andarDias(page, -1);
 
 // O Histórico da data: o botão no topo e a lista das entradas (com texto, só as que o têm)
 export const botaoDoHistorico = page => page.locator('#btn-open-log');

@@ -1,5 +1,5 @@
 // Histórico da data numa gaveta lateral, que abre sobre a aba aberta (sem trocar de aba).
-import { test, expect, abrir, abrirSintetico, irPara, abrirEscala, abrirCaixa, AMANHA, prepararContexto, vigiarErros, entrar, abrirHistorico, alternarDisponivel, alternarVem, appPronto, caixaVem, caixaVoa, campoDaData, diaSeguinte, linhaDoInstrutor } from './fixtures.js';
+import { test, expect, abrir, abrirSintetico, irPara, abrirEscala, abrirCaixa, AMANHA, prepararContexto, vigiarErros, entrar, abrirHistorico, alternarDisponivel, alternarVem, appPronto, caixaVem, caixaVoa, dataAberta, diaSeguinte, linhaDoInstrutor } from './fixtures.js';
 import { documentosAtuais, instalarSupabaseFalso, CONTAS } from './supabase-falso.js';
 import { aluno, cenario, instrutor, missaoExtra } from '../helpers/montar.js';
 
@@ -46,7 +46,7 @@ test.describe('Histórico', () => {
     await abrirHistorico(page);
     await expect(page.locator('#historico-data')).toHaveText('quarta-feira, 11/11');
     await diaSeguinte(page);
-    await expect(campoDaData(page)).toHaveValue('2026-11-12');
+    await expect(dataAberta(page)).toHaveAttribute('data-data', '2026-11-12');
     await expect(page.locator('#historico-data')).toHaveText('quinta-feira, 12/11');
   });
 

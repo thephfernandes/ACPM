@@ -37,6 +37,23 @@ export function prazoDaAgendaPermite(data, agora = new Date()) {
   return hoje < prazo.dia || (hoje === prazo.dia && hora < prazo.hora);
 }
 
+// As datas do campo "Data do pedido": os dias de operação de hoje até daqui a 14 dias e a data aberta, quando depois
+// disso. Quem não usa a Exceção da Coordenação (a Secretaria) só vê as que ainda aceitam pedidos; quem usa vê também as
+// encerradas, marcadas. Cada uma: { data, rotulo: "sex 20/11 (amanhã)", encerrado }
+const SEMANA_CURTA = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
+export function datasParaRegistrar({ aberta, excecao = false, agora = new Date() }) {
+  const hoje = emSaoPaulo(agora).data;
+  const dias = [];
+  for (let i = 0; i <= 14; i++) dias.push(somarDias(hoje, i));
+  if (aberta && aberta > dias.at(-1)) dias.push(aberta);
+  return dias.filter(d => !ehDomingo(d)).map(data => {
+    const encerrado = !prazoDaAgendaPermite(data, agora);
+    const relativo = data === hoje ? ' (hoje)' : data === somarDias(hoje, 1) ? ' (amanhã)' : '';
+    const rotulo = `${SEMANA_CURTA[new Date(data + 'T12:00:00Z').getUTCDay()]} ${data.slice(8, 10)}/${data.slice(5, 7)}${relativo}${encerrado ? ' · prazo encerrado' : ''}`;
+    return { data, rotulo, encerrado };
+  }).filter(d => excecao || !d.encerrado);
+}
+
 export const primeiraDataAberta = (agora = new Date()) => {
   const { data: hoje } = emSaoPaulo(agora);
   let data = somarDias(hoje, 1);

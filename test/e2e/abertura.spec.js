@@ -6,7 +6,7 @@
 // lidas uma de cada vez (a versão que a gravação leva é a da leitura dos dados da tela), e nenhuma data é lida antes de a
 // abertura preparar os dados, nem depois de a preparação falhar. O que fica aberto na tela quando a data abre passa a
 // mostrar os dados dela
-import { test, comProgresso, expect, prepararContexto, vigiarErros, preencherLogin, entrar, irPara, irParaVista, abrirEscala, AMANHA, URL_APP, abrirHistorico, alternarDisponivel, botaoAprovar, caixaDisponivel, caixaVoa, campoDaData, diaAnterior, diaSeguinte, exportar, importarDaAgenda, rotuloDaData } from './fixtures.js';
+import { test, comProgresso, expect, prepararContexto, vigiarErros, preencherLogin, entrar, irPara, irParaVista, abrirEscala, AMANHA, URL_APP, abrirHistorico, alternarDisponivel, botaoAprovar, caixaDisponivel, caixaVoa, dataAberta, diaAnterior, diaSeguinte, exportar, importarDaAgenda, rotuloDaData, escolherNoCalendario } from './fixtures.js';
 import { criarSupabaseFalso, documentosAtuais, CONTAS } from './supabase-falso.js';
 import { aluno, cenario, instrutor } from '../helpers/montar.js';
 import { runAllocationEngine } from '../../js/engine.js';
@@ -264,7 +264,7 @@ test.describe('A escala abrindo: nada é gravado antes de os dados da data chega
     await preencherLogin(page, CONTAS.operador);
     await expect(page.locator('#usuario')).toBeVisible();
     await irPara(page, 'age');
-    await page.locator('[data-cal][data-dia="2026-11-13"]').click();
+    await escolherNoCalendario(page, '2026-11-13');
     liberar();
     // O dia 13 espera: nada dele é lido enquanto a abertura lê
     await page.waitForTimeout(300);
@@ -274,7 +274,7 @@ test.describe('A escala abrindo: nada é gravado antes de os dados da data chega
     await expect(page.locator('body[data-pronto]')).toBeAttached();
 
     await irPara(page, 'rec');
-    await expect(campoDaData(page)).toHaveValue('2026-11-13');
+    await expect(dataAberta(page)).toHaveAttribute('data-data', '2026-11-13');
     await expect(caixaDisponivel(page, 'PR-BTB')).not.toBeChecked();
     await alternarDisponivel(page, 'PR-IGU', false);
     await expect.poll(() => servidor.dias.get('2026-11-13').versao).toBe(2);
@@ -305,7 +305,7 @@ test.describe('A escala abrindo: nada é gravado antes de os dados da data chega
     await preencherLogin(page, CONTAS.operador);
     await expect(page.locator('#usuario')).toBeVisible();
     await irPara(page, 'age');
-    await page.locator('[data-cal][data-dia="2026-11-13"]').click();
+    await escolherNoCalendario(page, '2026-11-13');
     liberar();
     await expect(page.locator('body[data-pronto]')).toBeAttached();
     await irPara(page, 'alu');
@@ -341,8 +341,8 @@ test.describe('A escala abrindo: nada é gravado antes de os dados da data chega
       if (segurar) { segurar = false; await espera12; }
       await route.fallback();
     });
-    await diaSeguinte(page);
-    await campoDaData(page).fill('2026-11-13');
+    await escolherNoCalendario(page, '2026-11-12');
+    await escolherNoCalendario(page, '2026-11-13');
     // O dia 13 espera a leitura do 12
     await page.waitForTimeout(300);
     await expect(rotuloDaData(page)).toContainText('11/11');
@@ -405,7 +405,7 @@ test.describe('A escala abrindo: nada é gravado antes de os dados da data chega
     await page.locator('#toast-box').evaluate(caixa => caixa.replaceChildren());
     await diaSeguinte(page);
     await expect(page.locator('#toast-box .toast')).toHaveText(['Não foi possível abrir essa data. Verifique a conexão e tente de novo.']);
-    await expect(campoDaData(page)).toHaveValue(AMANHA);
+    await expect(dataAberta(page)).toHaveAttribute('data-data', AMANHA);
     await recusada(page, '+ Novo aluno', async () => { await irPara(page, 'alu'); await page.locator('#s-alu [data-act="adds"]').click(); });
     expect(servidor.banco.has('cadastro')).toBe(false);
     expect(servidor.gravacoes.map(g => g.chave)).toEqual([`dia:${AMANHA}`]);
@@ -432,7 +432,7 @@ test.describe('A escala abrindo: nada é gravado antes de os dados da data chega
     await expect(page.locator('#aviso-sync-texto')).toHaveText(FALHA);
     await diaSeguinte(page);
     await expect(page.locator('#toast-box')).toContainText('Não foi possível abrir essa data.');
-    await expect(campoDaData(page)).toHaveValue(AMANHA);
+    await expect(dataAberta(page)).toHaveAttribute('data-data', AMANHA);
     await recusada(page, '+ Novo aluno', async () => { await irPara(page, 'alu'); await page.locator('#s-alu [data-act="adds"]').click(); });
     expect(await page.evaluate(() => Object.keys(localStorage).filter(k => k.startsWith('acpm4_')))).toEqual([]);
 
@@ -611,7 +611,7 @@ test.describe('Os cursos, o agendamento e a missão do curso: nada muda antes de
     servidor.falhar('/rest/v1/dias', 1000);
     await diaSeguinte(page);
     await expect(page.locator('#toast-box')).toContainText('Não foi possível abrir essa data.', { timeout: 15000 });
-    await expect(campoDaData(page)).toHaveValue(AMANHA);
+    await expect(dataAberta(page)).toHaveAttribute('data-data', AMANHA);
     await nadaMuda(page, servidor);
     // O servidor volta: a data abre
     servidor.falhar('/rest/v1/dias', 0);

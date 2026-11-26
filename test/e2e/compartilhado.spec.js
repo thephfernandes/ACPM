@@ -1,4 +1,4 @@
-import { test, comProgresso, expect, prepararContexto, vigiarErros, irPara, abrirEscala, lerEscala, AMANHA, entrar, URL_APP, abrirHistorico, alternarDisponivel, botaoAprovar, caixaDisponivel, campoDaData, exportar } from './fixtures.js';
+import { test, comProgresso, expect, prepararContexto, vigiarErros, irPara, abrirEscala, lerEscala, AMANHA, entrar, URL_APP, abrirHistorico, alternarDisponivel, botaoAprovar, caixaDisponivel, exportar, dataAberta } from './fixtures.js';
 import { criarSupabaseFalso, instalarSupabaseFalso, documentosAtuais, CONTAS } from './supabase-falso.js';
 import { estadoSintetico } from '../helpers/estado.js';
 import { comExemplo } from '../helpers/exemplo.js';
@@ -311,7 +311,7 @@ test.describe('Modo compartilhado: gravação, conflitos e link da escala', () =
     const pgGestor = await gestor.newPage();
     const erros = vigiarErros(pgGestor);
     await entrar(pgGestor, CONTAS.gestor, { url: link });
-    await expect(campoDaData(pgGestor)).toHaveValue(AMANHA);
+    await expect(dataAberta(pgGestor)).toHaveAttribute('data-data', AMANHA);
     await irPara(pgGestor, 'esc');
     const escalaGestor = await lerEscala(pgGestor);
     expect(escalaGestor.linhas).toEqual(escalaOperador.linhas);

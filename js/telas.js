@@ -1,5 +1,6 @@
 // As telas do app, sem DOM: o nome de cada uma (o mesmo na navegação e no título), a etapa da linha ou o grupo dela, quem a
-// vê, a tela da abertura, o endereço (#/<tela>[/<item>])
+// vê, a tela e a data da abertura, o endereço (#/<tela>[/<item>]) e as preferências do trilho e da linha
+import { dataIsoValida, somarDias } from './format.js';
 const TODOS = ['operador', 'administrador', 'gestor', 'secretaria'];
 const SEM_SECRETARIA = ['operador', 'administrador', 'gestor'];
 
@@ -33,6 +34,18 @@ export function podeVer(tela, perfil) {
 
 export const telaDeAbertura = perfil => (perfil === 'secretaria' ? 'age' : 'esc');
 
+const ehDomingo = iso => new Date(iso + 'T12:00:00Z').getUTCDay() === 0;
+
+// A data da abertura: a do link vale para todos (um domingo abre a segunda; uma data que não existe, amanhã, com o aviso);
+// sem link, a Secretaria abre na primeira data que ainda aceita pedidos e os outros amanhã
+export function dataDeAbertura({ pedida, perfil, amanha, primeiraAberta }) {
+  if (pedida !== null && pedida !== undefined && pedida !== '') {
+    if (!dataIsoValida(pedida)) return { data: amanha, aviso: 'invalida' };
+    return ehDomingo(pedida) ? { data: somarDias(pedida, 1), aviso: 'domingo' } : { data: pedida, aviso: null };
+  }
+  return { data: perfil === 'secretaria' && primeiraAberta ? primeiraAberta : amanha, aviso: null };
+}
+
 // O item do endereço: um id, uma matrícula, um lugar da tela; nunca um nome (sem espaço nem acento), até 40 caracteres
 const ITEM = /^[A-Za-z0-9][A-Za-z0-9_.:-]{0,39}$/;
 
@@ -52,3 +65,32 @@ export const enderecoDoDestino = ({ tela, item = null }) => `#/${tela}${item ? `
 
 // A linha abre com as tarefas só quando cabe numa fileira e a janela é alta o bastante
 export const linhaAbertaPorPadrao = (larguraDaLinha, alturaDaJanela) => larguraDaLinha >= 1540 && alturaDaJanela >= 760;
+
+// A largura da janela: estreita abaixo de 1024 px, média até 1279, larga dali em diante
+export const classeDaLargura = largura => (largura < 1024 ? 'estreita' : largura < 1280 ? 'media' : 'larga');
+
+// O trilho ao lado do conteúdo: o que a pessoa guardou para a classe; sem nada guardado, só na larga; nunca na estreita
+export function trilhoFixo(classe, guardado = {}) {
+  if (classe === 'estreita') return false;
+  const escolha = guardado && guardado[classe];
+  if (escolha === 'fixo') return true;
+  if (escolha === 'solto') return false;
+  return classe === 'larga';
+}
+
+// O que está guardado em acpm_trilho: { media?: 'fixo' | 'solto', larga?: 'fixo' | 'solto' }; qualquer outra coisa é nada
+export function lerPreferencias(texto) {
+  try {
+    const valor = JSON.parse(texto);
+    if (!valor || typeof valor !== 'object' || Array.isArray(valor)) return {};
+    const lidas = {};
+    for (const classe of ['media', 'larga']) {
+      if (valor[classe] === undefined) continue;
+      if (valor[classe] !== 'fixo' && valor[classe] !== 'solto') return {};
+      lidas[classe] = valor[classe];
+    }
+    return lidas;
+  } catch {
+    return {};
+  }
+}

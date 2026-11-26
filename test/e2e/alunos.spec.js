@@ -1,5 +1,5 @@
 // Alunos: o cadastro, a busca, o filtro dos cursos e o botão armado de excluir.
-import { test, comProgresso, expect, abrir, abrirSintetico, abrirComExemplo, irPara, irParaVista, filtrarCursos, confirmar, AGORA, AMANHA, alvosPequenos, appPronto, botaoDaAba, campoDaData, diaSeguinte, larguraDaPagina } from './fixtures.js';
+import { test, comProgresso, expect, abrir, abrirSintetico, abrirComExemplo, irPara, irParaVista, filtrarCursos, confirmar, AGORA, AMANHA, alvosPequenos, appPronto, botaoDaAba, dataAberta, diaSeguinte, larguraDaPagina } from './fixtures.js';
 import { documentosAtuais } from './supabase-falso.js';
 import { aluno, cenario, instrutor } from '../helpers/montar.js';
 import { cursosIniciais } from '../../js/programa.js';
@@ -132,7 +132,7 @@ test.describe('Alunos', () => {
     // Outra data
     await marcarAsLinhas();
     await diaSeguinte(page);
-    await expect(campoDaData(page)).toHaveValue('2026-11-12');
+    await expect(dataAberta(page)).toHaveAttribute('data-data', '2026-11-12');
     await redesenhada();
     await expect.poll(nomesAVista).toEqual(['João Silva']);
     await expect(busca).toHaveValue('joão');
@@ -317,7 +317,7 @@ test.describe('Alunos: o filtro dos cursos e a barra dos Instrutores', () => {
     // Outra data: as linhas são refeitas (as de antes ficam marcadas), e o filtro continua
     await page.locator('#alu tr').evaluateAll(linhas => linhas.forEach(l => { l.dataset.antes = ''; }));
     await diaSeguinte(page);
-    await expect(campoDaData(page)).toHaveValue('2026-11-12');
+    await expect(dataAberta(page)).toHaveAttribute('data-data', '2026-11-12');
     await expect(page.locator('#alu tr[data-antes]')).toHaveCount(0);
     await expect.poll(() => nomesAVista(page)).toEqual(['Ana']);
     await expect(botao).toHaveText('Curso: PP');

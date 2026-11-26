@@ -1,10 +1,7 @@
-// A barra do topo: a data (o dia anterior e o seguinte, o domingo pulado), o perfil no modo local, o menu da conta (Minha
-// conta, Usuários, o tema e o Manual) e o aviso dos dados que não foram lidos
-import { setRole, carregarData, lerDadosDeNovo } from '../actions.js';
-import { ehDomingo } from '../agenda.js';
-import { $, showToast, ligarMenu } from '../dom.js';
-import { somarDias, dataIsoValida } from '../format.js';
-import { DATA, isGestor, modoCompartilhado } from '../state.js';
+// A barra do topo: o perfil no modo local, o menu da conta (Minha conta, Usuários, o tema e o Manual) e o aviso dos dados
+// que não foram lidos (a data: js/eventos/trilho.js)
+import { setRole, lerDadosDeNovo } from '../actions.js';
+import { $, ligarMenu } from '../dom.js';
 import { ApiClient } from '../storage.js';
 import { abrirConta } from '../views/conta.js';
 import { rManual } from '../views/manual.js';
@@ -22,48 +19,6 @@ $('#role-sel').onchange = e => {
   setRole(e.target.value);
   redesenharPorNome('cursos', 'escala');
 };
-
-// O aviso do domingo (o app abre a segunda)
-export const avisoDeDomingo = segunda => `O aeroclube não opera aos domingos: abrimos segunda-feira, ${segunda.slice(8, 10)}/${segunda.slice(5, 7)}.`;
-
-// Cada data tem a sua escala: trocar a data abre a escala daquela data (o gestor do modo compartilhado também navega).
-// Data vazia ou que não carregou: o campo volta para a data aberta
-$('#dt').onchange = e => {
-  let data = e.target.value;
-  if ((isGestor() && !modoCompartilhado()) || !dataIsoValida(data)) {
-    e.target.value = DATA;
-    return;
-  }
-  // Domingo não tem escala: abre a segunda
-  if (ehDomingo(data)) {
-    data = somarDias(data, 1);
-    e.target.value = data;
-    showToast(avisoDeDomingo(data));
-  }
-  carregarData(data).catch(() => {
-    if (e.target.value === data) e.target.value = DATA;
-    showToast('Não foi possível abrir essa data. Verifique a conexão e tente de novo.');
-  });
-};
-// ‹ e ›: o dia anterior e o seguinte. Um clique no rótulo da data abre o calendário do navegador
-// O domingo fica de fora: o aeroclube não opera
-const irParaDia = dias => {
-  const dt = $('#dt');
-  if (dt.disabled) return;
-  let destino = somarDias(DATA, dias);
-  if (ehDomingo(destino)) destino = somarDias(destino, dias);
-  dt.value = destino;
-  dt.dispatchEvent(new Event('change'));
-};
-$('#dt-ant').onclick = () => irParaDia(-1);
-$('#dt-prox').onclick = () => irParaDia(1);
-$('#dt').addEventListener('click', e => {
-  try {
-    e.target.showPicker();
-  } catch {
-    // Sem showPicker (navegador antigo) ou sem permissão: o campo da data abre do jeito normal
-  }
-});
 
 ligarMenu($('#btn-menu-conta'), $('#menu-conta'));
 

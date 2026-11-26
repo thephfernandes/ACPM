@@ -3,7 +3,7 @@
 import { GROUND_EQ_TYPE, GROUND_REG, MIS } from '../config.js';
 import { fmtH, esc, chaveDeBusca } from '../format.js';
 import { isGroundMission, migrateLegacyMissionName } from '../rules.js';
-import { S, BI_HISTORY, inativoNaDataAberta } from '../state.js';
+import { S, DATA, BI_HISTORY, inativoNaDataAberta } from '../state.js';
 import { categoriaDoTipo, nomeDoRecurso } from '../categorias.js';
 import { $ } from '../dom.js';
 
@@ -30,7 +30,7 @@ export function rBI() {
   const container = $('#bi-content');
   if (!container) return;
 
-  const refDate = ($('#bi-dt') && $('#bi-dt').value) || ($('#dt') && $('#dt').value) || new Date().toISOString().slice(0, 10);
+  const refDate = ($('#bi-dt') && $('#bi-dt').value) || DATA || new Date().toISOString().slice(0, 10);
   const refMonth = refDate.slice(0, 7);
   const categoria = ($('#bi-flt-cat') && $('#bi-flt-cat').value) || '';
   const fltInsQ = chaveDeBusca($('#bi-flt-ins') && $('#bi-flt-ins').value);

@@ -1,6 +1,6 @@
 // Acessibilidade: cada botão e cada campo tem um nome para o leitor de tela, e nenhum se chama só "✕" (que o leitor
 // lê como "multiplicação"). Vale para todas as abas, o Histórico e o painel de habilitações.
-import { test, expect, abrir, abrirComExemplo, irPara, entrar, abrirEscala, abrirCaixa, prepararContexto, vigiarErros, REGIOES, abasVisiveis, abrirHistorico, aprovar, botaoAprovar, botaoDiaAnterior, botaoDoHistorico, botaoDoMenuDaConta, percorrerTelas, relativoDaData, rotuloDaData, semNome, alternarVem, botaoDiaSeguinte, campoDaData , botoesDasAbas } from './fixtures.js';
+import { test, expect, abrir, abrirComExemplo, irPara, entrar, abrirEscala, abrirCaixa, prepararContexto, vigiarErros, REGIOES, abasVisiveis, abrirHistorico, aprovar, botaoAprovar, botaoDoHistorico, botaoDoMenuDaConta, percorrerTelas, relativoDaData, rotuloDaData, semNome, alternarVem, botoesDasAbas, botaoDaData, mudarData, diaDoCalendario } from './fixtures.js';
 import { instalarSupabaseFalso, documentosAtuais, CONTAS } from './supabase-falso.js';
 import { comExemplo } from '../helpers/exemplo.js';
 import { estadoSintetico } from '../helpers/estado.js';
@@ -38,10 +38,10 @@ test.describe('O foco do teclado na barra do topo', () => {
       await abrirComExemplo(page);
       await page.evaluate(t => { document.documentElement.dataset.theme = t; }, tema);
       const fundo = await page.locator('header.topo').evaluate(el => getComputedStyle(el).backgroundColor);
-      // A data (as setas), o perfil, o Histórico, o Manual (um link) e o menu da conta
+      // O botão da data, o perfil, o Histórico, o Manual (um link) e o menu da conta
       const controles = page.locator('header.topo :is(button, select, a[href]):visible:not(:disabled)');
       const total = await controles.count();
-      expect(total).toBeGreaterThanOrEqual(6);
+      expect(total).toBeGreaterThanOrEqual(5);
       const fracos = [];
       for (let i = 0; i < total; i++) {
         const controle = controles.nth(i);
@@ -102,17 +102,14 @@ test.describe('O foco do teclado na barra do topo', () => {
     });
   }
 
-  test('o rótulo da data mostra o foco em todas as paradas do Tab dentro do campo da data', async ({ page }) => {
+  test('o botão da data mostra o foco do teclado, com o anel branco da barra', async ({ page }) => {
     await abrirComExemplo(page);
-    await botaoDiaAnterior(page).focus();
+    await page.locator('.topo-marca').click();
+    await botaoDaData(page).focus();
+    await page.keyboard.press('Shift+Tab');
     await page.keyboard.press('Tab');
-    let paradas = 0;
-    while (paradas < 8 && await campoDaData(page).evaluate(el => el === document.activeElement)) {
-      expect(await page.locator('.topo-data-campo').evaluate(el => getComputedStyle(el).outlineStyle), `parada ${paradas + 1}`).toBe('solid');
-      paradas++;
-      await page.keyboard.press('Tab');
-    }
-    expect(paradas).toBeGreaterThan(0);
+    await expect(botaoDaData(page)).toBeFocused();
+    expect(await botaoDaData(page).evaluate(el => [getComputedStyle(el).outlineStyle, getComputedStyle(el).outlineColor])).toEqual(['solid', 'rgb(255, 255, 255)']);
   });
 });
 
@@ -163,16 +160,16 @@ test('na tela grande, o dia da semana aparece por extenso', async ({ page }) => 
 test.describe('A barra do topo nas larguras intermediárias', () => {
   for (const [largura, modo] of [[641, 'local'], [700, 'local'], [820, 'local'], [900, 'local'], [1024, 'local'], [1029, 'compartilhado'],
     [1030, 'compartilhado'], [1110, 'local'], [1280, 'local'], [1289, 'compartilhado'], [1290, 'compartilhado']]) {
-    test(`a ${largura} px (modo ${modo}), nada na barra cobre a marca, as setas da data ou as ferramentas`, async ({ page, context }) => {
+    test(`a ${largura} px (modo ${modo}), nada na barra cobre a marca, o botão da data ou as ferramentas`, async ({ page, context }) => {
       await page.setViewportSize({ width: largura, height: 800 });
       if (modo === 'local') await abrirComExemplo(page);
       else {
         await instalarSupabaseFalso(context, documentosAtuais(comExemplo(estadoSintetico()), '2026-11-11'));
         await entrar(page, CONTAS.operador);
       }
-      // O que está no meio de cada um é ele mesmo (nada por cima): a marca, as setas da data e as ferramentas
-      for (const [seletor, alvo] of [['.topo-titulo', page.locator('.topo-titulo')], ['a seta ‹ da data', botaoDiaAnterior(page)],
-        ['a seta › da data', botaoDiaSeguinte(page)], ['o Histórico', botaoDoHistorico(page)], ['#btn-manual', page.locator('#btn-manual')],
+      // O que está no meio de cada um é ele mesmo (nada por cima): a marca, o botão da data e as ferramentas
+      for (const [seletor, alvo] of [['.topo-titulo', page.locator('.topo-titulo')], ['o botão da data', botaoDaData(page)],
+        ['o Histórico', botaoDoHistorico(page)], ['#btn-manual', page.locator('#btn-manual')],
         ['o menu da conta', botaoDoMenuDaConta(page)]]) {
         const noMeio = await alvo.evaluate(el => {
           const r = el.getBoundingClientRect();
@@ -302,15 +299,11 @@ test.describe('O leitor de tela e o teclado', () => {
     await irPara(page, 'cur');
     await expect(atual).toHaveCount(1);
     await expect(atual).toHaveAttribute('href', '#/cur');
-    // O dia escolhido no calendário da agenda, e o que passa a ser escolhido
-    await irPara(page, 'age');
-    const escolhido = page.locator('#agenda-cal [aria-current="date"]');
-    await expect(escolhido).toHaveCount(1);
-    await expect(escolhido).toHaveClass(/\bsel\b/);
-    const outro = page.locator('#agenda-cal [data-cal="dia"]:not(.sel):not(.fora)').first();
-    const dia = await outro.getAttribute('data-dia');
-    await outro.click();
-    await expect(escolhido).toHaveAttribute('data-dia', dia);
+    // A data aberta, no calendário do trilho (aria-current="date"), e a que passa a ser a aberta
+    await expect(diaDoCalendario(page, '2026-11-11')).toHaveAttribute('aria-current', 'date');
+    await mudarData(page, '2026-11-12');
+    await expect(diaDoCalendario(page, '2026-11-12')).toHaveAttribute('aria-current', 'date');
+    await expect(diaDoCalendario(page, '2026-11-11')).not.toHaveAttribute('aria-current');
   });
 
   test('o pedido de confirmação é dito na região de status (o nome trocado do botão nem sempre é lido)', async ({ page }) => {
@@ -622,8 +615,12 @@ test.describe('O leitor de tela e o teclado', () => {
   test('os anúncios: a data do topo ao mudar, quantos voos ficaram com os filtros e o diálogo do status descrito pelo voo', async ({ page }) => {
     await abrirComExemplo(page);
     await abrirEscala(page);
-    await expect(rotuloDaData(page)).toHaveAttribute('aria-live', 'polite');
-    await expect(page.locator('.topo-data-campo svg.ico')).toHaveAttribute('aria-hidden', 'true');
+    // A data nova é anunciada (o nome dela, dentro do botão, não é uma região viva: seria lido duas vezes com o foco nele)
+    await expect(rotuloDaData(page)).not.toHaveAttribute('aria-live');
+    await expect(botaoDaData(page).locator('svg.ico').first()).toHaveAttribute('aria-hidden', 'true');
+    await mudarData(page, '2026-11-12');
+    await expect(page.locator('#anuncio')).toHaveText('Data aberta: quinta-feira, 12/11');
+    await mudarData(page, '2026-11-11');
     // O filtro muda a lista sem tirar o foco dele: o resultado vai para a região de status
     const busca = page.locator('#flt-esc-q');
     await busca.fill('zzzz');

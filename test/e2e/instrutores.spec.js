@@ -1,5 +1,5 @@
 // Instrutores: os filtros, a disponibilidade do dia (a grade e o "Vem"), as habilitações, o peso e o turno.
-import { test, expect, abrir, abrirSintetico, abrirComExemplo, irPara, irParaVista, abrirEscala, lerEscala, filtrarHabilitacoes, confirmar, abrirHistorico, cabecalhoDaGrade, caixaVem, campoDaData, diaSeguinte, gradeDoDia, linhaDoInstrutor, alvosPequenos, larguraDaPagina } from './fixtures.js';
+import { test, expect, abrir, abrirSintetico, abrirComExemplo, irPara, irParaVista, abrirEscala, lerEscala, filtrarHabilitacoes, confirmar, abrirHistorico, cabecalhoDaGrade, caixaVem, dataAberta, diaSeguinte, gradeDoDia, linhaDoInstrutor, alvosPequenos, larguraDaPagina } from './fixtures.js';
 import { aluno, cenario, instrutor } from '../helpers/montar.js';
 
 test.describe('Instrutores', () => {
@@ -289,7 +289,7 @@ test.describe('Instrutores', () => {
     await expect(naGrade).toHaveText(['Ana', 'Carla']);
     // Outra data (o clique na seta fecha o painel): as marcas continuam
     await diaSeguinte(page);
-    await expect(campoDaData(page)).toHaveValue('2026-11-12');
+    await expect(dataAberta(page)).toHaveAttribute('data-data', '2026-11-12');
     await expect(painel).toBeHidden();
     await expect(botao).toHaveText('Habilitações: Noturno + C172');
     await expect(naGrade).toHaveText(['Ana', 'Carla']);

@@ -1,5 +1,5 @@
 import { readFile } from 'node:fs/promises';
-import { test, expect, abrir, abrirComExemplo, abrirEscala, lerEscala, json, AMANHA, abrirHistorico, campoDaData, exportar } from './fixtures.js';
+import { test, expect, abrir, abrirComExemplo, abrirEscala, lerEscala, json, AMANHA, abrirHistorico, dataAberta, exportar } from './fixtures.js';
 import { aluno, cenario, instrutor } from '../helpers/montar.js';
 
 test.describe('Escala', () => {
@@ -9,7 +9,7 @@ test.describe('Escala', () => {
   });
 
   test('gera a escala do exemplo: resumo, alertas, tabela e mapa por aeronave', async ({ page }) => {
-    await expect(campoDaData(page)).toHaveValue(AMANHA);
+    await expect(dataAberta(page)).toHaveAttribute('data-data', AMANHA);
     expect(json(await lerEscala(page))).toMatchSnapshot('escala-exemplo.json');
   });
 

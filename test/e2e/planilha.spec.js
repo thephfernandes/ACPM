@@ -3,7 +3,7 @@
 // passam pelo leitor de XML do navegador
 import { readFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
-import { test, expect, prepararContexto, vigiarErros, abrirComExemplo, abrirEscala, AMANHA, botaoExportar, campoDaData, escreverData, exportar } from './fixtures.js';
+import { test, expect, prepararContexto, vigiarErros, abrirComExemplo, abrirEscala, AMANHA, botaoExportar, dataAberta, exportar, escolherNoCalendario } from './fixtures.js';
 import { abrirZip, lerPlanilha, conferirEstrutura, conferirConteudo } from '../helpers/xlsx.js';
 import { FROTA_INICIAL } from '../../js/frota.js';
 
@@ -62,8 +62,8 @@ test.describe('Planilha no modelo do aeroclube (Excel)', () => {
     await page.route('**/modelos/escala-cavok.xlsx', async rota => { await segurado; await rota.continue(); });
     const baixado = page.waitForEvent('download');
     await botaoExportar(page, 'xlsx').click();
-    await escreverData(page, DEPOIS);
-    await expect(campoDaData(page)).toHaveValue(DEPOIS);
+    await escolherNoCalendario(page, DEPOIS);
+    await expect(dataAberta(page)).toHaveAttribute('data-data', DEPOIS);
     liberar();
     await conferirPlanilha(page, await baixado, csv, AMANHA);
   });

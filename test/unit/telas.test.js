@@ -1,7 +1,10 @@
 // As telas do app (js/telas.js): quem vê cada uma, a tela da abertura e o endereço (#/<tela>[/<item>])
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { TELAS, ESTAGIOS, podeVer, telaDeAbertura, destinoDoEndereco, enderecoDoDestino, linhaAbertaPorPadrao } from '../../js/telas.js';
+import {
+  TELAS, ESTAGIOS, podeVer, telaDeAbertura, dataDeAbertura, destinoDoEndereco, enderecoDoDestino, linhaAbertaPorPadrao,
+  classeDaLargura, trilhoFixo, lerPreferencias
+} from '../../js/telas.js';
 
 const PERFIS = ['operador', 'administrador', 'gestor', 'secretaria'];
 
@@ -70,5 +73,42 @@ describe('A linha aberta por padrão', () => {
     assert.equal(linhaAbertaPorPadrao(1540, 760), true);
     assert.equal(linhaAbertaPorPadrao(1539, 1080), false);
     assert.equal(linhaAbertaPorPadrao(1888, 759), false);
+  });
+});
+
+describe('A data da abertura', () => {
+  const base = { amanha: '2026-11-11', primeiraAberta: '2026-11-12' };
+  it('a data do link vale para todos os perfis', () => {
+    for (const perfil of ['operador', 'administrador', 'gestor', 'secretaria', null]) assert.deepEqual(dataDeAbertura({ ...base, pedida: '2026-11-20', perfil }), { data: '2026-11-20', aviso: null });
+  });
+  it('um domingo no link abre a segunda, com o aviso', () => {
+    assert.deepEqual(dataDeAbertura({ ...base, pedida: '2026-11-15', perfil: 'operador' }), { data: '2026-11-16', aviso: 'domingo' });
+  });
+  it('uma data que não existe abre amanhã, com o aviso', () => {
+    assert.deepEqual(dataDeAbertura({ ...base, pedida: '2026-02-30', perfil: 'operador' }), { data: '2026-11-11', aviso: 'invalida' });
+  });
+  it('sem data no link: a Secretaria na primeira data que aceita pedidos; os outros amanhã', () => {
+    assert.deepEqual(dataDeAbertura({ ...base, pedida: null, perfil: 'secretaria' }), { data: '2026-11-12', aviso: null });
+    assert.deepEqual(dataDeAbertura({ ...base, pedida: null, perfil: 'gestor' }), { data: '2026-11-11', aviso: null });
+  });
+});
+
+describe('O trilho ao lado', () => {
+  it('a classe da largura da janela', () => {
+    assert.equal(classeDaLargura(1023), 'estreita');
+    assert.equal(classeDaLargura(1024), 'media');
+    assert.equal(classeDaLargura(1279), 'media');
+    assert.equal(classeDaLargura(1280), 'larga');
+  });
+  it('por padrão na larga; o guardado vale por classe; nunca na estreita', () => {
+    assert.equal(trilhoFixo('larga', {}), true);
+    assert.equal(trilhoFixo('media', {}), false);
+    assert.equal(trilhoFixo('estreita', { estreita: 'fixo' }), false);
+    assert.equal(trilhoFixo('larga', { larga: 'solto' }), false);
+    assert.equal(trilhoFixo('media', { media: 'fixo' }), true);
+  });
+  it('lerPreferencias: o JSON guardado, ou nada', () => {
+    assert.deepEqual(lerPreferencias('{"media":"fixo","larga":"solto"}'), { media: 'fixo', larga: 'solto' });
+    for (const texto of [null, '', 'xyz', '[1,2]', '"fixo"', '{"media":"meio"}']) assert.deepEqual(lerPreferencias(texto), {}, String(texto));
   });
 });

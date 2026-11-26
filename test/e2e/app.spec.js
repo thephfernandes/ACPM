@@ -1,4 +1,4 @@
-import { test, expect, abrir, irPara, abrirMenuDaConta, botaoDaAba, campoDaData, diaAnterior, diaSeguinte, relativoDaData, rotuloDaData, rotulosDasAbas, SETAS_DA_DATA } from './fixtures.js';
+import { test, expect, abrir, irPara, abrirMenuDaConta, botaoDaAba, dataAberta, diaAnterior, diaSeguinte, relativoDaData, rotuloDaData, rotulosDasAbas, mudarData, botaoDaData } from './fixtures.js';
 import { GLOSSARIO } from '../../js/glossario.js';
 import { FRASES_QUE_SAIRAM, FRASES_DO_MANUAL } from './manual-frases.js';
 
@@ -39,27 +39,26 @@ test.describe('Aplicação', () => {
     await irPara(page, 'dem');
     await expect(rotuloDaData(page)).toBeVisible();
     await diaSeguinte(page);
-    await expect(campoDaData(page)).toHaveValue('2026-11-12');
+    await expect(dataAberta(page)).toHaveAttribute('data-data', '2026-11-12');
     await expect(rotuloDaData(page)).toHaveText('quinta-feira, 12/11', { useInnerText: true });
     await expect(relativoDaData(page)).toBeHidden();
     await diaAnterior(page);
-    await expect(campoDaData(page)).toHaveValue('2026-11-11');
+    await expect(dataAberta(page)).toHaveAttribute('data-data', '2026-11-11');
     await diaAnterior(page);
-    await expect(campoDaData(page)).toHaveValue('2026-11-10');
+    await expect(dataAberta(page)).toHaveAttribute('data-data', '2026-11-10');
     await expect(relativoDaData(page)).toHaveText('hoje');
   });
 
-  for (const largura of [1280, 560, 360]) test(`o controle da data tem tamanho fixo: as setas não saem do lugar quando o texto muda (${largura} px)`, async ({ page }) => {
+  for (const largura of [1280, 560, 360]) test(`o botão da data tem tamanho fixo: ele não sai do lugar quando a data muda (${largura} px)`, async ({ page }) => {
     await page.setViewportSize({ width: largura, height: 800 });
     await abrir(page);
-    const caixas = () => page.evaluate(seletores => seletores.map(s => {
-      const r = document.querySelector(s).getBoundingClientRect();
+    const caixas = () => botaoDaData(page).evaluate(el => {
+      const r = el.getBoundingClientRect();
       return [Math.round(r.x), Math.round(r.width)];
-    }), ['.topo-data', ...SETAS_DA_DATA]);
+    });
     const inicial = await caixas();
     for (const data of ['2026-11-12', '2026-11-10', '2026-11-14', '2026-11-16', '2027-01-04', '2026-12-31']) {
-      await campoDaData(page).fill(data);
-      await expect(campoDaData(page)).toHaveValue(data);
+      await mudarData(page, data);
       expect(await caixas(), data).toEqual(inicial);
     }
   });
@@ -90,7 +89,7 @@ test.describe('Aplicação', () => {
       principalMax: getComputedStyle(document.querySelector('.casca')).maxWidth
     }));
     expect(await estilos()).toEqual({
-      tinta: '#12263A', fundo: 'rgb(238, 242, 245)', fonte: expect.stringContaining('Barlow'), secaoInativa: 'none', principalMax: '1280px'
+      tinta: '#12263A', fundo: 'rgb(238, 242, 245)', fonte: expect.stringContaining('Barlow'), secaoInativa: 'none', principalMax: '1612px'
     });
     expect(fontes).toHaveLength(1);
 
