@@ -8,6 +8,9 @@ import { cursosIniciais, gravarCurso, importarProgramas, programaComResultados, 
 import { normalizarCursos } from '../../js/cursos.js';
 import { FORMATO_DOS_CURSOS } from '../../js/migracoes.js';
 import { PROGRAMA } from '../helpers/casos-do-programa.js';
+import { CASOS_DA_AGENDA, CURSO_DOS_CASOS, DATA_DOS_CASOS, pedidoDosCasos, localDosCasos, guardadoDoCaso } from '../helpers/casos-da-agenda.js';
+import { recusaDoPedido } from '../../js/agenda.js';
+import { GROUND_DURATION_H, MISSOES_LOCAIS, LIMITE_DE_VOOS_LOCAIS } from '../../js/config.js';
 
 const espera = ms => new Promise(r => setTimeout(r, ms));
 
@@ -28,7 +31,6 @@ function clienteFalso(documentos = {}, { atraso = 0, dias = {} } = {}) {
   const chamadas = [];
   let falhasDeRede = 0;
   let recusas = [];
-  let recusaDaAgenda = null;
 
   const linhasDe = tabela => {
     if (tabela === 'documentos') return [...banco].map(([chave, d]) => ({ chave, ...d }));
@@ -58,8 +60,8 @@ function clienteFalso(documentos = {}, { atraso = 0, dias = {} } = {}) {
 
   return {
     banco,
-    // O erro da função registrar_solicitacao com o recurso (11 argumentos); a de 10 responde como sempre
-    recusarAgendaComRecurso(erro) { recusaDaAgenda = erro; },
+    // Os cursos que a função de 13 argumentos da agenda confere (a missão do curso do pedido)
+    guardarCursos(lista) { cursos.lista = lista; },
     dias: tabelaDias,
     historico,
     cursos,
@@ -183,13 +185,20 @@ function clienteFalso(documentos = {}, { atraso = 0, dias = {} } = {}) {
         return { data: null, error: null };
       }
       if (nome === 'registrar_solicitacao') {
-        // O servidor de antes da migração agenda_com_recurso só tem a função de 10 argumentos
-        if (recusaDaAgenda && Object.hasOwn(args, 'p_recurso')) return { data: null, error: recusaDaAgenda };
+        // A função de 13 argumentos (a migração missao_do_curso_e_limite_do_pedido), com as regras dela
+        // (test/helpers/casos-da-agenda.js) e o prazo simplificado: antes de 11/11, encerrado
+        const horas = String(args.p_missao).startsWith('Ground') ? GROUND_DURATION_H : Math.round(+args.p_horas * 10) / 10;
+        const recusa = recusaDoPedido({ missao: args.p_missao, recurso: args.p_recurso, horario: args.p_horario, horas, missaoDoCurso: args.p_missao_do_curso }, cursos.lista);
+        if (recusa) return { data: null, error: { code: recusa.code, message: recusa.mensagem, hint: recusa.campo } };
+        const locais = MISSOES_LOCAIS.includes(args.p_missao)
+          && solicitacoes.filter(x => x.data === args.p_data && !x.cancelada_em && x.horario === args.p_horario && MISSOES_LOCAIS.includes(x.missao)).length >= LIMITE_DE_VOOS_LOCAIS;
+        if (locais && !args.p_confirmar_limite) return { data: null, error: { code: 'PT422', message: 'já há 6 voos locais no horário', hint: 'locais' } };
         if (args.p_data < '2026-11-11') return { data: null, error: { code: 'PT403', message: 'prazo encerrado' } };
         const id = solicitacoes.length + 1;
+        const registrado_em = new Date(Date.UTC(2026, 10, 10, 12, 0, id)).toISOString();
         solicitacoes.push({ id, data: args.p_data, aluno: args.p_aluno, aluno_nome: args.p_aluno_nome, missao: args.p_missao, janela: args.p_janela,
-          horario: args.p_horario, ...(Object.hasOwn(args, 'p_recurso') ? { recurso: args.p_recurso } : {}), observacao: args.p_observacao, registrado_por: args.p_registrado_por, registrado_em: new Date(Date.UTC(2026, 10, 10, 12, 0, id)).toISOString(),
-          excecao: Boolean(args.p_excecao), cancelada_em: null, cancelada_por: null });
+          horario: args.p_horario, horas, recurso: args.p_recurso.trim(), missao_do_curso: args.p_missao_do_curso, observacao: args.p_observacao, registrado_por: args.p_registrado_por, registrado_em,
+          excecao: Boolean(args.p_excecao), limite_confirmado_por: locais ? 'Eu' : null, limite_confirmado_em: locais ? registrado_em : null, cancelada_em: null, cancelada_por: null });
         return { data: id, error: null };
       }
       if (nome === 'cancelar_solicitacao') {
@@ -473,79 +482,67 @@ describe('Backend Supabase: escala por data e histórico', () => {
     assert.equal(await backend.gravar('cadastro', { v: 4 }), true, 'a versão lida continua a mais recente');
   });
 
-  it('agenda: registra e cancela pelas funções do banco, lista por período e repassa o código do erro', async () => {
+  it('agenda: registra e cancela pelas funções do banco, lista por período e repassa o código do erro e o campo', async () => {
     const cliente = clienteFalso();
     const backend = criarBackendSupabase(cliente);
-    const id = await backend.registrarSolicitacao({ data: '2026-11-12', aluno: 1000, aluno_nome: 'Aluno 1000', missao: 'IFR', janela: 'horario', horario: '14:30', horas: 2.6, registrado_por: 'Maria' });
+    const id = await backend.registrarSolicitacao({ data: '2026-11-12', aluno: 1000, aluno_nome: 'Aluno 1000', missao: 'IFR', janela: 'horario', horario: '14:30', horas: 2.6, registrado_por: 'Maria', recurso: 'C172' });
     assert.deepEqual(cliente.chamadas.at(-1), ['registrar_solicitacao', {
       p_data: '2026-11-12', p_aluno: 1000, p_aluno_nome: 'Aluno 1000', p_missao: 'IFR', p_janela: 'horario', p_horario: '14:30', p_horas: 2.6,
-      p_registrado_por: 'Maria', p_observacao: null, p_excecao: false, p_recurso: null
+      p_registrado_por: 'Maria', p_observacao: null, p_excecao: false, p_recurso: 'C172', p_missao_do_curso: null, p_confirmar_limite: false
     }]);
-    await backend.registrarSolicitacao({ data: '2026-11-11', aluno: 1001, aluno_nome: 'Aluno 1001', missao: 'Voo Local', janela: 'manha', registrado_por: 'Maria' });
+    await backend.registrarSolicitacao({ data: '2026-11-11', aluno: 1001, aluno_nome: 'Aluno 1001', missao: 'Voo Local', janela: 'horario', horario: '08:20', horas: 1, registrado_por: 'Maria', recurso: 'C152' });
     assert.deepEqual((await backend.listarSolicitacoes('2026-11-01', '2026-11-30')).map(s => [s.data, s.aluno]), [['2026-11-11', 1001], ['2026-11-12', 1000]]);
-    await assert.rejects(backend.registrarSolicitacao({ data: '2026-11-10', aluno: 1, aluno_nome: 'A', missao: 'Voo Local', janela: 'manha', registrado_por: 'M' }), e => e.code === 'PT403');
+    await assert.rejects(backend.registrarSolicitacao({ data: '2026-11-10', aluno: 1, aluno_nome: 'A', missao: 'Voo Local', janela: 'horario', horario: '08:20', horas: 1, registrado_por: 'M', recurso: 'C152' }), e => e.code === 'PT403');
+    await assert.rejects(backend.registrarSolicitacao({ data: '2026-11-12', aluno: 1, aluno_nome: 'A', missao: 'Noturno', janela: 'horario', horario: '08:20', horas: 4, registrado_por: 'M', recurso: 'C172' }),
+      e => e.code === '22023' && e.campo === 'horario');
     await backend.cancelarSolicitacao(id, 'Maria');
     assert.equal(cliente.chamadas.at(-1)[0], 'cancelar_solicitacao');
     await assert.rejects(backend.cancelarSolicitacao(id, 'Maria'), e => e.code === 'P0002');
   });
 
-  const pedidoDaAgenda = (extra = {}) => ({ data: '2026-11-12', aluno: 1000, aluno_nome: 'Aluno 1000', missao: 'Navegação', janela: 'horario', horario: '07:30', horas: 1, registrado_por: 'Maria', ...extra });
-  const semAFuncao = [
-    { code: 'PGRST202', message: 'Could not find the function public.registrar_solicitacao(...) in the schema cache' },
-    { code: '42883', message: 'function public.registrar_solicitacao(...) does not exist' }
-  ];
-  const chamadasDaAgenda = cliente => cliente.chamadas.filter(([nome]) => nome === 'registrar_solicitacao').map(([, args]) => Object.keys(args).length);
-
-  it('agenda: o recurso vai na função de 11 argumentos e volta na leitura; a linha de antes, sem ele, também é lida', async () => {
+  // Sempre a função de 13 argumentos (a migração precede o app): nenhum erro chama outra, e a missão do curso e a
+  // confirmação do 7º voo local vão com o pedido
+  it('agenda: a missão do curso e a confirmação vão na função de 13 argumentos; nenhum erro chama outra função', async () => {
+    const pedido = (extra = {}) => ({ data: '2026-11-12', aluno: 1000, aluno_nome: 'Aluno 1000', missao: 'Navegação', janela: 'horario', horario: '07:30', horas: 3, registrado_por: 'Maria', recurso: 'PA-34', ...extra });
     const cliente = clienteFalso();
+    cliente.guardarCursos([...cursosIniciais(), CURSO_DOS_CASOS]);
     const backend = criarBackendSupabase(cliente);
-    await backend.registrarSolicitacao(pedidoDaAgenda({ recurso: 'PA-34' }));
-    assert.equal(cliente.chamadas.at(-1)[1].p_recurso, 'PA-34');
-    assert.deepEqual(chamadasDaAgenda(cliente), [11]);
-    assert.deepEqual((await backend.listarSolicitacoes('2026-11-12', '2026-11-12')).map(s => s.recurso), ['PA-34']);
-  });
-
-  // O app no ar antes da migração: só a função que não existe leva à de 10 argumentos, e só com o recurso padrão da missão
-  for (const erro of semAFuncao) {
-    it(`agenda: sem a função no servidor (${erro.code}), o recurso padrão da missão é registrado pela função de antes, uma vez`, async () => {
-      const cliente = clienteFalso();
-      cliente.recusarAgendaComRecurso(erro);
-      const backend = criarBackendSupabase(cliente);
-      assert.equal(await backend.registrarSolicitacao(pedidoDaAgenda({ recurso: 'C152' })), 1);
-      assert.deepEqual(chamadasDaAgenda(cliente), [11, 10]);
-      assert.equal(Object.hasOwn(cliente.chamadas.at(-1)[1], 'p_recurso'), false);
-      const [guardado, ...outros] = await backend.listarSolicitacoes('2026-11-12', '2026-11-12');
-      assert.deepEqual([guardado.missao, Object.hasOwn(guardado, 'recurso'), outros.length], ['Navegação', false, 0]);
-    });
-
-    it(`agenda: sem a função no servidor (${erro.code}), outro recurso é recusado, sem registrar nada`, async () => {
-      const cliente = clienteFalso();
-      cliente.recusarAgendaComRecurso(erro);
-      const backend = criarBackendSupabase(cliente);
-      await assert.rejects(backend.registrarSolicitacao(pedidoDaAgenda({ recurso: 'PA-34' })), { code: 'agenda-sem-recurso' });
-      assert.deepEqual(chamadasDaAgenda(cliente), [11]);
-      assert.deepEqual(await backend.listarSolicitacoes('2026-11-12', '2026-11-12'), []);
-    });
-  }
-
-  it('agenda: qualquer outro erro (a regra, o dado, a rede sem resposta, o servidor fora do ar) não chama a função de antes', async () => {
-    for (const erro of [{ code: 'PT403', message: 'prazo' }, { code: 'PT422', message: 'locais' }, { code: '42501', message: 'permissão' }, { code: '23514', message: 'dado' },
-      { code: '', message: 'TypeError: Failed to fetch' }, { message: 'Service Unavailable' }, { code: 'PGRST203', message: 'ambígua' }, { code: '57014', message: 'timeout' }, { code: 'PGRST301', message: 'JWT expired' }]) {
-      const cliente = clienteFalso();
-      cliente.recusarAgendaComRecurso(erro);
-      const backend = criarBackendSupabase(cliente);
-      await assert.rejects(backend.registrarSolicitacao(pedidoDaAgenda({ recurso: 'C152' })), e => e.code === erro.code && e.message === erro.message);
-      assert.deepEqual(chamadasDaAgenda(cliente), [11], erro.message);
+    await backend.registrarSolicitacao(pedido({ missaoDoCurso: CURSO_DOS_CASOS.missoes[0].id, confirmarLimite: true }));
+    assert.deepEqual(Object.keys(cliente.chamadas.at(-1)[1]).length, 13);
+    assert.deepEqual([cliente.chamadas.at(-1)[1].p_missao_do_curso, cliente.chamadas.at(-1)[1].p_confirmar_limite], [CURSO_DOS_CASOS.missoes[0].id, true]);
+    assert.deepEqual((await backend.listarSolicitacoes('2026-11-12', '2026-11-12')).map(s => [s.recurso, s.missao_do_curso]), [['PA-34', CURSO_DOS_CASOS.missoes[0].id]]);
+    for (const erro of [{ code: 'PGRST202', message: 'Could not find the function' }, { code: '42883', message: 'does not exist' }, { code: '', message: 'TypeError: Failed to fetch' }]) {
+      const outro = clienteFalso();
+      const rpc = outro.rpc;
+      const tamanhos = [];
+      outro.rpc = async (nome, args) => {
+        if (nome !== 'registrar_solicitacao') return rpc(nome, args);
+        tamanhos.push(Object.keys(args).length);
+        return { data: null, error: erro };
+      };
+      await assert.rejects(criarBackendSupabase(outro).registrarSolicitacao(pedido()), e => e.code === erro.code && e.message === erro.message);
+      assert.deepEqual(tamanhos, [13], erro.message);
     }
   });
 
-  it('agenda: o erro da função de antes também é repassado com o código', async () => {
-    const cliente = clienteFalso();
-    cliente.recusarAgendaComRecurso(semAFuncao[0]);
-    const backend = criarBackendSupabase(cliente);
-    await assert.rejects(backend.registrarSolicitacao(pedidoDaAgenda({ data: '2026-11-10', recurso: 'C152' })), e => e.code === 'PT403');
-    assert.deepEqual(chamadasDaAgenda(cliente), [11, 10]);
-  });
+  // Os casos da função de 13 argumentos (test/helpers/casos-da-agenda.js): o pedido do app chega ao cliente pelos nomes, e
+  // a recusa volta com o código e o campo
+  for (const caso of CASOS_DA_AGENDA) {
+    it(`agenda, caso: ${caso.nome}`, async () => {
+      const cliente = clienteFalso();
+      cliente.guardarCursos([...cursosIniciais(), CURSO_DOS_CASOS]);
+      const backend = criarBackendSupabase(cliente);
+      for (let n = 0; n < (caso.locais || 0); n++) await backend.registrarSolicitacao(localDosCasos(n));
+      const registro = backend.registrarSolicitacao(pedidoDosCasos(caso.pedido));
+      if (caso.erro) {
+        await assert.rejects(registro, e => e.code === caso.erro.code && e.campo === caso.erro.campo);
+        return;
+      }
+      const id = await registro;
+      const [s] = (await backend.listarSolicitacoes(DATA_DOS_CASOS, DATA_DOS_CASOS)).filter(x => x.id === id);
+      assert.deepEqual(guardadoDoCaso(s), caso.registrado);
+    });
+  }
 
   it('resultados das missões: registra pela função, lê a situação e os registros do dia; repassa o código do erro', async () => {
     const cliente = clienteFalso();

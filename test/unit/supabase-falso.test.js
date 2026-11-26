@@ -6,15 +6,16 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { criarSupabaseFalso, documentosAtuais, documentosFase3, CONTAS, URL_TESTE } from '../e2e/supabase-falso.js';
 import { CASOS_DO_PROGRAMA, PROGRAMA } from '../helpers/casos-do-programa.js';
+import { CASOS_DA_AGENDA, CURSO_DOS_CASOS, DATA_DOS_CASOS, pedidoDosCasos, localDosCasos, argumentosDoBanco, guardadoDoCaso } from '../helpers/casos-da-agenda.js';
 import { aluno, cenario, instrutor } from '../helpers/montar.js';
 import { normalizarCursos } from '../../js/cursos.js';
 import { FORMATO_DOS_CURSOS } from '../../js/migracoes.js';
-import { novoId, programaDoLegado } from '../../js/programa.js';
+import { novoId, programaDoLegado, cursosIniciais } from '../../js/programa.js';
 
 const DATA = '2026-11-11';
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
-// Os status do PostgREST para os códigos das funções dos cursos
-const STATUS = { 42501: 403, PT409: 409, 23505: 409, P0002: 404, 22023: 400, 23514: 400 };
+// Os status do PostgREST para os códigos das funções (PTxyz: o status xyz)
+const STATUS = { 42501: 403, PT403: 403, PT409: 409, PT422: 422, 23505: 409, P0002: 404, 22023: 400, 23514: 400 };
 const LEGADO = { PP: [{ id: 'PP-01', nome: 'Familiarização', mis: 'Voo Local', eq: 'C152', nb: 1 }, { id: 'PP-02', nome: 'Navegação', mis: 'Navegação', eq: 'C152', nb: 2 }], PC: [], INVA: [] };
 const comPrograma = () => ({ ...cenario({ ins: [instrutor(1, 9)], stu: [aluno(1000, {}, { curso: 'PP' })] }), cursos: LEGADO });
 
@@ -199,5 +200,36 @@ describe('Servidor falso dos testes E2E: a sessão', () => {
     assert.equal((await rpc(primeira.access_token, 'painel_do_dia')).status, 401);
     assert.equal((await rpc(segunda.access_token, 'painel_do_dia')).status, 200);
     assert.equal((await rpc(operador.access_token, 'painel_do_dia')).status, 200);
+  });
+});
+
+// Os casos da função de 13 argumentos da agenda (test/helpers/casos-da-agenda.js), pela Secretaria, com o curso ZZ1 nas
+// tabelas dos cursos
+describe('Servidor falso dos testes E2E: a agenda (a função de 13 argumentos)', () => {
+  for (const caso of CASOS_DA_AGENDA) {
+    it(caso.nome, async () => {
+      const servidor = criarSupabaseFalso({ cursos: [...cursosIniciais(), CURSO_DOS_CASOS] });
+      const { entrar, rpc } = await conectar(servidor);
+      const token = await entrar(CONTAS.secretaria);
+      for (let n = 0; n < (caso.locais || 0); n++) assert.equal((await rpc(token, 'registrar_solicitacao', argumentosDoBanco(localDosCasos(n)))).status, 200);
+      const r = await rpc(token, 'registrar_solicitacao', argumentosDoBanco(pedidoDosCasos(caso.pedido)));
+      if (caso.erro) {
+        assert.deepEqual([r.status, r.corpo.code, r.corpo.hint], [STATUS[caso.erro.code] || 400, caso.erro.code, caso.erro.campo]);
+        assert.equal(servidor.solicitacoes.filter(s => s.data === DATA_DOS_CASOS).length, caso.locais || 0);
+        return;
+      }
+      assert.equal(r.status, 200);
+      assert.deepEqual(guardadoDoCaso(servidor.solicitacoes.find(s => s.id === r.corpo)), caso.registrado);
+    });
+  }
+
+  it('o 7º voo local confirmado guarda o nome da conta e a hora do servidor', async () => {
+    const servidor = criarSupabaseFalso({ cursos: [...cursosIniciais(), CURSO_DOS_CASOS] });
+    const { entrar, rpc } = await conectar(servidor);
+    const token = await entrar(CONTAS.secretaria);
+    for (let n = 0; n < 6; n++) await rpc(token, 'registrar_solicitacao', argumentosDoBanco(localDosCasos(n)));
+    const r = await rpc(token, 'registrar_solicitacao', argumentosDoBanco(pedidoDosCasos({ missao: 'Voo Local', confirmarLimite: true })));
+    const s = servidor.solicitacoes.find(x => x.id === r.corpo);
+    assert.deepEqual([s.limite_confirmado_por, s.limite_confirmado_em], ['Secretaria de Teste', '2026-11-10T15:00:00.000Z']);
   });
 });

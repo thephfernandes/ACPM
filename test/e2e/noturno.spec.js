@@ -23,6 +23,8 @@ test.describe('Noturno de dois dias', () => {
     await expect(page.locator('#dem tr[data-k="d"][data-id="1000"] [data-f="nb"]')).toHaveValue('1');
     await page.locator('#dem tr[data-k="d"][data-id="1000"] [data-f="mis"]').selectOption('Noturno');
     await irPara(page, 'age');
+    // A missão espera o aluno (F1c)
+    await campoDaAgenda(page, 'aluno').selectOption({ label: 'Aluno 1000' });
     await campoDaAgenda(page, 'missao').selectOption('Noturno');
     await expect(campoDaAgenda(page, 'recurso')).toHaveValue('C172');
     await expect(campoDaAgenda(page, 'horas')).toHaveValue('4');

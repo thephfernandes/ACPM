@@ -145,6 +145,7 @@ details.caixa.conflitos .btn.quiet { padding: 1px 8px; margin-left: 4px; font-si
 .opcoes-reparo li { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; border: 1px solid var(--ln); border-radius: 8px; background: var(--pn2); }
 .opcoes-reparo li.cancelar { background: transparent; border-style: dashed; }
 .opcoes-reparo .btn { flex: none; }
+.opcoes-reparo .confirmar-aluno { display: block; margin-top: 4px; color: var(--mu); }
 .win td {
   background: var(--pn2);
   font: 600 14.5px 'Barlow Semi Condensed', sans-serif;

@@ -8,7 +8,7 @@ import { $, showToast, anunciar, algumDialogoAberto, gavetaDoEsc, focarNoTitulo 
 import { exp, pdf, planilha } from '../export.js';
 import { fixosAoMudarStatus, fixosAoReabrir, fixosAoAprovar, normalizarFixos } from '../fixos.js';
 import { hm, hojeISO } from '../format.js';
-import { aplicarReparo, aproveitarCancelado, desfazerAproveitamento } from '../reparo.js';
+import { aplicarReparo, aproveitarCancelado, desfazerAproveitamento, repararComOPedido } from '../reparo.js';
 import { S, RES, DATA, AUDIT_LOG, isGestor, modoCompartilhado, insBy } from '../state.js';
 import { escolherInstrutor, escolhasDaUnidade, escolherNosPedidos, reverterEscolha, reverterReparo } from '../instrutor-escolhido.js';
 import { agendamentosEmVolta } from '../reversoes.js';
@@ -20,7 +20,7 @@ import { aoAcionar, aoMudarCampo, aoReverter } from './registro.js';
 import { vooDaChave } from './resultados.js';
 import { pedirDetalheDoStatus } from '../views/dialogo-status.js';
 import { rOut, lembrarCaixa, botaoDoInstrutor, seletorDeInstrutor, abrirPopupDoMapa, fecharPopupDoMapa, popupDoMapaAberto, reposicionarPopupDoMapa, tabNoPopup } from '../views/escala.js';
-import { abrirPainelDeReparo, abrirPainelDoRejeitado, fecharPainelDeReparo, opcaoDoPainel } from '../views/reparo.js';
+import { abrirPainelDeReparo, abrirPainelDoRejeitado, fecharPainelDeReparo, opcaoDoPainel, focarNoVoo } from '../views/reparo.js';
 import { registrarDesenho, redesenharPorNome } from '../redesenho.js';
 import { voosComInativos } from '../inativos.js';
 import { registrarTela } from '../views/telas.js';
@@ -252,10 +252,13 @@ document.addEventListener('click', e => {
 // Sugestões para um conflito: a gaveta abre pelo botão do conflito. "Aplicar" muda o voo fixo (na turma de
 // Ground, a turma inteira) e "Soltar" o tira dos fixos; o histórico guarda os fixos de antes, para reverter. Cancelar
 // abre o diálogo do status, já com o motivo do conflito marcado
+// Aberta do popup do mapa, a gaveta fica no lugar dele (o popup fecha): o Esc fecha a gaveta e volta para o voo. Aplicada a
+// sugestão, o foco vai para o voo (o botão "Sugestões" dele não existe mais)
 document.addEventListener('click', e => {
   const abrirSugestoes = e.target.closest('[data-reparo]');
+  const doRejeitado = !abrirSugestoes && e.target.closest('[data-rejeitado]');
+  if ((abrirSugestoes || doRejeitado) && !isGestor() && popupDoMapaAberto()) fecharPopupDoMapa();
   if (abrirSugestoes) { if (!isGestor()) abrirPainelDeReparo(abrirSugestoes.dataset.reparo); return; }
-  const doRejeitado = e.target.closest('[data-rejeitado]');
   if (doRejeitado) { if (!isGestor()) abrirPainelDoRejeitado(doRejeitado.dataset.rejeitado); return; }
   if (e.target.closest('#btn-fechar-reparo')) { fecharPainelDeReparo(true); return; }
   const botao = e.target.closest('[data-reparo-aplicar]');
@@ -271,24 +274,39 @@ document.addEventListener('click', e => {
     const { antes } = escolherInstrutor(S, RES, { stuId, mid }, x ? x.id : null);
     gravarAlteracao('mod', `Pedido recusado encaixado: ${opcao.texto}`, { kind: 'restaurarEscolha', ...antes, label: '↶ Reverter' });
     redesenharPorNome('pedidos-do-dia');
+    focarNoVoo(fKey);
     showToast('Instrutor escolhido: o pedido entra na escala.', 'ok');
     return;
   }
-  // O voo cancelado aproveitado: a sugestão fora da disponibilidade do pedido ou em outro tipo pede a confirmação com o
-  // aluno (dois cliques); aplicada, o voo fica fixo no lugar dela e volta para Pendente, e o pedido muda com ela
+  // A sugestão fora da disponibilidade do pedido ou em outro tipo pede a confirmação com o aluno, e a que faz do voo o 7º
+  // local do horário, a do operador (dois cliques)
+  if (opcao.confirmar && !confirmado(botao, opcao.armado || 'Confirmei com o aluno')) return;
+  // O voo cancelado aproveitado: aplicada, a sugestão fixa o voo no lugar dela e o volta para Pendente, e o pedido muda
+  // com ela
   if (cancelado) {
-    if (opcao.confirmar && !confirmado(botao, 'Confirmei com o aluno')) return;
     fecharPainelDeReparo();
     const rev = aproveitarCancelado(S, RES, fKey, opcao);
     if (!rev) return;
     gravarAlteracao('mod', `Voo cancelado aproveitado: ${voo.s} (${hm(voo.a)}–${hm(voo.b)}): ${opcao.texto}`, { ...rev, label: '↶ Reverter' });
     redesenharPorNome('pedidos-do-dia');
+    focarNoVoo(fKey);
     showToast('Voo aproveitado: ele volta para Pendente, no lugar da sugestão.', 'ok');
     return;
   }
   fecharPainelDeReparo();
   if (!opcao.mudancas && !opcao.soltar) {
     pedirDetalheDoStatus({ voo, status: 'Cancelado', detalhe: opcao.motivo ? { motivo: opcao.motivo } : null, aoConfirmar: detalhe => aplicarStatus(fKey, 'Cancelado', detalhe) });
+    return;
+  }
+  // A sugestão do conflito que muda também o pedido (a disponibilidade, o tipo): o voo fixo e o pedido mudam juntos, e o
+  // histórico desfaz os dois (a reversão do aproveitamento)
+  if (opcao.pedido) {
+    const rev = repararComOPedido(S, RES, fKey, opcao);
+    if (!rev) return;
+    gravarAlteracao('mod', `Reparo: ${voo.s} (${hm(voo.a)}–${hm(voo.b)}): ${opcao.texto}`, { ...rev, label: '↶ Reverter' });
+    redesenharPorNome('pedidos-do-dia');
+    focarNoVoo(fKey);
+    showToast('Sugestão aplicada: o voo continua fixo, e o pedido muda com ela.', 'ok');
     return;
   }
   const antes = S.fixos || {};
@@ -304,6 +322,7 @@ document.addEventListener('click', e => {
     kind: 'restaurarFixos', fixos: Object.fromEntries(mudados.map(k => [k, antes[k]])), ...(escolhas.length ? { pedidos: escolhas } : {}), label: '↶ Reverter'
   });
   if (escolhas.length) redesenharPorNome('pedidos-do-dia');
+  focarNoVoo(fKey);
   showToast(opcao.soltar ? 'Voo solto: o app escalou de novo.' : 'Sugestão aplicada: o voo continua fixo.', 'ok');
 });
 // O Esc fecha a gaveta quando ela é a de cima ou tem o foco (js/dom.js); com um diálogo aberto por cima (o do status, o

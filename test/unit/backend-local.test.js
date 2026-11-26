@@ -8,6 +8,8 @@ import { programaDoLegado } from '../../js/programa.js';
 import { normalizarCursos } from '../../js/cursos.js';
 import { simularNavegador } from '../helpers/navegador.js';
 import { PROGRAMA, IDS } from '../helpers/casos-do-programa.js';
+import { CASOS_DA_AGENDA, CURSO_DOS_CASOS, pedidoDosCasos, localDosCasos } from '../helpers/casos-da-agenda.js';
+import { cursosIniciais } from '../../js/programa.js';
 
 beforeEach(() => simularNavegador());
 
@@ -82,7 +84,7 @@ describe('Backend local: agenda de solicitações', () => {
   const antesDas13 = new Date('2026-11-10T12:00:00-03:00');
   const depoisDas13 = new Date('2026-11-10T13:30:00-03:00');
   // O pedido é num horário específico, com a duração
-  const pedido = (extra = {}) => ({ data: '2026-11-11', aluno: 1000, aluno_nome: ' Aluno 1000 ', missao: 'Voo Local', janela: 'horario', horario: '06:30', horas: 1, registrado_por: ' Maria ', ...extra });
+  const pedido = (extra = {}) => ({ data: '2026-11-11', aluno: 1000, aluno_nome: ' Aluno 1000 ', missao: 'Voo Local', janela: 'horario', horario: '06:30', horas: 1, registrado_por: ' Maria ', recurso: 'C152', ...extra });
 
   it('registra no prazo com quem anotou, a hora e a duração; lista por período em ordem', async () => {
     const id = await backendLocal.registrarSolicitacao(pedido(), antesDas13);
@@ -106,24 +108,51 @@ describe('Backend local: agenda de solicitações', () => {
     await assert.rejects(backendLocal.registrarSolicitacao(pedido({ janela: 'manha' }), antesDas13), e => e.code === '22023');
     await assert.rejects(backendLocal.registrarSolicitacao(pedido({ horas: 5.5 }), antesDas13), e => e.code === '22023');
     await assert.rejects(backendLocal.registrarSolicitacao(pedido({ horas: 0 }), antesDas13), e => e.code === '22023');
-    await backendLocal.registrarSolicitacao(pedido({ missao: 'Ground C152', horas: 3 }), antesDas13);
+    await backendLocal.registrarSolicitacao(pedido({ missao: 'Ground C152', recurso: 'Sala Ground', horas: 3 }), antesDas13);
     assert.equal((await backendLocal.listarSolicitacoes('2026-11-11', '2026-11-11'))[0].horas, 1.5);
   });
 
-  it('guarda o recurso do pedido (sem ele, null); um texto que não é um recurso é recusado, como no servidor', async () => {
-    for (const recurso of ['PA-34', ' Sim. Mono ', '', null, undefined]) await backendLocal.registrarSolicitacao(pedido({ missao: 'Navegação', ...(recurso === undefined ? {} : { recurso }) }), antesDas13);
-    assert.deepEqual((await backendLocal.listarSolicitacoes('2026-11-11', '2026-11-11')).map(s => s.recurso), ['PA-34', 'Sim. Mono', null, null, null]);
-    await assert.rejects(backendLocal.registrarSolicitacao(pedido({ recurso: '<b>' }), antesDas13), e => e.code === '23514');
-    await assert.rejects(backendLocal.registrarSolicitacao(pedido({ recurso: 'C'.repeat(31) }), antesDas13), e => e.code === '23514');
-    assert.equal((await backendLocal.listarSolicitacoes('2026-11-11', '2026-11-11')).length, 5);
+  // Como a função de 13 argumentos: o recurso é obrigatório e é um dos que a missão permite
+  it('guarda o recurso do pedido, sem os espaços; sem ele, ou um que a missão não permite, é recusado (22023, recurso)', async () => {
+    for (const recurso of ['PA-34', ' C172 ']) await backendLocal.registrarSolicitacao(pedido({ missao: 'Navegação', recurso }), antesDas13);
+    assert.deepEqual((await backendLocal.listarSolicitacoes('2026-11-11', '2026-11-11')).map(s => s.recurso), ['PA-34', 'C172']);
+    for (const recurso of ['', null, undefined, '<b>', 'C'.repeat(31), 'Sim. Mono']) {
+      await assert.rejects(backendLocal.registrarSolicitacao(pedido({ missao: 'Navegação', recurso }), antesDas13), e => e.code === '22023' && e.campo === 'recurso', String(recurso));
+    }
+    assert.equal((await backendLocal.listarSolicitacoes('2026-11-11', '2026-11-11')).length, 2);
   });
 
-  // No máximo 6 voos locais no mesmo horário, como no servidor
-  it('o 7º voo local no mesmo horário é recusado (PT422); outra missão passa', async () => {
-    for (let i = 0; i < 6; i++) await backendLocal.registrarSolicitacao(pedido({ aluno: 2000 + i, missao: ['Voo Local', 'Voo Solo', 'TGL (TMA)'][i % 3], horario: '08:20' }), antesDas13);
-    await assert.rejects(backendLocal.registrarSolicitacao(pedido({ aluno: 2010, horario: '08:20' }), antesDas13), e => e.code === 'PT422');
+  // No máximo 6 voos locais no mesmo horário, como no servidor: o 7º só com a confirmação, que fica registrada
+  it('o 7º voo local no mesmo horário é recusado (PT422) sem a confirmação; com ela, registrado com quem confirmou', async () => {
+    for (let i = 0; i < 6; i++) await backendLocal.registrarSolicitacao(pedido({ aluno: 2000 + i, missao: ['Voo Local', 'Voo Solo', 'TGL (TMA)'][i % 3], horario: i % 3 === 1 ? '06:30' : '08:20' }), antesDas13);
+    await backendLocal.registrarSolicitacao(pedido({ aluno: 2006, missao: 'Voo Local', horario: '08:20' }), antesDas13);
+    await backendLocal.registrarSolicitacao(pedido({ aluno: 2007, missao: 'TGL (TMA)', horario: '08:20' }), antesDas13);
+    await assert.rejects(backendLocal.registrarSolicitacao(pedido({ aluno: 2010, horario: '08:20' }), antesDas13), e => e.code === 'PT422' && e.campo === 'locais');
     await backendLocal.registrarSolicitacao(pedido({ aluno: 2011, missao: 'Navegação', horario: '08:20' }), antesDas13);
+    await backendLocal.registrarSolicitacao(pedido({ aluno: 2012, horario: '08:20', confirmarLimite: true }), antesDas13);
+    const [setimo] = (await backendLocal.listarSolicitacoes('2026-11-11', '2026-11-11')).filter(s => s.aluno === 2012);
+    assert.deepEqual([setimo.limite_confirmado_por, setimo.limite_confirmado_em], ['Maria', antesDas13.toISOString()]);
+    const [navegacao] = (await backendLocal.listarSolicitacoes('2026-11-11', '2026-11-11')).filter(s => s.aluno === 2011);
+    assert.deepEqual([navegacao.limite_confirmado_por, navegacao.limite_confirmado_em, navegacao.missao_do_curso], [null, null, null]);
   });
+
+  // Os casos da função de 13 argumentos (test/helpers/casos-da-agenda.js), com o programa do curso ZZ1 neste navegador
+  for (const caso of CASOS_DA_AGENDA) {
+    it(`caso da agenda: ${caso.nome}`, async () => {
+      localStorage.setItem('acpm4_cursos', JSON.stringify({ cursos: [...cursosIniciais(), CURSO_DOS_CASOS], alteracoes: [] }));
+      for (let n = 0; n < (caso.locais || 0); n++) await backendLocal.registrarSolicitacao(localDosCasos(n), antesDas13);
+      const registro = backendLocal.registrarSolicitacao(pedidoDosCasos(caso.pedido), antesDas13);
+      if (caso.erro) {
+        await assert.rejects(registro, e => e.code === caso.erro.code && e.campo === caso.erro.campo);
+        assert.equal((await backendLocal.listarSolicitacoes('2026-11-16', '2026-11-16')).length, caso.locais || 0);
+        return;
+      }
+      const id = await registro;
+      const s = (await backendLocal.listarSolicitacoes('2026-11-16', '2026-11-16')).find(x => x.id === id);
+      assert.deepEqual({ horas: s.horas, recurso: s.recurso, missao_do_curso: s.missao_do_curso, limite_confirmado: s.limite_confirmado_por !== null && s.limite_confirmado_em !== null },
+        caso.registrado);
+    });
+  }
 
   it('cancela guardando quem cancelou (uma vez só); o pedido continua na agenda', async () => {
     const id = await backendLocal.registrarSolicitacao(pedido(), antesDas13);

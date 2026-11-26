@@ -18,7 +18,7 @@ import { metricasDaEscala } from '../metricas.js';
 import { ligada } from '../funcionalidades.js';
 import { sumUniqueOperationalHours, consolidateTimelineSlots } from '../engine.js';
 import { S, RES, AUDIT_LOG, TL_MODE, EIXO_INVERTIDO, OCULTAR_INDISPONIVEIS, DATA, isGestor, dadoIndisponivel, estadoDaEscala, inativoNaDataAberta } from '../state.js';
-import { cancelamentoAproveitavel } from '../reparo.js';
+import { cancelamentoAproveitavel, dataQueAindaVoa } from '../reparo.js';
 import { rejeicoesDosPedidos } from '../rejeicoes.js';
 import { motivoDoFixo } from '../fixos.js';
 import { instrutoresDoVoo } from '../instrutor-escolhido.js';
@@ -476,8 +476,10 @@ function resumo(out, al, tot) {
   const avisos = al.filter(a => a.t !== 'err' && a.t !== 'conf');
   const horas = sumUniqueOperationalHours(out, statusDe);
   const item = a => `<li class="al ${a.t}"><b>${esc(a.s)}</b> ${esc(a.m)}</li>`;
-  // A recusa do pedido cujo instrutor escolhido não serve: "Sugestões" (o pedido dela vem do pareamento, js/rejeicoes.js)
-  const pedidoDaRecusa = new Map([...rejeicoesDosPedidos(estadoDaEscala(), RES)].map(([fKey, a]) => [a, fKey]));
+  // A recusa do pedido cujo instrutor escolhido não serve: "Sugestões" (o pedido dela vem do pareamento, js/rejeicoes.js),
+  // da data aberta de hoje em diante
+  const pedidoDaRecusa = new Map(dataQueAindaVoa({ data: DATA, hoje: hojeISO() })
+    ? [...rejeicoesDosPedidos(estadoDaEscala(), RES)].map(([fKey, a]) => [a, fKey]) : []);
   const erro = a => {
     const fKey = a.codigo === 'instrutor-escolhido' ? pedidoDaRecusa.get(a) : null;
     return `<li class="al ${a.t}"><b>${esc(a.s)}</b> ${esc(a.m)}${fKey ? ` <button type="button" class="btn quiet edit-only" data-rejeitado="${esc(fKey)}" title="Outro instrutor que encaixa este pedido">Sugestões</button>` : ''}</li>`;

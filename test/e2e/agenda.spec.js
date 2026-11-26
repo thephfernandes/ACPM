@@ -1,9 +1,17 @@
 // A Agenda de Solicitações (modo local): a lista da data aberta, a "Data do pedido" e o prazo das 13:00, o registro com
 // "Registrado por", a exceção da coordenação e o cancelamento. O relógio dos testes está em 10/11/2026, 12:00 em São Paulo.
-import { test, expect, abrir, irPara, abrirEscala, lerEscala, caixaVoa, campoDaAgenda, contagemDoDia, dataAberta, diaAnterior, diaSeguinte, importarDaAgenda, mudarData, registrarPedido } from './fixtures.js';
+import { test, comProgresso, expect, abrir, irPara, abrirEscala, lerEscala, caixaVoa, campoDaAgenda, contagemDoDia, dataAberta, diaAnterior, diaSeguinte, importarDaAgenda, mudarData, registrarPedido,
+  escolherMissaoDoCurso, missaoDoCursoNaAgenda, appPronto, exportar, AMANHA } from './fixtures.js';
+import { readFileSync } from 'node:fs';
+import { documentosAtuais } from './supabase-falso.js';
 import { aluno, cenario } from '../helpers/montar.js';
+import { cursosIniciais, novoCurso } from '../../js/programa.js';
+import { MODELOS } from '../../js/modelos-de-curso.js';
+import { FROTA_INICIAL } from '../../js/frota.js';
 
 const comAlunos = () => cenario({ stu: [aluno(1000), aluno(1001)] });
+// Os horários do PA-34, de 30 em 30 minutos
+const DE_30_EM_30_DO_PA34 = ['06:30', '07:00', '07:30', '08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '12:00', '12:30', '13:00', '13:30', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30'];
 
 test.describe('Agenda de Solicitações', () => {
   test('registra pedidos para amanhã (antes das 13:00) com quem anotou e a hora', async ({ page }) => {
@@ -35,10 +43,12 @@ test.describe('Agenda de Solicitações', () => {
     await abrir(page, { estado: comAlunos() });
     await irPara(page, 'age');
     await expect(campoDaAgenda(page, 'horario').locator('option')).toHaveText(['Escolha o horário…']);
+    await campoDaAgenda(page, 'aluno').selectOption({ label: 'Aluno 1000' });
     await campoDaAgenda(page, 'missao').selectOption('Multimotor');
     await expect(campoDaAgenda(page, 'horario').locator('option')).toHaveCount(22);
     await registrarPedido(page, { missao: 'Multimotor', horario: '07:30' });
     await expect(page.locator('#agenda-lista tbody tr').first()).toContainText('07:30');
+    await campoDaAgenda(page, 'aluno').selectOption({ label: 'Aluno 1001' });
     await campoDaAgenda(page, 'missao').selectOption('Noturno');
     await expect(campoDaAgenda(page, 'horario').locator('option')).toHaveText(['17:30']);
     // O Voo Solo sai sempre às 06:30
@@ -48,39 +58,49 @@ test.describe('Agenda de Solicitações', () => {
   });
 
   const horarios = page => campoDaAgenda(page, 'horario').locator('option');
-  const DE_30_EM_30 = ['06:30', '07:00', '07:30', '08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '12:00', '12:30', '13:00', '13:30', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30'];
+  const DE_30_EM_30 = DE_30_EM_30_DO_PA34;
   const JANELAS = ['06:30', '08:20', '10:10', '11:30', '12:40', '13:40', '14:30', '16:20'];
 
-  // A missão decide o recurso, e os dois, os horários: o pedido no PA-34 nunca sai num horário do C152
-  test('a missão decide os recursos; o horário só abre com o aluno, a missão e o recurso, e são os do recurso', async ({ page }) => {
+  // O aluno, depois a missão, que decide o recurso, e os dois, os horários: o pedido no PA-34 nunca sai num horário do C152
+  test('a missão espera o aluno e decide os recursos; o horário só abre com os três, e são os do recurso, contados', async ({ page }) => {
     await abrir(page, { estado: comAlunos() });
     await irPara(page, 'age');
-    const [aluno, missao, recurso, horario, motivo] = ['aluno', 'missao', 'recurso', 'horario', 'horario-motivo'].map(c => campoDaAgenda(page, c));
-    await expect(missao).toHaveValue('');
-    await expect(missao.locator('option:checked')).toHaveText('Escolha a missão…');
+    const [aluno, missao, motivoDaMissao, recurso, horario, motivo] = ['aluno', 'missao', 'missao-motivo', 'recurso', 'horario', 'horario-motivo'].map(c => campoDaAgenda(page, c));
+    await expect(missao).toBeDisabled();
+    await expect(missao.locator('option')).toHaveText(['Escolha antes o aluno…']);
     await expect(recurso).toBeDisabled();
+    await expect(recurso.locator('option')).toHaveText(['Escolha antes a missão…']);
     await expect(horario).toBeDisabled();
     await expect(motivo).toHaveText('Antes, escolha o aluno, a missão e o recurso.');
     await expect(motivo).toBeVisible();
     await expect(motivo).toHaveAttribute('aria-live', 'polite');
     await expect(horario).toHaveAccessibleDescription(/Antes, escolha o aluno, a missão e o recurso\./);
 
-    // Vários recursos permitidos: nenhum escolhido; a ordem de preencher é livre
+    // O aluno sem curso: os tipos de missão, com o motivo
+    await aluno.selectOption({ label: 'Aluno 1000' });
+    await expect(missao).toBeEnabled();
+    await expect(missao).toHaveValue('');
+    await expect(missao.locator('option:checked')).toHaveText('Escolha a missão…');
+    await expect(missao.locator('option')).toHaveCount(19);
+    await expect(motivoDaMissao).toHaveText('Aluno sem curso: escolha o tipo da missão.');
+    await expect(motivoDaMissao).toHaveAttribute('aria-live', 'polite');
+    await expect(missao).toHaveAccessibleDescription(/Aluno sem curso: escolha o tipo da missão\./);
+    await expect(motivo).toHaveText('Antes, escolha a missão e o recurso.');
+
+    // Vários recursos permitidos: nenhum escolhido
     await missao.selectOption('Navegação');
     await expect(recurso).toBeEnabled();
     await expect(recurso.locator('option')).toHaveText(['Escolha o recurso…', 'C152', 'C172', 'PA-34']);
     await expect(recurso).toHaveValue('');
-    await expect(motivo).toHaveText('Antes, escolha o aluno e o recurso.');
+    await expect(motivo).toHaveText('Antes, escolha o recurso.');
     await recurso.selectOption('PA-34');
-    await expect(horario).toBeDisabled();
-    await expect(motivo).toHaveText('Antes, escolha o aluno.');
-    await aluno.selectOption({ label: 'Aluno 1000' });
     await expect(horario).toBeEnabled();
-    await expect(motivo).toBeEmpty();
+    await expect(motivo).toHaveText('21 horários do PA-34.');
     await expect(horarios(page)).toHaveText(['Escolha o horário…', ...DE_30_EM_30]);
     await expect(horario).toHaveValue('');
     await recurso.selectOption('C152');
     await expect(horarios(page)).toHaveText(['Escolha o horário…', ...JANELAS]);
+    await expect(motivo).toHaveText('8 horários do C152.');
 
     // Um recurso só permitido: escolhido sozinho; ao sair da missão, ele não fica para a próxima
     await missao.selectOption('Multimotor');
@@ -94,6 +114,7 @@ test.describe('Agenda de Solicitações', () => {
     await missao.selectOption('Ground PA-34');
     await expect(recurso).toHaveValue('Sala Ground');
     await expect(horarios(page)).toHaveText(['Escolha o horário…', ...JANELAS]);
+    await expect(motivo).toHaveText('8 horários da Sala Ground.');
 
     // Sem missão de novo: tudo volta a esperar
     await missao.selectOption('');
@@ -116,13 +137,13 @@ test.describe('Agenda de Solicitações', () => {
     await expect(horario).toHaveValue('11:30');
     await recurso.selectOption('PA-34');
     await expect(horario).toHaveValue('11:30');
-    await expect(motivo).toBeEmpty();
+    await expect(motivo).toHaveText('21 horários do PA-34.');
     await horario.selectOption('12:00');
     await recurso.selectOption('C172');
     await expect(horario).toHaveValue('');
     await expect(motivo).toHaveText('O horário 12:00 não é um dos de Navegação (C172). Escolha outro.');
     await horario.selectOption('08:20');
-    await expect(motivo).toBeEmpty();
+    await expect(motivo).toHaveText('8 horários do C172.');
     // Enquanto o recurso não é escolhido, o horário espera a lista
     await recurso.selectOption('');
     await expect(horario).toBeDisabled();
@@ -141,7 +162,7 @@ test.describe('Agenda de Solicitações', () => {
     await expect(horario).toHaveValue('08:20');
     await expect(motivo).toHaveText('O horário agora é 08:20.');
     await horario.selectOption('10:10');
-    await expect(motivo).toBeEmpty();
+    await expect(motivo).toHaveText('8 horários do C152.');
   });
 
   test('o horário posto pelo app (o único da missão) não fica para a seguinte, e o app diz', async ({ page }) => {
@@ -152,33 +173,35 @@ test.describe('Agenda de Solicitações', () => {
     await missao.selectOption('Voo Solo');
     await campoDaAgenda(page, 'recurso').selectOption('C152');
     await expect(horario).toHaveValue('06:30');
-    await expect(motivo).toBeEmpty();
+    await expect(motivo).toHaveText('Um horário só: 06:30.');
     await missao.selectOption('Voo Local');
     await expect(horario).toHaveValue('');
     await expect(motivo).toHaveText('O horário 06:30 era o único da escolha anterior. Escolha o horário.');
     // O teclado, que passa por cada missão da lista: o horário escolhido não se perde no Voo Solo
     await horario.selectOption('11:30');
-    await expect(motivo).toBeEmpty();
+    await expect(motivo).toHaveText('8 horários do C152.');
     for (const m of ['TGL (TMA)', 'Navegação', 'Voo Solo']) await missao.selectOption(m);
     await expect(motivo).toHaveText('O horário 11:30 não é um dos de Voo Solo (C152). Agora é 06:30.');
-    // Outro aluno: o horário é o mesmo, sem o aviso de novo
+    // Outro aluno (também sem curso): a missão e o horário ficam, sem o aviso de novo
     await campoDaAgenda(page, 'aluno').selectOption({ label: 'Aluno 1001' });
+    await expect(missao).toHaveValue('Voo Solo');
     await expect(horario).toHaveValue('06:30');
-    await expect(motivo).toBeEmpty();
+    await expect(motivo).toHaveText('Um horário só: 06:30.');
     await missao.selectOption('Parafuso');
     await expect(horario).toHaveValue('11:30');
     await expect(motivo).toHaveText('O horário agora é 11:30.');
-    // Registrado no Voo Solo, o horário escolhido antes não vale mais
+    // Registrado no Voo Solo, o horário escolhido antes não vale mais: o próximo aluno recebe o Voo Solo, e o Parafuso fica sem horário
     await missao.selectOption('Voo Solo');
     await campoDaAgenda(page, 'por').fill('Maria');
     await page.locator('#form-agenda [type="submit"]').click();
     await expect(page.locator('#agenda-lista tbody tr')).toContainText(['06:30']);
-    await missao.selectOption('Parafuso');
     await campoDaAgenda(page, 'aluno').selectOption({ label: 'Aluno 1000' });
+    await expect(missao).toHaveValue('Voo Solo');
+    await missao.selectOption('Parafuso');
     await expect(horario).toHaveValue('');
   });
 
-  test('a missão, o recurso e o horário são obrigatórios, com o erro no campo certo', async ({ page }) => {
+  test('a missão, o recurso e o horário são obrigatórios, com o erro e o foco no campo certo', async ({ page }) => {
     await abrir(page, { estado: comAlunos() });
     await irPara(page, 'age');
     const enviar = () => page.locator('#form-agenda [type="submit"]').click();
@@ -186,22 +209,30 @@ test.describe('Agenda de Solicitações', () => {
     const invalidos = async (...campos) => {
       for (const campo of ['aluno', 'missao', 'recurso', 'horario', 'horas', 'por']) await expect(campoDaAgenda(page, campo), campo).toHaveAttribute('aria-invalid', String(campos.includes(campo)));
     };
+    // A missão espera o aluno: só falta o que já pode ser escolhido
     await enviar();
-    await expect(erro).toHaveText('Escolha o aluno e a missão. Informe quem anotou o pedido (“Registrado por”).');
-    await invalidos('aluno', 'missao', 'por');
+    await expect(erro).toHaveText('Escolha o aluno. Informe quem anotou o pedido (“Registrado por”).');
+    await invalidos('aluno', 'por');
+    await expect(campoDaAgenda(page, 'aluno')).toBeFocused();
     await campoDaAgenda(page, 'aluno').selectOption({ label: 'Aluno 1000' });
     await campoDaAgenda(page, 'por').fill('Maria');
+    await enviar();
+    await expect(erro).toHaveText('Escolha a missão.');
+    await invalidos('missao');
+    await expect(missao).toBeFocused();
     await missao.selectOption('IFR');
     await expect(erro).toBeEmpty();
     await enviar();
     await expect(erro).toHaveText('Escolha o recurso.');
     await invalidos('recurso');
+    await expect(recurso).toBeFocused();
     await expect(recurso).toHaveAccessibleDescription('Escolha o recurso.');
     await recurso.selectOption('PA-34');
     await enviar();
     await expect(erro).toHaveText('Escolha o horário.');
     await invalidos('horario');
-    await expect(horario).toHaveAccessibleDescription('Escolha o horário.');
+    await expect(horario).toBeFocused();
+    await expect(horario).toHaveAccessibleDescription(/Escolha o horário\./);
     await horario.selectOption('07:00');
     await invalidos();
     await expect(erro).toBeEmpty();
@@ -209,13 +240,16 @@ test.describe('Agenda de Solicitações', () => {
     await expect(page.locator('#agenda-lista tbody tr')).toHaveCount(1);
     await expect(page.locator('#agenda-lista tbody tr').first()).toContainText('IFR · PA-34');
 
-    // Depois de registrar, saem o aluno e a observação; a missão, o recurso e o horário ficam, e o horário espera o aluno
+    // Depois de registrar, saem o aluno e a observação; a missão, o recurso e o horário esperam o próximo aluno
     await expect(campoDaAgenda(page, 'aluno')).toHaveValue('');
+    await expect(missao).toBeDisabled();
+    await expect(missao.locator('option:checked')).toHaveText('Escolha antes o aluno…');
+    await expect(recurso).toBeDisabled();
+    await expect(horario).toBeDisabled();
+    await expect(campoDaAgenda(page, 'horario-motivo')).toHaveText('Antes, escolha o aluno, a missão e o recurso.');
+    await campoDaAgenda(page, 'aluno').selectOption({ label: 'Aluno 1001' });
     await expect(missao).toHaveValue('IFR');
     await expect(recurso).toHaveValue('PA-34');
-    await expect(horario).toBeDisabled();
-    await expect(campoDaAgenda(page, 'horario-motivo')).toHaveText('Antes, escolha o aluno.');
-    await campoDaAgenda(page, 'aluno').selectOption({ label: 'Aluno 1001' });
     await expect(horario).toBeEnabled();
     await expect(horario).toHaveValue('07:00');
   });
@@ -240,7 +274,7 @@ test.describe('Agenda de Solicitações', () => {
     await trocar([390, 450, 540]);
     await expect(horarios(page)).toHaveText(['Escolha o horário…', '06:30', '07:30', '09:00']);
     await expect(horario).toHaveValue('07:30');
-    await expect(motivo).toBeEmpty();
+    await expect(motivo).toHaveText('3 horários do PA-34.');
     await expect(obs).toBeFocused();
     await horario.focus();
     await trocar([390, 540]);
@@ -279,7 +313,8 @@ test.describe('Agenda de Solicitações', () => {
     for (let i = 0; i < 6; i++) await registrarPedido(page, { aluno: `Aluno ${1000 + i}`, horario: '06:30' });
     await expect(page.locator('#agenda-lista tbody tr')).toHaveCount(6);
     await registrarPedido(page, { aluno: 'Aluno 1006', recurso: 'PA-34', horario: '06:30' });
-    await expect(campoDaAgenda(page, 'erro')).toContainText('Próximo horário possível: 07:00.');
+    await expect(campoDaAgenda(page, 'erro')).toContainText('Próximo horário com vaga: 07:00.');
+    await expect(page.locator('#form-agenda [type="submit"]')).toHaveText('Registrar mesmo assim');
     await expect(page.locator('#agenda-lista tbody tr')).toHaveCount(6);
   });
 
@@ -325,45 +360,59 @@ test.describe('Agenda de Solicitações', () => {
     await expect(page.locator('#form-agenda [type="submit"]')).toHaveText('Registrar pedido');
   });
 
-  // Com o botão armado, um erro de outro campo substitui o aviso: corrigido o campo, o aviso volta, e o campo não fica marcado
-  test('com "Registrar mesmo assim", o erro de um campo sai quando ele é corrigido, e o aviso do voo já marcado volta', async ({ page }) => {
+  // A confirmação armada vale para o aluno, a data, a missão, o recurso, o horário e o botão: trocar qualquer um a desfaz.
+  // Com ela armada, um erro de outro campo substitui o aviso, e o botão continua armado
+  test('"Registrar mesmo assim" vale para aquele pedido: trocar o recurso, o horário ou a data desfaz a confirmação', async ({ page }) => {
     await abrir(page, { estado: comAlunos() });
     await irPara(page, 'age');
-    const [recurso, horario, erro] = ['recurso', 'horario', 'erro'].map(c => campoDaAgenda(page, c));
+    const [recurso, horario, horas, erro] = ['recurso', 'horario', 'horas', 'erro'].map(c => campoDaAgenda(page, c));
     const enviar = page.locator('#form-agenda [type="submit"]');
     const aviso = 'Aluno 1000 já tem voo marcado em 11/11: Voo Local · C152 às 06:30. É um reagendamento ou mais um voo? Para registrar mais este, clique em “Registrar mesmo assim”.';
     await registrarPedido(page, { horario: '06:30' });
     await expect(page.locator('#agenda-lista tbody tr')).toHaveCount(1);
     await registrarPedido(page, { missao: 'Navegação', recurso: 'PA-34', horario: '07:00' });
     await expect(erro).toHaveText(aviso);
-    await recurso.selectOption('C152');
-    await expect(erro).toHaveText(aviso);
-    await enviar.click();
-    await expect(erro).toHaveText('Escolha o horário.');
-    await expect(horario).toHaveAttribute('aria-invalid', 'true');
-    await horario.selectOption('08:20');
-    await expect(horario).toHaveAttribute('aria-invalid', 'false');
-    await expect(erro).toHaveText(aviso);
     await expect(enviar).toHaveText('Registrar mesmo assim');
+    // A duração errada: o erro no lugar do aviso, com o botão ainda armado
+    await horas.fill('6');
+    await enviar.click();
+    await expect(erro).toHaveText('A duração vai de 0,1 h a 5 h.');
+    await expect(enviar).toHaveText('Registrar mesmo assim');
+    await horas.fill('1');
+    // Outro recurso: a confirmação sai; de volta ao mesmo pedido, ela é pedida de novo
+    await recurso.selectOption('C152');
+    await expect(erro).toBeEmpty();
+    await expect(enviar).toHaveText('Registrar pedido');
+    await recurso.selectOption('PA-34');
+    await horario.selectOption('07:00');
+    await expect(enviar).toHaveText('Registrar pedido');
+    await enviar.click();
+    await expect(erro).toHaveText(aviso);
+    await horario.selectOption('08:00');
+    await expect(erro).toBeEmpty();
+    await expect(enviar).toHaveText('Registrar pedido');
     // Noutra data, o aviso e o botão armado não valem
+    await enviar.click();
+    await expect(enviar).toHaveText('Registrar mesmo assim');
     await mudarData(page, '2026-11-12');
-    await horario.selectOption('10:10');
     await expect(erro).toBeEmpty();
     await expect(enviar).toHaveText('Registrar pedido');
     await enviar.click();
-    await expect(page.locator('#agenda-lista tbody tr')).toContainText(['Navegação · C152']);
+    await expect(page.locator('#agenda-lista tbody tr')).toContainText(['Navegação · PA-34']);
   });
 
   // No máximo 6 voos locais (Voo Local, Voo Solo e TGL) no mesmo horário
-  test('o 7º voo local no mesmo horário: horário indisponível, com o motivo e o próximo horário possível', async ({ page }) => {
+  test('o 7º voo local no mesmo horário: o aviso, com o motivo e o próximo horário com vaga, pede a confirmação', async ({ page }) => {
     const alunos = Array.from({ length: 8 }, (_, i) => aluno(1000 + i));
     await abrir(page, { estado: cenario({ stu: alunos }) });
     await irPara(page, 'age');
     for (let i = 0; i < 6; i++) await registrarPedido(page, { aluno: `Aluno ${1000 + i}`, missao: ['Voo Local', 'TGL (TMA)'][i % 2], horario: '08:20' });
     await expect(page.locator('#agenda-lista tbody tr')).toHaveCount(6);
     await registrarPedido(page, { aluno: 'Aluno 1006', horario: '08:20' });
-    await expect(campoDaAgenda(page, 'erro')).toHaveText('Horário indisponível: já há 6 voos locais (Voo Local, Voo Solo e TGL) às 08:20, o máximo no mesmo horário (determinação da diretoria). Próximo horário possível: 10:10.');
+    await expect(campoDaAgenda(page, 'erro')).toHaveText('Horário cheio: já há 6 voos locais (Voo Local, Voo Solo e TGL) às 08:20, o máximo no mesmo horário (determinação da diretoria). Próximo horário com vaga: 10:10. Para registrar este como o 7º, clique em “Registrar mesmo assim”.');
+    await expect(page.locator('#form-agenda [type="submit"]')).toHaveText('Registrar mesmo assim');
     await expect(page.locator('#agenda-lista tbody tr')).toHaveCount(6);
+    // Outra missão no mesmo horário não tem o limite
     await registrarPedido(page, { aluno: 'Aluno 1006', missao: 'Navegação', horario: '08:20' });
     await expect(page.locator('#agenda-lista tbody tr')).toHaveCount(7);
   });
@@ -603,5 +652,321 @@ test.describe('Agenda de Solicitações', () => {
     await abrir(page, { estado: comAlunos(), url: './?data=2026-11-15' });
     await expect(dataAberta(page)).toHaveAttribute('data-data', '2026-11-16');
     await expect(page.locator('#toast-box')).toContainText('O aeroclube não opera aos domingos: abrimos segunda-feira, 16/11.');
+  });
+});
+
+// O cronograma do PP (o modelo do app) e um PC com duas missões no PA-34, como as tabelas dos cursos os guardam (neste
+// navegador, acpm4_cursos), com ids uuid
+function cursoPP() {
+  let n = 0;
+  const uuid = () => `00000000-0000-4000-8000-${String(++n).padStart(12, '0')}`;
+  return { ...novoCurso([], { sigla: 'PP', nome: 'Piloto Privado', modelo: MODELOS['pp-acpm'] }, uuid).curso, versao: 1 };
+}
+const FASE_PC = '00000000-0000-4000-8100-000000000001';
+const missaoPC = (n, codigo, mis, nb) => ({
+  id: `00000000-0000-4000-8200-00000000000${n}`, fase: FASE_PC, codigo, nome: codigo, mis, eq: 'PA-34', nb, ordem: n, regra: 'ordem', requer: [],
+  dispensada: false, avaliacao: false, removida: false
+});
+const CURSO_PC = {
+  sigla: 'PC', nome: 'Piloto Comercial', ordem: 1, ativo: true, versao: 1, alteracoes: [],
+  fases: [{ id: FASE_PC, nome: 'Fase 1 – Multimotor', modulo: null, ordem: 0, regra: 'ordem', requer: [], removida: false }],
+  missoes: [missaoPC(1, 'MLTE-01', 'Multimotor', 1.5), missaoPC(2, 'NAV-PA34', 'Navegação', 2)]
+};
+// A Maria e a Ana no PP, o Bruno no PC e o Aluno 1001 sem curso, nenhum voando; o cadastro e o dia no formato atual, os cursos e a agenda
+// (pedidos já registrados) neste navegador
+async function abrirComOsCursos(page, { frota = null, agenda = [], url = './' } = {}) {
+  const estado = cenario({ stu: [aluno(1000, { fly: false }, { nm: 'Maria', curso: 'PP' }), aluno(1001, { fly: false }), aluno(1002, { fly: false }, { nm: 'Ana', curso: 'PP' }),
+    aluno(1003, { fly: false }, { nm: 'Bruno', curso: 'PC' })] });
+  if (frota) estado.frota = frota;
+  const { documentos: { cadastro }, dias } = documentosAtuais(estado, AMANHA);
+  const docs = {
+    acpm4_cadastro: cadastro, [`acpm4_dia_${AMANHA}`]: dias[AMANHA], acpm4_agenda: agenda,
+    acpm4_cursos: { cursos: cursosIniciais().map(c => (c.sigla === 'PP' ? cursoPP() : c.sigla === 'PC' ? CURSO_PC : c)), alteracoes: [] }
+  };
+  await page.addInitScript(json => {
+    if (localStorage.getItem('acpm4_cadastro')) return;
+    for (const [chave, valor] of Object.entries(JSON.parse(json))) localStorage.setItem(chave, JSON.stringify(valor));
+  }, JSON.stringify(docs));
+  await page.goto(url);
+  await appPronto(page);
+  await irPara(page, 'age');
+}
+// Um pedido já na agenda deste navegador (um voo local às 08:20 de amanhã, por padrão)
+const pedidoGuardado = (id, extra = {}) => ({
+  id, data: AMANHA, aluno: 2000 + id, aluno_nome: `Aluno ${2000 + id}`, missao: 'Voo Local', janela: 'horario', horario: '08:20', horas: 1, recurso: 'C152',
+  observacao: null, registrado_por: 'Maria', registrado_em: '2026-11-10T14:00:00.000Z', conta: null, excecao: false, cancelada_em: null, cancelada_por: null, ...extra
+});
+const seisLocais = (extra = {}) => Array.from({ length: 6 }, (_, i) => pedidoGuardado(i + 1, extra));
+const agendaGuardada = page => page.evaluate(() => JSON.parse(localStorage.getItem('acpm4_agenda') || '[]'));
+
+test.describe('A Agenda pelo curso do aluno', () => {
+  const horarios = page => campoDaAgenda(page, 'horario').locator('option');
+
+  test('o aluno de um curso: as missões do curso, por fase; a missão escolhe o recurso, a duração e os horários', async ({ page }) => {
+    await abrirComOsCursos(page);
+    const [missao, motivoDaMissao, recurso, horas, motivo] = ['missao', 'missao-motivo', 'recurso', 'horas', 'horario-motivo'].map(c => campoDaAgenda(page, c));
+    await campoDaAgenda(page, 'aluno').selectOption({ label: 'Maria' });
+    await expect(motivoDaMissao).toBeEmpty();
+    await expect(missao.locator('optgroup')).toHaveCount(9);
+    await expect(missao.locator('optgroup').first()).toHaveAttribute('label', 'Fase 1 – Introdução ao Voo');
+    await expect(missao.locator('optgroup').nth(7)).toHaveAttribute('label', 'Fase 6 – Treinamento de Voo Noturno');
+    await expect(missao.locator('optgroup').nth(7).locator('option')).toHaveText(['NOT (com TSL-01 e TSL-02) · Noturno · C172 · 4 h']);
+    await expect(missaoDoCursoNaAgenda(page, 'NAV-150NM')).toHaveText('NAV-150NM · Navegação · C152 · 3 h');
+    await expect(missaoDoCursoNaAgenda(page, 'ADAPT-C152')).toHaveCount(0);
+    await expect(missao.locator('option', { hasText: 'Voo Local ·' })).not.toHaveCount(0);
+    await expect(missao.locator('option[value="Voo Local"]')).toHaveCount(0);
+    // A missão do curso tem um recurso: ele vem escolhido, e os horários e as horas são os dela
+    await escolherMissaoDoCurso(page, 'NAV-150NM');
+    await expect(recurso.locator('option')).toHaveText(['C152']);
+    await expect(recurso).toHaveValue('C152');
+    await expect(horas).toHaveValue('3');
+    await expect(horarios(page)).toHaveText(['Escolha o horário…', '06:30', '08:20', '10:10', '11:30', '12:40', '13:40', '14:30', '16:20']);
+    await expect(motivo).toHaveText('8 horários do C152.');
+    // O Noturno: o C172, as 4 h fixas e as 17:30
+    await escolherMissaoDoCurso(page, 'NOT');
+    await expect(recurso).toHaveValue('C172');
+    await expect(horas).toHaveValue('4');
+    await expect(horas).toBeDisabled();
+    await expect(campoDaAgenda(page, 'horario')).toHaveValue('17:30');
+    // Registrado: a lista diz o código e o recurso, e o pedido guarda a missão do curso
+    await escolherMissaoDoCurso(page, 'NAV-150NM');
+    await expect(horas).toBeEnabled();
+    await expect(horas).toHaveValue('3');
+    await registrarPedido(page, { aluno: 'Maria', codigo: 'NAV-150NM', horario: '08:20', horas: 2.5 });
+    await expect(page.locator('#agenda-lista tbody tr').first()).toContainText('NAV-150NM · C152');
+    const [guardado] = await agendaGuardada(page);
+    expect([guardado.missao, guardado.recurso, guardado.horas, guardado.missao_do_curso]).toEqual(['Navegação', 'C152', 2.5, cursoPP().missoes.find(m => m.codigo === 'NAV-150NM').id]);
+  });
+
+  test('a missão do curso no PA-34: os horários do PA-34', async ({ page }) => {
+    await abrirComOsCursos(page);
+    await campoDaAgenda(page, 'aluno').selectOption({ label: 'Bruno' });
+    await expect(campoDaAgenda(page, 'missao').locator('optgroup option')).toHaveText(['MLTE-01 · Multimotor · PA-34 · 1,5 h', 'NAV-PA34 · Navegação · PA-34 · 2 h']);
+    await escolherMissaoDoCurso(page, 'NAV-PA34');
+    await expect(campoDaAgenda(page, 'recurso')).toHaveValue('PA-34');
+    await expect(horarios(page)).toHaveText(['Escolha o horário…', ...DE_30_EM_30_DO_PA34]);
+    await expect(campoDaAgenda(page, 'horario-motivo')).toHaveText('21 horários do PA-34.');
+    await registrarPedido(page, { aluno: 'Bruno', codigo: 'NAV-PA34', horario: '07:30' });
+    await expect(page.locator('#agenda-lista tbody tr').first()).toContainText('NAV-PA34 · PA-34');
+    await expect(page.locator('#agenda-lista tbody tr').first()).toContainText('07:30 · 2 h');
+  });
+
+  test('outro aluno do mesmo curso fica com a escolha; o de outro curso a perde, e o app diz', async ({ page }) => {
+    await abrirComOsCursos(page);
+    const [aluno, missao, motivoDaMissao, recurso, horario] = ['aluno', 'missao', 'missao-motivo', 'recurso', 'horario'].map(c => campoDaAgenda(page, c));
+    await aluno.selectOption({ label: 'Maria' });
+    await escolherMissaoDoCurso(page, 'NAV-150NM');
+    await horario.selectOption('10:10');
+    await aluno.selectOption({ label: 'Ana' });
+    await expect(missao.locator('option:checked')).toHaveText('NAV-150NM · Navegação · C152 · 3 h');
+    await expect(horario).toHaveValue('10:10');
+    await expect(motivoDaMissao).toBeEmpty();
+    // O aluno sem curso: a missão, o recurso e o horário saem, e o campo diz por quê
+    await aluno.selectOption({ label: 'Aluno 1001' });
+    await expect(missao).toHaveValue('');
+    await expect(recurso).toBeDisabled();
+    await expect(horario).toBeDisabled();
+    await expect(motivoDaMissao).toHaveText('NAV-150NM não está entre as missões de Aluno 1001: escolha a missão. Aluno sem curso: escolha o tipo da missão.');
+    await missao.selectOption('Voo Local');
+    await expect(motivoDaMissao).toHaveText('Aluno sem curso: escolha o tipo da missão.');
+    // Depois de registrar, a missão do curso espera o próximo aluno: o do mesmo curso a recebe
+    await registrarPedido(page, { aluno: 'Maria', codigo: 'NAV-150NM', horario: '08:20' });
+    await expect(page.locator('#agenda-lista tbody tr')).toHaveCount(1);
+    await expect(missao).toBeDisabled();
+    await aluno.selectOption({ label: 'Ana' });
+    await expect(missao.locator('option:checked')).toHaveText('NAV-150NM · Navegação · C152 · 3 h');
+    await expect(horario).toHaveValue('08:20');
+    await aluno.selectOption({ label: 'Bruno' });
+    await expect(missao).toHaveValue('');
+    await expect(motivoDaMissao).toHaveText('NAV-150NM não está entre as missões de Bruno: escolha a missão.');
+  });
+
+  test('o tipo sem nenhum recurso ativo é oferecido com "(nenhum ativo)", avisa e registra', async ({ page }) => {
+    await abrirComOsCursos(page, { frota: FROTA_INICIAL.map(f => (f.tipo === 'PA-34' ? { ...f, inativo: true } : f)) });
+    const recurso = campoDaAgenda(page, 'recurso');
+    await campoDaAgenda(page, 'aluno').selectOption({ label: 'Aluno 1001' });
+    await campoDaAgenda(page, 'missao').selectOption('Navegação');
+    await expect(recurso.locator('option')).toHaveText(['Escolha o recurso…', 'C152', 'C172', 'PA-34 (nenhum ativo)']);
+    await expect(campoDaAgenda(page, 'recurso-motivo')).toBeEmpty();
+    await recurso.selectOption('PA-34');
+    await expect(campoDaAgenda(page, 'recurso-motivo')).toHaveText('Nenhum PA-34 está ativo em Recursos: o pedido é registrado, e a escala só o põe num PA-34 ativo.');
+    await expect(recurso).toHaveAccessibleDescription(/Nenhum PA-34 está ativo em Recursos/);
+    await registrarPedido(page, { aluno: 'Aluno 1001', missao: 'Navegação', recurso: 'PA-34', horario: '07:30' });
+    await expect(page.locator('#agenda-lista tbody tr').first()).toContainText('Navegação · PA-34');
+  });
+
+  test('o 7º voo local: o aviso arma "Registrar mesmo assim", e o pedido fica com quem confirmou', async ({ page }) => {
+    await abrirComOsCursos(page, { agenda: seisLocais() });
+    const [erro, registrar] = [campoDaAgenda(page, 'erro'), page.locator('#form-agenda [type="submit"]')];
+    await registrarPedido(page, { aluno: 'Aluno 1001', horario: '08:20' });
+    await expect(erro).toHaveText('Horário cheio: já há 6 voos locais (Voo Local, Voo Solo e TGL) às 08:20, o máximo no mesmo horário (determinação da diretoria). Próximo horário com vaga: 10:10. Para registrar este como o 7º, clique em “Registrar mesmo assim”.');
+    await expect(registrar).toHaveText('Registrar mesmo assim');
+    await registrar.click();
+    await expect(page.locator('#toast-box')).toContainText('Pedido registrado.');
+    await expect(registrar).toHaveText('Registrar pedido');
+    const setimo = (await agendaGuardada(page)).at(-1);
+    expect([setimo.aluno, setimo.limite_confirmado_por, Boolean(setimo.limite_confirmado_em)]).toEqual([1001, 'Maria', true]);
+    // O voo já marcado confirmado sozinho não registra a confirmação do limite
+    await registrarPedido(page, { aluno: 'Aluno 1001', missao: 'Navegação', horario: '10:10' });
+    await expect(erro).toContainText('Aluno 1001 já tem voo marcado em 11/11');
+    await registrar.click();
+    await expect(page.locator('#agenda-lista tbody tr')).toHaveCount(8);
+    const outro = (await agendaGuardada(page)).at(-1);
+    expect([outro.missao, outro.limite_confirmado_por, outro.limite_confirmado_em]).toEqual(['Navegação', null, null]);
+    // Com o 7º registrado, o aviso do seguinte conta os 7
+    await registrarPedido(page, { aluno: 'Ana', codigo: 'IN-01', horario: '08:20' });
+    await expect(erro).toHaveText('Horário cheio: já há 7 voos locais (Voo Local, Voo Solo e TGL) às 08:20, o máximo no mesmo horário (determinação da diretoria). Próximo horário com vaga: 10:10. Para registrar este como o 8º, clique em “Registrar mesmo assim”.');
+  });
+
+  // O duplo clique arma a confirmação com o primeiro clique; o segundo, do mesmo duplo clique, não confirma o que o aviso
+  // ainda nem disse. Também na Exceção da Coordenação, e no voo já marcado
+  test('o duplo clique no botão arma a confirmação e não registra: confirma só um clique depois do aviso', async ({ page }) => {
+    await abrirComOsCursos(page, { agenda: [...seisLocais(), ...seisLocais({ data: '2026-11-10' }).map((p, i) => ({ ...p, id: 20 + i }))] });
+    const [erro, registrar, excecao] = [campoDaAgenda(page, 'erro'), page.locator('#form-agenda [type="submit"]'), campoDaAgenda(page, 'excecao')];
+    await campoDaAgenda(page, 'aluno').selectOption({ label: 'Aluno 1001' });
+    await campoDaAgenda(page, 'missao').selectOption('Voo Local');
+    await campoDaAgenda(page, 'recurso').selectOption('C152');
+    await campoDaAgenda(page, 'horario').selectOption('08:20');
+    await campoDaAgenda(page, 'por').fill('Maria');
+    await registrar.dblclick();
+    await expect(erro).toContainText('Horário cheio: já há 6 voos locais');
+    await expect(registrar).toHaveText('Registrar mesmo assim');
+    await expect(page.locator('#agenda-lista tbody tr')).toHaveCount(6);
+    expect(await agendaGuardada(page)).toHaveLength(12);
+    await registrar.click();
+    await expect(page.locator('#toast-box')).toContainText('Pedido registrado.');
+    expect((await agendaGuardada(page)).at(-1).limite_confirmado_por).toBe('Maria');
+    // O voo já marcado: o duplo clique também só arma
+    await campoDaAgenda(page, 'aluno').selectOption({ label: 'Aluno 1001' });
+    await campoDaAgenda(page, 'missao').selectOption('Navegação');
+    await campoDaAgenda(page, 'recurso').selectOption('C152');
+    await campoDaAgenda(page, 'horario').selectOption('10:10');
+    await registrar.dblclick();
+    await expect(erro).toContainText('Aluno 1001 já tem voo marcado em 11/11');
+    await expect(registrar).toHaveText('Registrar mesmo assim');
+    expect(await agendaGuardada(page)).toHaveLength(13);
+    // Depois do prazo, a Exceção da Coordenação
+    await campoDaAgenda(page, 'data').selectOption('2026-11-10');
+    await campoDaAgenda(page, 'aluno').selectOption({ label: 'Aluno 1001' });
+    await campoDaAgenda(page, 'missao').selectOption('TGL (TMA)');
+    await campoDaAgenda(page, 'recurso').selectOption('C152');
+    await campoDaAgenda(page, 'horario').selectOption('08:20');
+    await excecao.dblclick();
+    await expect(erro).toContainText('Para registrar este como o 7º, clique em “Registrar mesmo assim”.');
+    await expect(excecao).toHaveText('Registrar mesmo assim');
+    expect(await agendaGuardada(page)).toHaveLength(13);
+    await excecao.click();
+    await expect(page.locator('#toast-box')).toContainText('Pedido registrado para ter 10/11 pela Exceção da Coordenação.');
+    expect((await agendaGuardada(page)).at(-1).limite_confirmado_por).toBe('Maria');
+  });
+
+  test('as duas causas numa confirmação só; a que aparece depois (o 7º registrado enquanto isso) pede de novo', async ({ page }) => {
+    await abrirComOsCursos(page, { agenda: [...seisLocais().slice(0, 5), pedidoGuardado(9, { aluno: 1001, aluno_nome: 'Aluno 1001', missao: 'Navegação', horario: '10:10' })] });
+    const [erro, registrar] = [campoDaAgenda(page, 'erro'), page.locator('#form-agenda [type="submit"]')];
+    await registrarPedido(page, { aluno: 'Aluno 1001', horario: '08:20' });
+    await expect(erro).toHaveText('Aluno 1001 já tem voo marcado em 11/11: Navegação · C152 às 10:10. É um reagendamento ou mais um voo? Para registrar mais este, clique em “Registrar mesmo assim”.');
+    // Outra pessoa registra o 6º local às 08:20 (este navegador não lê de novo): quem recusa é a regra do registro, e o
+    // aviso passa a dizer as duas causas
+    await page.evaluate(p => localStorage.setItem('acpm4_agenda', JSON.stringify([...JSON.parse(localStorage.getItem('acpm4_agenda')), p])), pedidoGuardado(6));
+    await registrar.click();
+    await expect(erro).toHaveText('Aluno 1001 já tem voo marcado em 11/11: Navegação · C152 às 10:10. É um reagendamento ou mais um voo? Horário cheio: já há 6 voos locais (Voo Local, Voo Solo e TGL) às 08:20, o máximo no mesmo horário (determinação da diretoria). Próximo horário com vaga: 10:10. Para registrar mesmo assim, clique em “Registrar mesmo assim”.');
+    await expect(registrar).toHaveText('Registrar mesmo assim');
+    await registrar.click();
+    await expect(page.locator('#toast-box')).toContainText('Pedido registrado.');
+    expect((await agendaGuardada(page)).at(-1).limite_confirmado_por).toBe('Maria');
+  });
+
+  test('depois do prazo, pela Exceção da Coordenação: é ela que vira "Registrar mesmo assim"', async ({ page }) => {
+    await abrirComOsCursos(page, { agenda: seisLocais({ data: '2026-11-10' }) });
+    const excecao = campoDaAgenda(page, 'excecao');
+    await campoDaAgenda(page, 'data').selectOption('2026-11-10');
+    await expect(page.locator('#form-agenda [type="submit"]')).toBeDisabled();
+    await campoDaAgenda(page, 'aluno').selectOption({ label: 'Aluno 1001' });
+    await campoDaAgenda(page, 'missao').selectOption('TGL (TMA)');
+    await campoDaAgenda(page, 'recurso').selectOption('C152');
+    await campoDaAgenda(page, 'horario').selectOption('08:20');
+    await campoDaAgenda(page, 'por').fill('Coordenação');
+    await excecao.click();
+    await expect(campoDaAgenda(page, 'erro')).toContainText('Para registrar este como o 7º, clique em “Registrar mesmo assim”.');
+    await expect(excecao).toHaveText('Registrar mesmo assim');
+    await expect(page.locator('#form-agenda [type="submit"]')).toHaveText('Registrar pedido');
+    await expect(page.locator('#form-agenda [type="submit"]')).toBeDisabled();
+    // Desarmada (outro horário), ela volta a ser a Exceção da Coordenação
+    await campoDaAgenda(page, 'horario').selectOption('10:10');
+    await expect(excecao).toHaveText('Exceção da Coordenação');
+    await campoDaAgenda(page, 'horario').selectOption('08:20');
+    await excecao.click();
+    await excecao.click();
+    await expect(page.locator('#toast-box')).toContainText('Pedido registrado para ter 10/11 pela Exceção da Coordenação.');
+    await expect(excecao).toHaveText('Exceção da Coordenação');
+    const setimo = (await agendaGuardada(page)).at(-1);
+    expect([setimo.data, setimo.excecao, setimo.limite_confirmado_por]).toEqual(['2026-11-10', true, 'Coordenação']);
+  });
+});
+
+// Na entrada do dia (a importação), a missão do curso do pedido é a etapa do voo, com o curso dela: a escala e a Lista
+// mostram o código, também com o progresso desligado (o padrão do app)
+test.describe('A missão do curso do pedido na demanda e na escala', () => {
+  const diaGuardado = page => page.evaluate(d => JSON.parse(localStorage.getItem(`acpm4_dia_${d}`)), AMANHA);
+
+  test('com o progresso desligado, o pedido entra com a missão do curso dele, e a Lista mostra o código', async ({ page }) => {
+    await abrirComOsCursos(page);
+    await registrarPedido(page, { aluno: 'Maria', codigo: 'NAV-150NM', horario: '08:20' });
+    await page.locator('#agenda-importar').click();
+    await expect(page.locator('#toast-box')).toContainText('1 pedido(s) da agenda na demanda.');
+    await expect(page.locator('#toast-box')).not.toContainText('sem missão do curso');
+    await expect.poll(async () => { const p = (await diaGuardado(page)).pedidos[1000]; return p && [p.mis, p.etapa, p.cursoDaEtapa, p.eq, p.nb]; })
+      .toEqual(['Navegação', 'NAV-150NM', 'PP', 'C152', 3]);
+    // A Lista mostra o código ao lado do status, e o CSV, "NAV-150NM · Navegação" (como antes de o progresso ser desligado)
+    await abrirEscala(page);
+    expect((await lerEscala(page)).linhas.find(l => l.includes('Maria'))).toMatch(/^08:20–11:20 3 h \| Maria \| Navegação \| PP-LJV C152/);
+    await expect(page.locator('#out tbody tr', { hasText: 'Maria' }).locator('.etapa')).toHaveText('NAV-150NM');
+    const [download] = await exportar(page, 'csv');
+    expect(readFileSync(await download.path(), 'utf8')).toContain('NAV-150NM · Navegação');
+  });
+
+  test('o pedido de antes, sem missão do curso: com o progresso desligado, nada é inferido nem dito', async ({ page }) => {
+    await abrirComOsCursos(page, { agenda: [pedidoGuardado(1, { aluno: 1000, aluno_nome: 'Maria', missao: 'Navegação', recurso: 'PA-34', horario: '07:30' })] });
+    await page.locator('#agenda-importar').click();
+    await expect(page.locator('#toast-box')).toContainText('1 pedido(s) da agenda na demanda.');
+    await expect(page.locator('#toast-box')).not.toContainText('sem missão do curso');
+    await expect.poll(async () => { const p = (await diaGuardado(page)).pedidos[1000]; return p && [p.mis, p.etapa ?? null, p.eq]; }).toEqual(['Navegação', null, 'PA-34']);
+  });
+});
+
+comProgresso.describe('A missão do curso do pedido, com o progresso ligado', () => {
+  comProgresso('o pedido de antes sem missão do curso, num recurso que nenhuma liberada tem: entra como veio, e o app diz', async ({ page }) => {
+    await abrirComOsCursos(page, { agenda: [pedidoGuardado(1, { aluno: 1000, aluno_nome: 'Maria', missao: 'Navegação', recurso: 'PA-34', horario: '07:30' })] });
+    await page.locator('#agenda-importar').click();
+    await expect(page.locator('#toast-box')).toContainText('1 pedido(s) da agenda na demanda · 1 pedido sem missão do curso: nenhuma Navegação liberada é no PA-34.');
+  });
+
+  // A missão do curso que saiu do programa depois do registro não entra; com o progresso ligado, a próxima do programa entra
+  // no lugar dela, e o app diz qual (não "pelo tipo da missão")
+  comProgresso('a missão do curso do pedido que saiu do programa: entra a próxima do programa, e o app diz qual', async ({ page }) => {
+    await abrirComOsCursos(page);
+    await registrarPedido(page, { aluno: 'Maria', codigo: 'IN-01', horario: '08:20' });
+    await expect(page.locator('#agenda-lista tbody tr')).toHaveCount(1);
+    await page.evaluate(() => {
+      const guardado = JSON.parse(localStorage.getItem('acpm4_cursos'));
+      guardado.cursos.find(c => c.sigla === 'PP').missoes.find(m => m.codigo === 'IN-01').removida = true;
+      localStorage.setItem('acpm4_cursos', JSON.stringify(guardado));
+    });
+    await page.reload();
+    await appPronto(page);
+    await irPara(page, 'age');
+    await page.locator('#agenda-importar').click();
+    await expect.poll(() => page.evaluate(d => JSON.parse(localStorage.getItem(`acpm4_dia_${d}`)).pedidos[1000]?.etapa, AMANHA)).toMatch(/^IN-/);
+    const etapa = await page.evaluate(d => JSON.parse(localStorage.getItem(`acpm4_dia_${d}`)).pedidos[1000].etapa, AMANHA);
+    await expect(page.locator('#toast-box')).toContainText(`1 pedido(s) da agenda na demanda · 1 pedido com a missão do curso fora do programa: entrou como ${etapa}.`);
+    await expect(page.locator('#toast-box')).not.toContainText('pelo tipo da missão');
+  });
+
+  comProgresso('a missão do curso do pedido vale mais que a próxima do programa', async ({ page }) => {
+    await abrirComOsCursos(page);
+    await registrarPedido(page, { aluno: 'Maria', codigo: 'NAV-150NM', horario: '08:20' });
+    await page.locator('#agenda-importar').click();
+    await expect(page.locator('#toast-box')).toContainText('1 pedido(s) da agenda na demanda.');
+    await expect.poll(() => page.evaluate(d => JSON.parse(localStorage.getItem(`acpm4_dia_${d}`)).pedidos[1000]?.etapa, AMANHA)).toBe('NAV-150NM');
   });
 });

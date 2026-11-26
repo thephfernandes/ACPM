@@ -2,7 +2,11 @@
 #form-agenda { display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); align-items: start; margin-bottom: 12px; }
 #form-agenda label { display: flex; flex-direction: column; gap: 2px; font-size: 13px; }
 #form-agenda .btn, #form-agenda .x { align-self: end; }
-#ag-horario-motivo { display: block; margin-top: 2px; color: var(--mu); font-size: 12.5px; }
+/* O motivo sob a missão, o recurso e o horário: o que falta escolher, o que saiu e quantos horários a lista tem */
+#form-agenda .ag-motivo { display: block; margin-top: 2px; color: var(--mu); font-size: 12.5px; }
+#form-agenda optgroup { font-style: normal; }
+/* A missão do curso diz o código, o tipo, o recurso e as horas: o campo dela ocupa duas colunas na tela larga */
+@media (min-width: 900px) { #form-agenda .ag-campo-missao { grid-column: span 2; } }
 #form-agenda [aria-invalid="true"] { border-color: var(--er); }
 /* O prazo da data escolhida, ao lado do campo dela (embaixo, no celular) */
 #agenda-prazo { margin: 0; grid-column: 2 / -1; }

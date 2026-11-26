@@ -141,16 +141,16 @@ function painelDoCadastro(cadastro) {
 // sem ele, os cursos com que o banco começa (PP, PC e INVA, vazios)
 // meteorologia: o que a função meteorologia entrega; null: a função não foi publicada (404 do Supabase)
 // painelDoDiaAntigo: o painel_do_dia de antes da migração 20261120150000 (sem a configuração do painel)
-// agendaSemRecurso: a agenda de antes da migração 20261125230000 (registrar_solicitacao sem o recurso)
 // validadeDaSessao: quantos segundos a sessão vale, no relógio da página (o Auth manda só o expires_in, e o supabase-js
 // conta do relógio dele); sem ela, a sessão vale até bem depois do relógio fixo das páginas
-export function criarSupabaseFalso({ documentos = {}, dias = {}, historico: historicoInicial = [], cursos: cursosGuardados = cursosIniciais(), agora = new Date(RELOGIO_DAS_PAGINAS), nomes = {}, meteorologia: meteorologiaInicial = METEOROLOGIA_DE_TESTE, painelDoDiaAntigo = false, agendaSemRecurso = false, validadeDaSessao = null } = {}) {
+export function criarSupabaseFalso({ documentos = {}, dias = {}, historico: historicoInicial = [], cursos: cursosGuardados = cursosIniciais(), agora = new Date(RELOGIO_DAS_PAGINAS), nomes = {}, meteorologia: meteorologiaInicial = METEOROLOGIA_DE_TESTE, painelDoDiaAntigo = false, validadeDaSessao = null } = {}) {
   const banco = new Map(Object.entries(documentos).map(([chave, conteudo]) => [chave, { conteudo, versao: 1 }]));
   const tabelaDias = new Map(Object.entries(dias).map(([data, conteudo]) => [data, { conteudo, versao: 1 }]));
   // As entradas do histórico já gravadas (no formato da tabela historico)
   const historico = historicoInicial.map(h => ({ ...h }));
-  // A agenda (as solicitações) e os dados pessoais: test/e2e/falso/
-  const agenda = criarAgenda({ agora, semRecurso: agendaSemRecurso });
+  // A agenda (as solicitações; a missão do curso do pedido é conferida nos cursos de agora) e os dados pessoais:
+  // test/e2e/falso/
+  const agenda = criarAgenda({ agora, cursos: () => cursos });
   const { solicitacoes } = agenda;
   const pessoais = criarDadosPessoais({ agora, historico, cadastro: () => banco.get('cadastro') });
   const { dadosPessoais } = pessoais;

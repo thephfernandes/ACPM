@@ -1,9 +1,12 @@
 // Agenda de Solicitações no modo compartilhado: a Secretaria registra pedidos (a escala ela só consulta), o
 // Operador usa a exceção da coordenação e o Gestor só consulta. O servidor falso aplica o mesmo prazo do banco.
-import { test, expect, entrar, preencherLogin, irPara, abrirMenuDaConta, AMANHA, URL_APP, botaoDaAba, campoDaAgenda, dataAberta, diaSeguinte, escolherNoCalendario, registrarPedido, contagemDoDia, prepararContexto, vigiarErros, importarDaAgenda, rotuloDaData, rotulosDasAbas } from './fixtures.js';
+import { test, expect, entrar, preencherLogin, irPara, abrirMenuDaConta, AMANHA, URL_APP, botaoDaAba, campoDaAgenda, dataAberta, diaSeguinte, escolherNoCalendario, registrarPedido, contagemDoDia, prepararContexto, vigiarErros, importarDaAgenda, rotuloDaData, rotulosDasAbas,
+  missaoDoCursoNaAgenda } from './fixtures.js';
 import { instalarSupabaseFalso, documentosAtuais, CONTAS } from './supabase-falso.js';
 import { estadoSintetico } from '../helpers/estado.js';
 import { aluno } from '../helpers/montar.js';
+import { cursosIniciais, novoCurso } from '../../js/programa.js';
+import { MODELOS } from '../../js/modelos-de-curso.js';
 
 const comAlunos = () => documentosAtuais({ ...estadoSintetico(), stu: [aluno(1000), aluno(1001)] }, AMANHA);
 const pedidoDe = (id, data, extra = {}) => ({
@@ -147,13 +150,14 @@ test.describe('Agenda de Solicitações (modo compartilhado)', () => {
     await expect(page.locator('#agenda-lista tbody tr')).toHaveCount(1);
   });
 
-  // As duas conferências do formulário são da data do pedido, lida uma vez quando o campo muda
-  test('a data do pedido que não é a aberta: os pedidos dela são lidos uma vez; sem eles, quem recusa o 7º voo local é o servidor', async ({ browser }) => {
+  // As duas conferências do formulário são da data do pedido, lida uma vez quando o campo muda. Sem os pedidos dela, o
+  // servidor recusa o 7º voo local (PT422), e o formulário diz o mesmo aviso, armado
+  test('a data do pedido que não é a aberta: os pedidos dela são lidos uma vez; sem eles, o 7º voo local é avisado pela recusa do servidor', async ({ browser }) => {
     const context = await browser.newContext();
     await prepararContexto(context);
     const page = await context.newPage();
-    // A recusa do servidor (400)
-    const erros = vigiarErros(page, { statusEsperados: [400] });
+    // A recusa do servidor (PT422: o PostgREST responde 422)
+    const erros = vigiarErros(page, { statusEsperados: [422] });
     const servidor = await instalarSupabaseFalso(context, comAlunos());
     for (let i = 0; i < 6; i++) {
       servidor.solicitacoes.push({ id: 50 + i, data: '2026-11-13', aluno: 1001, aluno_nome: 'Aluno 1001', missao: 'Voo Local', janela: 'horario', horario: '08:20', horas: 1,
@@ -169,21 +173,68 @@ test.describe('Agenda de Solicitações (modo compartilhado)', () => {
     await irPara(page, 'age');
     await campoDaAgenda(page, 'data').selectOption('2026-11-13');
     await registrarPedido(page, { horario: '08:20' });
-    await expect(campoDaAgenda(page, 'erro')).toContainText('Horário indisponível: já há 6 voos locais');
+    await expect(campoDaAgenda(page, 'erro')).toContainText('Horário cheio: já há 6 voos locais');
     expect(leituras).toBe(1);
     expect(servidor.solicitacoes).toHaveLength(6);
-    // A leitura falha: as conferências não são feitas, e o servidor recusa
+    // A leitura falha: as conferências não são feitas, o servidor recusa, e o aviso é o mesmo; confirmado, o 7º fica registrado
     falhar = true;
     await campoDaAgenda(page, 'data').selectOption('2026-11-12');
     await campoDaAgenda(page, 'data').selectOption('2026-11-13');
-    await registrarPedido(page, { aluno: 'Aluno 1001', horario: '08:20' });
-    await expect(campoDaAgenda(page, 'erro')).toContainText('Horário indisponível: já há 6 voos locais');
+    await registrarPedido(page, { aluno: 'Aluno 1000', horario: '08:20' });
+    await expect(campoDaAgenda(page, 'erro')).toHaveText('Horário cheio: já há 6 voos locais (Voo Local, Voo Solo e TGL) às 08:20, o máximo no mesmo horário (determinação da diretoria). Próximo horário com vaga: 10:10. Para registrar este como o 7º, clique em “Registrar mesmo assim”.');
     expect(servidor.solicitacoes).toHaveLength(6);
-    // Registrado, só duas leituras: os pedidos da data dele e os de cada dia do calendário
     falhar = false;
-    await registrarPedido(page, { horario: '10:10' });
+    await page.locator('#form-agenda [type="submit"]').click();
     await expect(page.locator('#toast-box')).toContainText('Pedido registrado para sex 13/11.');
+    expect(servidor.solicitacoes.map(s => [s.aluno, s.limite_confirmado_por])).toContainEqual([1000, 'Operador de Teste']);
+    // Registrado, só duas leituras: os pedidos da data dele e os de cada dia do calendário
     await expect(contagemDoDia(page, '2026-11-13')).toHaveText('7');
+    expect(erros).toEqual([]);
+    await context.close();
+  });
+
+  // A Secretaria lê os programas dos cursos: o aluno de um curso tem as missões dele, e o pedido leva a missão do curso
+  test('a Secretaria vê as missões do curso do aluno e registra a missão do curso', async ({ page, context }) => {
+    let n = 0;
+    const uuid = () => `00000000-0000-4000-8000-${String(++n).padStart(12, '0')}`;
+    const pp = { ...novoCurso([], { sigla: 'PP', nome: 'Piloto Privado', modelo: MODELOS['pp-acpm'] }, uuid).curso, versao: 1 };
+    const docs = documentosAtuais({ ...estadoSintetico(), stu: [aluno(1000, {}, { nm: 'Maria', curso: 'PP' }), aluno(1001)] }, AMANHA);
+    const servidor = await instalarSupabaseFalso(context, { ...docs, cursos: cursosIniciais().map(c => (c.sigla === 'PP' ? pp : c)) });
+    await entrar(page, CONTAS.secretaria);
+    await campoDaAgenda(page, 'aluno').selectOption({ label: 'Maria' });
+    await expect(missaoDoCursoNaAgenda(page, 'NAV-150NM')).toHaveText('NAV-150NM · Navegação · C152 · 3 h');
+    await registrarPedido(page, { aluno: 'Maria', codigo: 'NAV-150NM', horario: '10:10' });
+    await expect(page.locator('#agenda-lista tbody tr').first()).toContainText('NAV-150NM · C152');
+    expect(servidor.solicitacoes.map(s => [s.missao, s.recurso, s.horas, s.missao_do_curso])).toEqual([['Navegação', 'C152', 3, pp.missoes.find(m => m.codigo === 'NAV-150NM').id]]);
+  });
+
+  // Sem os programas lidos, a importação não sabe se a missão do curso do pedido saiu do programa: o pedido espera (não
+  // conta como importado), o app diz, e ele entra com ela depois de "Tentar de novo"
+  test('importar sem os programas dos cursos lidos: o pedido com a missão do curso espera e entra com ela depois', async ({ browser }) => {
+    const context = await browser.newContext();
+    await prepararContexto(context);
+    const page = await context.newPage();
+    let n = 0;
+    const uuid = () => `00000000-0000-4000-8000-${String(++n).padStart(12, '0')}`;
+    const pp = { ...novoCurso([], { sigla: 'PP', nome: 'Piloto Privado', modelo: MODELOS['pp-acpm'] }, uuid).curso, versao: 1 };
+    const docs = documentosAtuais({ ...estadoSintetico(), stu: [aluno(1000, { fly: false }, { nm: 'Maria', curso: 'PP' }), aluno(1001, { fly: false })] }, AMANHA);
+    const servidor = await instalarSupabaseFalso(context, { ...docs, cursos: cursosIniciais().map(c => (c.sigla === 'PP' ? pp : c)) });
+    servidor.solicitacoes.push(pedidoDe(1, AMANHA, { aluno_nome: 'Maria', missao: 'Navegação', horas: 3, recurso: 'C152', missao_do_curso: pp.missoes.find(m => m.codigo === 'NAV-150NM').id }),
+      pedidoDe(2, AMANHA, { aluno: 1001, aluno_nome: 'Aluno 1001', horario: '10:10', recurso: 'C152' }));
+    servidor.falhar('/rpc/programa_dos_cursos');
+    const erros = vigiarErros(page, { statusEsperados: [503] });
+    await entrar(page, CONTAS.operador);
+    await expect(page.locator('#aviso-dados')).toBeVisible();
+    await botaoDaAba(page, 'dem').click();
+    await importarDaAgenda(page);
+    await expect(page.locator('#toast-box')).toContainText('1 pedido(s) da agenda na demanda · 1 pedido com a missão do curso espera os programas dos cursos, que não foram lidos: importe de novo depois de lê-los.');
+    await expect.poll(() => servidor.dias.get(AMANHA).conteudo.importadas).toEqual([2]);
+    expect(servidor.dias.get(AMANHA).conteudo.pedidos[1000].fly).toBe(false);
+    await page.locator('#btn-tentar-dados').click();
+    await expect(page.locator('#aviso-dados')).toBeHidden();
+    await importarDaAgenda(page);
+    await expect(page.locator('#toast-box')).toContainText('1 pedido(s) da agenda na demanda.');
+    await expect.poll(() => { const p = servidor.dias.get(AMANHA).conteudo.pedidos[1000]; return [p.fly, p.etapa, p.cursoDaEtapa]; }).toEqual([true, 'NAV-150NM', 'PP']);
     expect(erros).toEqual([]);
     await context.close();
   });
@@ -296,36 +347,6 @@ test.describe('Agenda de Solicitações (modo compartilhado)', () => {
     await expect(page.locator('#agenda-lista [data-act="cancelar-pedido"]')).toBeHidden();
   });
 
-  // O app novo no ar antes da migração agenda_com_recurso: o recurso padrão da missão ainda é registrado (pela função de
-  // antes), o outro não, e nada é registrado duas vezes
-  test('o servidor de antes do recurso: só o recurso padrão da missão é registrado, uma vez; o outro diz por quê', async ({ browser }) => {
-    const contexto = await browser.newContext({ baseURL: test.info().project.use.baseURL, locale: 'pt-BR', timezoneId: 'America/Sao_Paulo' });
-    await prepararContexto(contexto);
-    const servidor = await instalarSupabaseFalso(contexto, { ...comAlunos(), agendaSemRecurso: true });
-    const page = await contexto.newPage();
-    const erros = vigiarErros(page, { statusEsperados: [404] });
-    await entrar(page, CONTAS.secretaria);
-    await registrarPedido(page, { aluno: 'Aluno 1000', missao: 'Navegação', recurso: 'PA-34', horario: '07:30' });
-    await expect(campoDaAgenda(page, 'erro')).toHaveText('O servidor precisa ser atualizado para guardar o recurso do pedido: até lá, Navegação só pode ser pedida no C152. Nada foi registrado. Avise a administração do app.');
-    await expect(campoDaAgenda(page, 'recurso')).toHaveAttribute('aria-invalid', 'true');
-    expect(servidor.solicitacoes).toEqual([]);
-    await expect(campoDaAgenda(page, 'aluno')).not.toHaveValue('');
-    await registrarPedido(page, { aluno: 'Aluno 1000', missao: 'Navegação', recurso: 'C152', horario: '08:20' });
-    await expect(page.locator('#agenda-lista tbody tr')).toHaveCount(1);
-    expect(servidor.solicitacoes.map(s => [s.missao, s.horario, Object.hasOwn(s, 'recurso')])).toEqual([['Navegação', '08:20', false]]);
-    // A recusa com o botão armado ("Registrar mesmo assim"): escolhido o recurso padrão, ela sai, e o campo não fica marcado
-    await registrarPedido(page, { aluno: 'Aluno 1000', missao: 'Navegação', recurso: 'PA-34', horario: '10:00' });
-    await expect(campoDaAgenda(page, 'erro')).toContainText('já tem voo marcado');
-    await page.locator('#form-agenda [type="submit"]').click();
-    await expect(campoDaAgenda(page, 'erro')).toContainText('O servidor precisa ser atualizado');
-    await campoDaAgenda(page, 'recurso').selectOption('C152');
-    await expect(campoDaAgenda(page, 'recurso')).toHaveAttribute('aria-invalid', 'false');
-    await expect(campoDaAgenda(page, 'erro')).toContainText('Aluno 1000 já tem voo marcado');
-    expect(servidor.solicitacoes).toHaveLength(1);
-    expect(erros).toEqual([]);
-    await contexto.close();
-  });
-
   // Um clique a mais enquanto o servidor não respondeu não é outro pedido (nem outro voo na demanda)
   test('o segundo clique em "Registrar pedido" antes da resposta não registra de novo', async ({ page, context }) => {
     const servidor = await instalarSupabaseFalso(context, comAlunos());
@@ -347,7 +368,7 @@ test.describe('Agenda de Solicitações (modo compartilhado)', () => {
   });
 
   // A rede que cai no meio do registro: não se sabe se ele chegou, e o app não tenta de novo sozinho
-  test('o registro sem resposta não é repetido pela função de antes', async ({ browser }) => {
+  test('o registro sem resposta não é repetido', async ({ browser }) => {
     const contexto = await browser.newContext({ baseURL: test.info().project.use.baseURL, locale: 'pt-BR', timezoneId: 'America/Sao_Paulo' });
     await prepararContexto(contexto);
     const servidor = await instalarSupabaseFalso(contexto, comAlunos());

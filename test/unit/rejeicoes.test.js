@@ -66,6 +66,18 @@ describe('As recusas do motor e os pedidos', () => {
     assert.deepEqual([...mapa.keys()].sort(), [chaveDoVoo(1000, 0), chaveDoVoo(1000, 2), chaveDoVoo(1000, 3)].sort());
   });
 
+  it('duas extras da mesma missão com recusas diferentes: cada uma com a dela, na ordem das extras (não trocadas)', () => {
+    // As duas escolheram um instrutor que não vem: a extra 2, o Instrutor 02; a extra 3, o Instrutor 03. Rótulo e código
+    // iguais: só a ordem das extras no motor diz qual recusa é de qual
+    const estado = cenario({
+      ins: [instrutor(1, 1), instrutor(2, 1, { on: false }), instrutor(3, 1, { on: false })],
+      stu: [aluno(1000, { mis: 'Multimotor', eq: 'PA-34' }, { extra: [missaoExtra(2, { mis: 'Multimotor', eq: 'PA-34', insId: 2 }), missaoExtra(3, { mis: 'Multimotor', eq: 'PA-34', insId: 3 })] })]
+    });
+    const { mapa } = conferir(estado, 'extras com recusas diferentes');
+    assert.match(mapa.get(chaveDoVoo(1000, 2)).m, /Instrutor 02/);
+    assert.match(mapa.get(chaveDoVoo(1000, 3)).m, /Instrutor 03/);
+  });
+
   it('o pino e o voo na escala não recebem recusa; sem recusas, o mapa vazio', () => {
     const estado = cenario({ ins: [instrutor(1, 9)], stu: [aluno(1000), aluno(1001)] });
     const { resultado, mapa } = conferir(estado, 'sem recusas');

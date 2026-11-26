@@ -7,8 +7,11 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { MIS, GROUND_EQ_TYPE, GROUND_DURATION_H, DURACAO_MAXIMA_H, NOTURNO } from '../../js/config.js';
-import { RECURSO_DO_PEDIDO } from '../../js/agenda.js';
+import { MIS, GROUND_EQ_TYPE, GROUND_DURATION_H, DURACAO_MAXIMA_H, NOTURNO, MISSOES_LOCAIS, LIMITE_DE_VOOS_LOCAIS } from '../../js/config.js';
+import { RECURSO_DO_PEDIDO, HORARIOS_FIXOS } from '../../js/agenda.js';
+import { horariosDaMissao } from '../../js/horarios.js';
+import { hm } from '../../js/format.js';
+import { CASOS_DA_AGENDA } from '../helpers/casos-da-agenda.js';
 import { ESQUEMA, FORMATO_DOS_CURSOS, migrarCadastro, antesDosCursosProprios } from '../../js/migracoes.js';
 import { CASOS_DO_PROGRAMA, PROGRAMA, NOTURNO_EM_TRECHOS } from '../helpers/casos-do-programa.js';
 
@@ -166,5 +169,55 @@ describe('O banco espelha o app: o recurso do pedido da agenda', () => {
   it('só quem está conectado chama a função nova', () => {
     assert.ok(COM_RECURSO.includes(`revoke execute on function public.registrar_solicitacao(${ASSINATURA}, text) from public, anon;`));
     assert.ok(COM_RECURSO.includes(`grant execute on function public.registrar_solicitacao(${ASSINATURA}, text) to authenticated;`));
+  });
+});
+
+// A função de 13 argumentos (a migração #0b): a de 11 com a missão do curso e a confirmação do 7º voo local; os horários
+// fixos, a lista dos voos locais e o limite são os do app, e cada caso de test/helpers/casos-da-agenda.js é uma
+// verificação do banco
+describe('O banco espelha o app: a missão do curso e o limite do pedido da agenda', () => {
+  const MIGRACAO_0B = ler('supabase/migrations/20261127100000_missao_do_curso_e_limite_do_pedido.sql');
+  const TESTES = ['agenda-missao-do-curso', 'agenda-locais'].map(nome => ler(`supabase/tests/database/${nome}.test.sql`)).join('\n');
+  const ASSINATURA = 'date, integer, text, text, text, text, numeric, text, text, boolean, text, uuid, boolean';
+  const corpo = MIGRACAO_0B.slice(MIGRACAO_0B.indexOf('create function public.registrar_solicitacao('), MIGRACAO_0B.indexOf('$$;'));
+
+  it('o Noturno às 17:30 e o Voo Solo às 06:30, como os horários da missão no app', () => {
+    const fixos = Object.fromEntries([...corpo.matchAll(/p_missao = '([^']+)' and p_horario is distinct from '(\d\d:\d\d)'/g)].map(r => [r[1], r[2]]));
+    assert.deepEqual(fixos, HORARIOS_FIXOS);
+    assert.deepEqual(fixos, { Noturno: hm(horariosDaMissao(null, 'Noturno', 'C172')[0]), 'Voo Solo': hm(horariosDaMissao(null, 'Voo Solo', 'C152')[0]) });
+  });
+
+  it('os voos locais e o limite são os do app', () => {
+    const listas = [...corpo.matchAll(/missao in \(((?:'[^']*'(?:, )?)+)\)/g)].map(r => [...r[1].matchAll(/'([^']+)'/g)].map(x => x[1]));
+    assert.equal(listas.length, 2, 'o pedido e os que já estão na agenda');
+    for (const lista of listas) assert.deepEqual(lista, MISSOES_LOCAIS);
+    assert.match(corpo, new RegExp(`\\) >= ${LIMITE_DE_VOOS_LOCAIS} then`));
+  });
+
+  it('a função nova não tem valor padrão, só quem está conectado a chama, e as de antes ficam', () => {
+    const cabeca = corpo.slice(0, corpo.indexOf(')'));
+    assert.doesNotMatch(cabeca, /default|=/i);
+    assert.ok(MIGRACAO_0B.includes(`revoke execute on function public.registrar_solicitacao(${ASSINATURA}) from public, anon;`));
+    assert.ok(MIGRACAO_0B.includes(`grant execute on function public.registrar_solicitacao(${ASSINATURA}) to authenticated;`));
+    assert.doesNotMatch(MIGRACAO_0B, /drop function|create or replace|drop column/);
+    assert.match(corpo, /public\.missao_e_recurso_validos\(p_missao, v_recurso, v_horas\)/);
+  });
+
+  it('cada caso da agenda é uma verificação do banco (o nome é a descrição)', () => {
+    const nomes = CASOS_DA_AGENDA.map(c => c.nome);
+    assert.equal(new Set(nomes).size, nomes.length, 'sem nomes repetidos');
+    for (const nome of nomes) assert.ok(!nome.includes("'"), `${nome}: sem aspas simples (o texto igual no SQL)`);
+    assert.deepEqual(nomes.filter(nome => !TESTES.includes(`'${nome}');`)), []);
+  });
+
+  // As recusas novas (o recurso, o horário fixo e a missão do curso, a de 22023; o limite, PT422) têm um caso; as de
+  // antes (quem pode, o horário específico, a duração e o prazo) são as da função de 11
+  it('cada recusa nova da função tem um caso, e nenhum caso espera uma recusa que a função não dá', () => {
+    const chave = (code, campo) => `${code} ${campo}`;
+    const daFuncao = new Set([...corpo.matchAll(/errcode = '(\w+)', hint = '(\w+)'/g)].map(([, code, campo]) => chave(code, campo)));
+    const dosCasos = new Set(CASOS_DA_AGENDA.filter(c => c.erro).map(c => chave(c.erro.code, c.erro.campo)));
+    const deAntes = ['22023 horas'];
+    assert.deepEqual([...daFuncao].filter(k => !deAntes.includes(k) && !dosCasos.has(k)).sort(), [], 'recusas sem caso');
+    assert.deepEqual([...dosCasos].filter(k => !daFuncao.has(k)), [], 'casos com uma recusa que a função não dá');
   });
 });

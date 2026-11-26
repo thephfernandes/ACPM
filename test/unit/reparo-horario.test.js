@@ -35,7 +35,8 @@ describe('Sugestões: o horário mais tarde', () => {
     }));
     const voo = resultado.out.find(o => o.stuId === 1000);
     assert.deepEqual(voo.conflitoCodigos, ['so-vfr']);
-    const opcoes = sugerirReparos(estado, resultado, voo.fKey, { maximo: 10 });
+    // (o outro tipo, que a lista do conflito também ganha, fica de fora daqui)
+    const opcoes = sugerirReparos(estado, resultado, voo.fKey, { maximo: 10 }).filter(o => o.tipo !== 'tipo');
     assert.deepEqual(opcoes.map(o => o.tipo), ['horario', 'soltar', 'cancelar'], 'no mesmo horário, nenhum C172 serve');
     const outro = ['PR-HAR', 'PR-BUL'].find(r => r !== voo.r);
     assert.deepEqual(opcoes[0].mudancas, { a: 500, b: 560, r: outro, insId: voo.insId }, 'o "Só VFR" está livre, mas não serve ao IFR');

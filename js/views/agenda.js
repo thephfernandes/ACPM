@@ -1,15 +1,18 @@
 // Agenda de Solicitações: a agenda de papel da secretaria, digitalizada. Os pedidos da data aberta (com a situação de cada um
 // na demanda) e o registro de pedidos, cada um para a data dele ("Data do pedido"), com o prazo das 13:00 do dia anterior.
-import { MIS } from '../config.js';
+// O formulário vai do aluno à missão (as do curso dele), da missão ao recurso, e dos dois aos horários (docs/PLAN.md, as
+// regras da Agenda).
+import { MIS, GROUND_EQ_TYPE } from '../config.js';
 import { duracaoFixaDaMissao } from '../rules.js';
 import { horariosDaMissao } from '../horarios.js';
-import { S, DATA, isGestor, inativoNaDataAberta, stuBy } from '../state.js';
+import { indiceDoPrograma } from '../programa.js';
+import { S, DATA, isGestor, inativoNaDataAberta, stuBy, dadoIndisponivel } from '../state.js';
 import { inativo } from '../inativos.js';
 import { ApiClient } from '../storage.js';
 import { $, trocarConteudo } from '../dom.js';
 import { esc, opts, hm, fmtH, somarDias } from '../format.js';
 import { registraNaAgenda, operaEscala } from '../perfis.js';
-import { recursosDaMissao, recursoValido, JANELAS_DA_AGENDA, FUSO_DO_AEROCLUBE, prazoDaAgendaPermite, prazoDaData, datasParaRegistrar, hojeEmSaoPaulo } from '../agenda.js';
+import { recursosDaMissao, recursoValido, missoesDoAluno, JANELAS_DA_AGENDA, FUSO_DO_AEROCLUBE, prazoDaAgendaPermite, prazoDaData, datasParaRegistrar, hojeEmSaoPaulo } from '../agenda.js';
 import { pedidosDaDataAberta, pedidosDaDataAbertaLidos, lerPedidosDaData } from './selos.js';
 
 const CHAVE_REGISTRADO_POR = 'acpm_agenda_registrado_por';
@@ -42,8 +45,14 @@ const disponibilidade = p => (p.janela === 'horario'
   ? `${p.horario} · ${fmtH(p.horas === null || p.horas === undefined ? 1 : +p.horas)}`
   : JANELAS_DA_AGENDA.find(([j]) => j === p.janela)?.[1] ?? p.janela);
 
-// A missão com o recurso (o pedido de antes não o tem)
-export const missaoDoPedido = p => (recursoValido(p) ? `${p.missao} · ${p.recurso}` : p.missao);
+// A missão com o recurso (o pedido de antes não o tem); com a missão do curso, o código dela no lugar do tipo
+// ("NAV-150NM · C152"), quando os programas a têm (também a retirada depois)
+const codigoDaMissaoDoCurso = p => (p.missao_do_curso && indiceDoPrograma(S.programa || []).missao(p.missao_do_curso)?.codigo) || null;
+export const missaoDoPedido = p => {
+  const codigo = codigoDaMissaoDoCurso(p);
+  const recurso = recursoValido(p);
+  return codigo ? `${codigo}${recurso ? ` · ${recurso}` : ''}` : recurso ? `${p.missao} · ${recurso}` : p.missao;
+};
 export const descreverPedido = p => `${missaoDoPedido(p)} às ${p.horario || disponibilidade(p)}`;
 // Um pedido da lista (a da data aberta), para a confirmação do cancelamento
 export const pedidoDaLista = id => (pedidosDaDataAberta().lista || []).find(p => p.id === id);
@@ -65,7 +74,10 @@ function mudouADataDoPedido() {
   desarmarConfirmacaoDaAgenda();
   apagarErroDaAgenda();
 }
-// O "Registrar mesmo assim" (o aluno que já tem voo marcado) volta a ser "Registrar pedido"
+// A confirmação armada (o aluno que já tem voo marcado, o 7º voo local no horário: js/eventos/agenda.js) fica em
+// data-confirmado, com o botão que ela arma no fim ("…|registrar" ou "…|excecao"): o botão em uso diz "Registrar mesmo
+// assim". Desarmada, o envio volta a ser "Registrar pedido", e a exceção, "Exceção da Coordenação"
+export const botaoArmado = () => ($('#form-agenda').dataset.confirmado || '').split('|').at(-1);
 export function desarmarConfirmacaoDaAgenda() {
   delete $('#form-agenda').dataset.confirmado;
   nomearRegistrar();
@@ -73,10 +85,19 @@ export function desarmarConfirmacaoDaAgenda() {
 // Enquanto um pedido é registrado (a leitura dos pedidos da data dele, a gravação), o botão clicado diz "Registrando…"
 export function nomearRegistrar() {
   const form = $('#form-agenda');
-  if (!form.hasAttribute('aria-busy')) form.querySelector('[type="submit"]').textContent = form.dataset.confirmado ? 'Registrar mesmo assim' : 'Registrar pedido';
+  if (form.hasAttribute('aria-busy')) return;
+  const armado = botaoArmado();
+  form.querySelector('[type="submit"]').textContent = armado === 'registrar' ? 'Registrar mesmo assim' : 'Registrar pedido';
+  $('#ag-excecao').textContent = armado === 'excecao' ? 'Registrar mesmo assim' : 'Exceção da Coordenação';
 }
-// Os campos do pedido com erro (aria-invalid): o leitor de tela diz qual campo e lê o motivo (#ag-erro é a descrição deles)
-export const marcarInvalidos = (...ids) => ['#ag-aluno', '#ag-missao', '#ag-recurso', '#ag-horario', '#ag-horas', '#ag-por'].forEach(id => $(id).setAttribute('aria-invalid', String(ids.includes(id))));
+// Os campos do pedido com erro (aria-invalid): o leitor de tela diz qual campo e lê o motivo (#ag-erro é a descrição deles).
+// O foco vai para o primeiro (focar: o campo do primeiro erro; sem ele, o foco fica onde está)
+const CAMPOS_DO_PEDIDO = ['#ag-aluno', '#ag-missao', '#ag-recurso', '#ag-horario', '#ag-horas', '#ag-por'];
+export const marcarInvalidos = (...ids) => CAMPOS_DO_PEDIDO.forEach(id => $(id).setAttribute('aria-invalid', String(ids.includes(id))));
+export function focarNoPrimeiroInvalido() {
+  const primeiro = CAMPOS_DO_PEDIDO.find(id => $(id).getAttribute('aria-invalid') === 'true');
+  if (primeiro) $(primeiro).focus();
+}
 export function apagarErroDaAgenda() {
   $('#ag-erro').textContent = '';
   marcarInvalidos();
@@ -179,16 +200,40 @@ function listaHTML() {
     </tr>`).join('')}</tbody></table>`;
 }
 
-// O formulário: a missão decide os recursos, e os dois, os horários. O campo com um valor só o recebe sozinho (data-sozinho):
-// ele não é uma escolha da pessoa, e não fica para a missão seguinte. O horário escolhido que espera a lista (a missão ou o
-// recurso ainda por escolher, ou a missão de um horário só) volta quando ela o tem; quando ela não o tem, o campo diz por que
-// ele saiu. O campo diz também quando o horário posto pelo app sai ou dá lugar a outro
+// O formulário: o aluno decide as missões (as do curso dele; sem curso, os tipos de missão), a missão decide os recursos, e
+// os dois, os horários. O campo com um valor só o recebe sozinho (data-sozinho): ele não é uma escolha da pessoa, e não
+// fica para a missão seguinte. O horário escolhido que espera a lista (a missão ou o recurso ainda por escolher, ou a
+// missão de um horário só) volta quando ela o tem; quando ela não o tem, o campo diz por que ele saiu. O campo diz também
+// quando o horário posto pelo app sai ou dá lugar a outro, e quantos horários a lista tem
 let horarioEscolhido = '';
 let avisoDoHorario = '';
+// A lista do campo "Fase / missão" (missoesDoAluno do aluno escolhido; null enquanto o aluno não é escolhido) e o que a
+// pessoa tinha escolhido quando o aluno saiu do campo (a missão, o recurso, o horário e o nome da missão): o próximo aluno
+// cuja lista tem a missão a recebe; o que não a tem a perde, e o campo diz (avisoDaMissao)
+let missoesDoCampo = null;
+let guardada = null;
+let recursoQueEspera = '';
+let avisoDaMissao = '';
+// A missão cuja duração está no campo "Duração (h)": a duração só muda quando a missão muda de verdade
+let missaoDaDuracao = '';
 
-// As opções só mudam quando são outras: o redesenho não mexe no campo que a pessoa está usando
+// Os programas dos cursos lidos com a data (S.programa); null quando não foram lidos ou esperam a conversão do cadastro
+const programaDaAgenda = () => (['cursos', 'cursos-pendentes'].some(dadoIndisponivel) ? null : S.programa || []);
+const missoesDaLista = lista => (lista ? lista.grupos.flatMap(g => g.missoes) : []);
+
+// A missão do campo: o valor (o id da missão do curso ou o tipo), o tipo de missão e a missão do curso (null: um tipo)
+export function missaoEscolhida() {
+  const valor = $('#ag-missao').value;
+  const doCurso = missoesDaLista(missoesDoCampo).find(m => m.id === valor) || null;
+  return { valor, tipo: doCurso ? doCurso.mis : valor, doCurso };
+}
+// O nome da escolha num texto: o código da missão do curso, ou o tipo
+const nomeDaEscolha = (lista, valor) => (missoesDaLista(lista).find(m => m.id === valor) || { codigo: valor }).codigo;
+
+// As opções só mudam quando são outras: o redesenho não mexe no campo que a pessoa está usando. valores: os valores, ou
+// [valor, texto]
 function preencher(campo, valores, vazio, valor, escolhido) {
-  const opcoes = [...(vazio ? [['', vazio]] : []), ...valores.map(v => [v, v])];
+  const opcoes = [...(vazio ? [['', vazio]] : []), ...valores.map(v => (Array.isArray(v) ? v : [v, v]))];
   if (JSON.stringify(opcoes) !== JSON.stringify([...campo.options].map(o => [o.value, o.text]))) campo.innerHTML = opts(opcoes, valor);
   campo.value = valor;
   if (valor && valor !== escolhido) campo.dataset.sozinho = '1';
@@ -197,16 +242,78 @@ function preencher(campo, valores, vazio, valor, escolhido) {
 const escolhaDaPessoa = campo => (campo.dataset.sozinho ? '' : campo.value);
 // O valor que fica: o escolhido, se a lista o tem; o único da lista; senão, nenhum
 const valorNaLista = (lista, escolhido) => (lista.includes(escolhido) ? escolhido : lista.length === 1 ? lista[0] : '');
+const mudarTexto = (el, texto) => { if (el.textContent !== texto) el.textContent = texto; };
 
-function atualizarRecurso() {
-  const campo = $('#ag-recurso'), missao = $('#ag-missao').value;
-  const tipos = recursosDaMissao(missao), escolhido = escolhaDaPessoa(campo);
-  preencher(campo, tipos, tipos.length === 1 ? null : missao ? 'Escolha o recurso…' : 'Escolha antes a missão…', valorNaLista(tipos, escolhido), escolhido);
-  campo.disabled = !missao;
+// As opções do campo da missão: sem aluno, a espera; com as missões do curso, um grupo por fase; sem elas, os tipos
+let missoesDesenhadas = null;
+function opcoesDaMissao(campo, lista, valor) {
+  const html = !lista ? '<option value="">Escolha antes o aluno…</option>'
+    : '<option value="">Escolha a missão…</option>' + (lista.grupos.length
+      ? lista.grupos.map(g => `<optgroup label="${esc(g.fase)}">${g.missoes.map(m => `<option value="${esc(m.id)}" data-codigo="${esc(m.codigo)}">${esc(m.texto)}</option>`).join('')}</optgroup>`).join('')
+      : Object.keys(MIS).map(m => `<option value="${esc(m)}">${esc(m)}</option>`).join(''));
+  if (missoesDesenhadas !== html || campo.options.length === 0) { campo.innerHTML = html; missoesDesenhadas = html; }
+  campo.value = valor;
 }
 
+// A missão espera o aluno. Saindo o aluno, a escolha fica guardada para o próximo; trocando de aluno, ela fica quando a
+// lista dele a tem, e sai (com o recurso e o horário) quando não tem, com o aviso
+function atualizarMissao() {
+  const campo = $('#ag-missao'), aluno = stuBy(+$('#ag-aluno').value) || null;
+  if (!aluno) {
+    if (missoesDoCampo) {
+      guardada = { missao: campo.value, nome: nomeDaEscolha(missoesDoCampo, campo.value), recurso: escolhaDaPessoa($('#ag-recurso')),
+        horario: escolhaDaPessoa($('#ag-horario')) || horarioEscolhido };
+      horarioEscolhido = '';
+      missoesDoCampo = null;
+    }
+    opcoesDaMissao(campo, null, '');
+    campo.disabled = true;
+    mudarTexto($('#ag-missao-motivo'), '');
+    return;
+  }
+  const lista = missoesDoAluno(aluno, programaDaAgenda());
+  const antes = guardada ? guardada.missao : campo.value;
+  const nomeAntes = guardada ? guardada.nome : nomeDaEscolha(missoesDoCampo, antes);
+  const valores = lista.grupos.length ? missoesDaLista(lista).map(m => m.id) : Object.keys(MIS);
+  const fica = valores.includes(antes) ? antes : '';
+  opcoesDaMissao(campo, lista, fica);
+  campo.disabled = false;
+  if (antes && !fica) {
+    avisoDaMissao = `${nomeAntes} não está entre as missões de ${aluno.nm}: escolha a missão.`;
+    $('#ag-recurso').value = '';
+    delete $('#ag-recurso').dataset.sozinho;
+    $('#ag-horario').value = '';
+    horarioEscolhido = '';
+    recursoQueEspera = '';
+  } else if (guardada && fica) {
+    recursoQueEspera = guardada.recurso;
+    horarioEscolhido = guardada.horario;
+  }
+  guardada = null;
+  missoesDoCampo = lista;
+  mudarTexto($('#ag-missao-motivo'), [avisoDaMissao, lista.motivo].filter(Boolean).join(' '));
+  if (campo.value !== missaoDaDuracao) aplicarDuracaoDaMissao();
+}
+
+// Os recursos ativos de um tipo (a sala de Ground sempre está); o tipo sem nenhum é oferecido, com o aviso
+const temAtivo = tipo => tipo === GROUND_EQ_TYPE || (S.frota || []).some(f => f.tipo === tipo && !inativo(f));
+function atualizarRecurso() {
+  const campo = $('#ag-recurso'), { valor, tipo, doCurso } = missaoEscolhida();
+  const tipos = doCurso ? [doCurso.eq] : recursosDaMissao(tipo), escolhido = escolhaDaPessoa(campo) || recursoQueEspera;
+  recursoQueEspera = '';
+  preencher(campo, tipos.map(t => [t, temAtivo(t) ? t : `${t} (nenhum ativo)`]), tipos.length === 1 ? null : valor ? 'Escolha o recurso…' : 'Escolha antes a missão…',
+    valorNaLista(tipos, escolhido), escolhido);
+  campo.disabled = !valor;
+  mudarTexto($('#ag-recurso-motivo'), campo.value && !temAtivo(campo.value)
+    ? `Nenhum ${campo.value} está ativo em Recursos: o pedido é registrado, e a escala só o põe num ${campo.value} ativo.` : '');
+}
+
+// "8 horários do C152."; "Um horário só: 06:30."
+const doRecurso = recurso => (recurso === GROUND_EQ_TYPE ? `da ${recurso}` : `do ${recurso}`);
+const contagemDosHorarios = (lista, recurso) => (lista.length === 1 ? `Um horário só: ${lista[0]}.` : `${lista.length} horários ${doRecurso(recurso)}.`);
+
 function atualizarHorario() {
-  const campo = $('#ag-horario'), aluno = $('#ag-aluno').value, missao = $('#ag-missao').value, recurso = $('#ag-recurso').value;
+  const campo = $('#ag-horario'), aluno = $('#ag-aluno').value, { tipo: missao, doCurso } = missaoEscolhida(), recurso = $('#ag-recurso').value;
   const lista = missao && recurso ? horariosDaMissao(S.horarios, missao, recurso).map(hm) : [];
   const doApp = campo.dataset.sozinho ? campo.value : '';
   const escolhido = escolhaDaPessoa(campo) || horarioEscolhido;
@@ -214,26 +321,28 @@ function atualizarHorario() {
   horarioEscolhido = lista.length > 1 || valor === escolhido ? '' : escolhido;
   // O horário do app que continua no campo não é dito de novo
   if (lista.length && !(doApp && valor === doApp)) {
-    if (escolhido && valor !== escolhido) avisoDoHorario = `O horário ${escolhido} não é um dos de ${missao} (${recurso}). ${valor ? `Agora é ${valor}.` : 'Escolha outro.'}`;
+    if (escolhido && valor !== escolhido) avisoDoHorario = `O horário ${escolhido} não é um dos de ${doCurso ? doCurso.codigo : missao} (${recurso}). ${valor ? `Agora é ${valor}.` : 'Escolha outro.'}`;
     else if (doApp) avisoDoHorario = valor ? `O horário agora é ${valor}.` : `O horário ${doApp} era o único da escolha anterior. Escolha o horário.`;
   }
   preencher(campo, lista, lista.length === 1 ? null : 'Escolha o horário…', valor, escolhido);
   campo.disabled = !(aluno && missao && recurso);
   const faltam = [!aluno && 'o aluno', !missao && 'a missão', !recurso && 'o recurso'].filter(Boolean);
-  const texto = [avisoDoHorario, faltam.length ? `Antes, escolha ${emLista(faltam)}.` : ''].filter(Boolean).join(' ');
-  if ($('#ag-horario-motivo').textContent !== texto) $('#ag-horario-motivo').textContent = texto;
+  const texto = avisoDoHorario || (faltam.length ? `Antes, escolha ${emLista(faltam)}.` : contagemDosHorarios(lista, recurso));
+  mudarTexto($('#ag-horario-motivo'), texto);
 }
 export const emLista = itens => (itens.length > 1 ? `${itens.slice(0, -1).join(', ')} e ${itens.at(-1)}` : itens.join(''));
 
-// Os horários do recurso escolhido, como estão agora no cadastro (a missão, o recurso e o horário que ainda valem ficam)
+// As missões do aluno, os recursos e os horários do recurso escolhido, como estão agora no cadastro (o que ainda vale fica)
 export function atualizarRecursoEHorario() {
+  atualizarMissao();
   atualizarRecurso();
   atualizarHorario();
 }
 
-// Uma escolha nova (o aluno, a missão, o recurso ou o horário): o aviso do horário que saiu era da anterior
+// Uma escolha nova (o aluno, a missão, o recurso ou o horário): os avisos da missão e do horário que saíram eram da anterior
 export function escolherNaAgenda() {
   avisoDoHorario = '';
+  avisoDaMissao = '';
   atualizarRecursoEHorario();
 }
 
@@ -242,8 +351,8 @@ export function rHorariosDoPedido() {
   if ($('#ag-missao').options.length) atualizarRecursoEHorario();
 }
 
-// Depois de registrar, saem o aluno e a observação; a missão, o recurso e o horário do pedido ficam, e o horário escolhido
-// antes dele não vale mais
+// Depois de registrar, saem o aluno e a observação; a missão, o recurso e o horário do pedido esperam o próximo aluno, e o
+// horário escolhido antes dele não vale mais
 export function esvaziarPedidoRegistrado() {
   $('#ag-obs').value = '';
   $('#ag-aluno').value = '';
@@ -251,18 +360,23 @@ export function esvaziarPedidoRegistrado() {
   escolherNaAgenda();
 }
 
-// A missão nova: a duração dela, os recursos e os horários
-export function escolherMissaoNaAgenda() {
-  const missao = $('#ag-missao').value;
-  const padrao = Object.hasOwn(MIS, missao) && MIS[missao].duracaoPadrao;
+// A duração da missão: a fixa (o Ground, 01h30; o Noturno, 4 h no dia: o translado e o noturno em BH), sem edição; a da
+// missão do curso; a padrão do tipo (o simulador, 2 h); saindo de uma delas, volta a 1 h
+function aplicarDuracaoDaMissao() {
+  const { valor, tipo, doCurso } = missaoEscolhida();
+  missaoDaDuracao = valor;
+  const padrao = doCurso ? doCurso.nb : Object.hasOwn(MIS, tipo) && MIS[tipo].duracaoPadrao;
   const horas = $('#ag-horas');
-  // O Ground (01h30) e o Noturno (4 h no dia: o translado e o noturno em BH) têm a duração fixa
-  const fixa = duracaoFixaDaMissao(missao);
+  const fixa = duracaoFixaDaMissao(tipo);
   if (fixa) { horas.dataset.antes = horas.dataset.antes || horas.value; horas.value = String(fixa); horas.disabled = true; }
   else if (horas.disabled) { horas.value = horas.dataset.antes || '1'; delete horas.dataset.antes; horas.disabled = false; }
-  // A missão com duração padrão (o simulador, 2 h) começa com ela; saindo dela, volta a 1 h
   if (!fixa && padrao) { horas.value = String(padrao); horas.dataset.padrao = '1'; }
   else if (!fixa && horas.dataset.padrao) { horas.value = '1'; delete horas.dataset.padrao; }
+}
+
+// A missão nova: a duração dela, os recursos e os horários
+export function escolherMissaoNaAgenda() {
+  aplicarDuracaoDaMissao();
   escolherNaAgenda();
 }
 
@@ -301,7 +415,6 @@ export function rAgenda() {
     [...S.stu].filter(s => !inativo(s)).sort((a, b) => a.nm.localeCompare(b.nm)).map(s => `<option value="${s.id}">${esc(s.nm)}</option>`).join('');
   $('#ag-aluno').value = aluno;
   if (!$('#ag-missao').options.length) {
-    $('#ag-missao').innerHTML = opts([['', 'Escolha a missão…'], ...Object.keys(MIS).map(m => [m, m])], '');
     try {
       $('#ag-por').value = localStorage.getItem(CHAVE_REGISTRADO_POR) || '';
     } catch {

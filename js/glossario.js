@@ -88,7 +88,9 @@ const TERMOS = {
   'curso-encerrado': { funcionalidade: 'progresso', aba: 'Demanda', termo: 'Curso encerrado', texto: 'O curso do aluno foi encerrado em Cursos. A próxima missão e as outras do curso continuam, mas cada uma pede confirmação, aqui e no agendamento, e o histórico diz que o curso estava encerrado.' },
 
   // Agenda
+  'missao-do-pedido': { aba: 'Agenda', termo: 'Fase / missão do pedido', texto: 'Para o aluno de um curso, as missões do programa dele, por fase, sem as dispensadas; sem curso, os tipos de missão. A missão do curso traz o recurso e as horas dela e vai com o pedido para a demanda.' },
   'recurso-do-pedido': { aba: 'Agenda', termo: 'Recurso do pedido', texto: 'O tipo de avião, o simulador ou a sala que a missão permite, escolhido no pedido. Ele decide os horários (os de decolagem dele, em Recursos) e vai com o pedido para a demanda.' },
+  'setimo-voo-local': { aba: 'Agenda', termo: `${LIMITE_DE_VOOS_LOCAIS + 1}º voo local`, texto: `No máximo ${LIMITE_DE_VOOS_LOCAIS} voos locais (Voo Local, Voo Solo e TGL) saem no mesmo horário. O ${LIMITE_DE_VOOS_LOCAIS + 1}º só é registrado com “Registrar mesmo assim”, e o pedido guarda quem confirmou e quando.` },
   excecao: { aba: 'Agenda', termo: 'Exceção da Coordenação', texto: 'Registra o pedido depois do prazo (13:00 da véspera; a segunda, sábado às 10:00). O pedido fica marcado como exceção, para auditoria.' },
 
   // Recursos

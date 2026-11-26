@@ -63,6 +63,8 @@ test.describe('Atributos dos recursos', () => {
     await expect(page.locator('#dem tr[data-k="d"][data-id="1000"][data-mid="0"] [data-f="nb"]')).toHaveValue('1');
 
     await irPara(page, 'age');
+    // A missão espera o aluno (F1c)
+    await campoDaAgenda(page, 'aluno').selectOption({ label: 'Aluno 1000' });
     await campoDaAgenda(page, 'missao').selectOption('Simulador');
     await expect(campoDaAgenda(page, 'horas')).toHaveValue('2');
     await campoDaAgenda(page, 'missao').selectOption('Voo Local');

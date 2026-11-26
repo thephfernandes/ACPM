@@ -1,10 +1,12 @@
 -- Retorno da operação (14/11): no máximo 6 voos locais (Voo Local, Voo Solo e TGL) no mesmo horário; o 7º pedido é
--- recusado (PT422). Outras missões e pedidos cancelados não contam. Roda dentro de uma transação desfeita no final.
+-- recusado (PT422). Outras missões e pedidos cancelados não contam. Pela função de 13 argumentos (a migração
+-- missao_do_curso_e_limite_do_pedido), o 7º passa com a confirmação, que fica registrada; com vaga, ela não registra nada.
+-- Roda dentro de uma transação desfeita no final.
 begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = public, extensions;
 
-select plan(5);
+select plan(7);
 
 delete from public.solicitacoes;
 insert into auth.users (id, email, created_at, updated_at) values
@@ -25,6 +27,14 @@ select lives_ok($$ select public.registrar_solicitacao((current_date + 5 + case 
 select public.cancelar_solicitacao((select min(id) from public.solicitacoes), 'Maria');
 select lives_ok($$ select public.registrar_solicitacao((current_date + 5 + case when extract(isodow from current_date + 5) = 7 then 1 else 0 end), 2003, 'Aluno', 'TGL (TMA)', 'horario', '08:20', 1, 'Maria', null, false) $$,
   'com um cancelado, abre a vaga');
+-- A função de 13 argumentos: o 7º às 08:20 confirmado fica registrado, com quem confirmou; às 10:10 (um local), a
+-- confirmação não registra nada
+select public.registrar_solicitacao((current_date + 5 + case when extract(isodow from current_date + 5) = 7 then 1 else 0 end), 2004, 'Aluno', 'Voo Local', 'horario', '08:20', 1, 'Maria', null, false, 'C152', null, true);
+select results_eq($$ select limite_confirmado_por, limite_confirmado_em is not null from public.solicitacoes where aluno = 2004 $$,
+  $$ values ('Secretaria de teste'::text, true) $$, 'pela função de 13 argumentos, o 7º voo local confirmado fica registrado com quem confirmou');
+select public.registrar_solicitacao((current_date + 5 + case when extract(isodow from current_date + 5) = 7 then 1 else 0 end), 2005, 'Aluno', 'Voo Local', 'horario', '10:10', 1, 'Maria', null, false, 'C152', null, true);
+select results_eq($$ select limite_confirmado_por, limite_confirmado_em from public.solicitacoes where aluno = 2005 $$,
+  $$ values (null::text, null::timestamptz) $$, 'pela função de 13 argumentos, a confirmação com vaga não registra nada');
 
 select * from finish();
 rollback;

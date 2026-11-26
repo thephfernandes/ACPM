@@ -165,20 +165,29 @@ novo). E o app novo não depende delas:
 - **Sem a migração**, `painel_do_dia()` responde como antes, sem o campo `painel`, e a TV mostra o padrão (Missões, com
   as colunas do padrão e as listas no Automático: duas lado a lado na TV Full HD), como hoje; a Escala segue a configuração de qualquer jeito (ela lê o cadastro).
 
-## O recurso do pedido da agenda
+## O recurso, a missão do curso e o 7º voo local do pedido da agenda
 
 O pedido da agenda guarda o recurso (o tipo: C152, PA-34, Sim. Mono…): a missão diz os permitidos, o recurso diz os
-horários, e a importação põe o pedido na demanda nele. A migração `20261125230000_agenda_com_recurso.sql` acrescenta a
+horários, e a importação põe o pedido na demanda nele. A migração `20261125230000_agenda_com_recurso.sql` acrescentou a
 coluna `recurso` (vazia nos pedidos de antes, que entram no recurso padrão da missão) e a função
-`registrar_solicitacao` com o recurso, o 11º argumento. A de 10 argumentos continua, para as abas abertas do app de antes.
+`registrar_solicitacao` com o recurso, o 11º argumento.
 
-**A ordem:** a migração na prévia (`supabase db push --remote`) com `npm run test:db`, depois na produção
-(`supabase db push --remote=<ref de produção>`), e só então o merge. Ela só acrescenta: o app no ar continua igual com
-ela. O app novo no ar **antes** da migração não perde nem repete pedidos: quando o servidor responde que a função com o
-recurso não existe (PGRST202 ou 42883), o pedido no recurso padrão da missão vai pela função de antes, e o pedido noutro
-recurso é recusado com o aviso de que o servidor precisa ser atualizado. Nenhum outro erro tenta de novo. Depois, com
-nenhuma aba de antes aberta, outra migração pode tirar a função de 10 argumentos (e a chamada dela em
-`js/backends/supabase.js`).
+A migração `20261127100000_missao_do_curso_e_limite_do_pedido.sql` acrescenta as colunas `missao_do_curso` (o id da missão
+do programa do curso que o aluno vai voar; vazia sem curso e nos pedidos de antes), `limite_confirmado_por` e
+`limite_confirmado_em` (quem confirmou o 7º voo local no mesmo horário, e quando) e a função `registrar_solicitacao` de 13
+argumentos (`p_missao_do_curso`, `p_confirmar_limite`, nenhum com valor padrão), a única que o app chama. Ela recusa
+(`22023`, com a dica do campo) o pedido sem recurso ou num recurso que a missão não permite (`recurso`), o Noturno fora das
+17:30 e o Voo Solo fora das 06:30 (`horario`) e a missão do curso que não existe, saiu do programa ou é de outro tipo
+(`missao`); o 7º voo local passa com a confirmação, que fica registrada (sem ela, `PT422`, como antes). As funções de 11 e
+de 10 argumentos ficam como estavam, para as abas abertas do app de antes. As regras estão também no modo local
+(`js/backends/local.js`), no servidor falso dos testes (`test/e2e/falso/agenda.js`) e no cliente falso de
+`test/unit/backend-supabase.test.js`, com os mesmos casos (`test/helpers/casos-da-agenda.js`), que são verificações de
+`agenda-missao-do-curso.test.sql` e `agenda-locais.test.sql`.
+
+**A ordem:** a migração na prévia (`supabase db push --remote`) com `npm run test:db`, e só então o merge: o app novo só
+chama a função de 13 argumentos, e não tenta outra quando o servidor não a tem (o pedido não é registrado, e o app diz que
+não foi possível registrar). Ela só acrescenta: o app no ar continua igual com ela. Depois, com nenhuma aba de antes aberta,
+outra migração pode tirar as funções de 10 e de 11 argumentos.
 
 ## A sessão da TV da recepção
 
@@ -279,7 +288,7 @@ número): o primeiro acesso de um Operador ou Administrador regrava os dias e o 
 | `js/viabilidade.js` | O que torna possível um voo num horário, num recurso e com um instrutor (disponível, habilitado, livre, fora do "Não escalar com", dentro da lei e do peso; o saldo até a revisão): as mesmas regras no motor, na compactação, nas Sugestões e no agendamento |
 | `js/fixos.js` | Os voos fixos (pela escala aprovada, pelo status, pelo instrutor escolhido e pelo agendamento na Escala): o que acontece com eles ao mudar o status, aprovar, reabrir e mudar a demanda, e o motivo do cadeado |
 | `js/candidatos.js` | Os recursos e os instrutores que servem a um voo num horário, contra os outros voos do dia, cada um com o que o impede (as Sugestões e o agendamento) |
-| `js/reparo.js` | As Sugestões: para um conflito na escala aprovada (outro avião, outro instrutor, outro horário, soltar o voo ou cancelar), para o voo cancelado da data aberta (o motivo fora da busca; o mesmo horário, outro avião, o horário mais perto, outro tipo; aplicar e desfazer, `aproveitarCancelado`) e para o pedido recusado pelo instrutor escolhido (`sugestoesDoRejeitado`: o motor numa cópia com cada outro instrutor) |
+| `js/reparo.js` | As Sugestões: para um conflito na escala aprovada (outro avião, outro instrutor, outro horário, soltar o voo ou cancelar; depois, o horário mais perto, também fora da disponibilidade do pedido, e outro tipo, que mudam o pedido junto, `repararComOPedido`), para o voo cancelado da data aberta (o motivo fora da busca; o mesmo horário, outro avião, o horário mais perto, outro tipo; aplicar e desfazer, `aproveitarCancelado`) e para o pedido recusado pelo instrutor escolhido (`sugestoesDoRejeitado`: o motor numa cópia com cada outro instrutor), de hoje em diante (`dataQueAindaVoa`); cada sugestão é conferida no motor numa cópia (`conferirNoMotor`: o voo fica onde ela diz; a que muda ou tira outros voos diz quais); a sugestão fora da disponibilidade ou em outro tipo pede a confirmação com o aluno, e a que faz do voo local o 7º do horário ou muda outros voos, "Aplicar mesmo assim" |
 | `js/rejeicoes.js` | As recusas do motor ligadas aos pedidos (`rejeicoesDosPedidos`): a i-ésima recusa é a do i-ésimo pedido que voa sem pino e sem linha, na ordem do motor (`naOrdemDoMotor`); dois alunos de mesmo nome não se confundem |
 | `js/instrutor-escolhido.js` | O instrutor escolhido pelo operador: na Demanda (o motor encaixa o voo com ele) e na Escala (o voo fica fixo onde está, com ele), as opções de cada lista e a reversão |
 | `js/agendamento.js` | O voo agendado na Escala, em funções puras: o formulário do diálogo (a missão pelo progresso, o recurso e o instrutor que servem, o horário pelo clique, a duração e o peso; o voo de hoje do aluno que muda de lugar ou entra na escala; a turma de Ground), a conferência pelo motor numa cópia do estado (os bloqueios, com as alternativas, e os avisos que pedem confirmação), o pedido com o voo fixo (a marca `agendado`) e a reversão |

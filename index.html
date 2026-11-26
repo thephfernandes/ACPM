@@ -362,10 +362,12 @@
         <label>Data do pedido<select id="ag-data" class="agenda-campo" aria-describedby="agenda-prazo"></select></label>
         <p class="h" id="agenda-prazo"></p>
         <label>Aluno<select id="ag-aluno" class="agenda-campo" required aria-describedby="ag-erro"></select></label>
-        <label>Fase / missão<select id="ag-missao" class="agenda-campo" required aria-describedby="ag-erro"></select></label>
-        <label>Recurso<select id="ag-recurso" class="agenda-campo" required disabled aria-describedby="ag-erro"></select></label>
+        <div class="ag-campo-missao"><label>Fase / missão<select id="ag-missao" class="agenda-campo" required disabled aria-describedby="ag-missao-motivo ag-erro"></select></label>
+          <small id="ag-missao-motivo" class="ag-motivo" aria-live="polite"></small></div>
+        <div><label>Recurso<select id="ag-recurso" class="agenda-campo" required disabled aria-describedby="ag-recurso-motivo ag-erro"></select></label>
+          <small id="ag-recurso-motivo" class="ag-motivo" aria-live="polite"></small></div>
         <div><label>Horário<select id="ag-horario" class="agenda-campo" required disabled aria-describedby="ag-horario-motivo ag-erro"></select></label>
-          <small id="ag-horario-motivo" aria-live="polite"></small></div>
+          <small id="ag-horario-motivo" class="ag-motivo" aria-live="polite"></small></div>
         <label>Duração (h)<input type="number" id="ag-horas" class="agenda-campo" min="0.1" max="5" step="0.1" inputmode="decimal" value="1" aria-describedby="ag-erro"></label>
         <label>Registrado por<input id="ag-por" class="agenda-campo" maxlength="80" required placeholder="Quem anotou o pedido" aria-describedby="ag-erro"></label>
         <label>Observação<input id="ag-obs" class="agenda-campo" maxlength="300" placeholder="Opcional"></label>
@@ -551,15 +553,17 @@
         <li><b>Aprove a escala</b> quando ela estiver fechada (por exemplo, no fim do dia, para o dia seguinte): <i>Aprovar escala</i>, na barra da Escala, fixa os voos.
         Depois disso, uma alteração não tira ninguém do lugar: um pedido novo entra em volta dos voos fixos (com o cadeado), e o voo que ficar impossível aparece numa caixa vermelha de conflitos, no mesmo lugar, até ser resolvido.
         A cada alteração, o voo fixo é conferido com as mesmas regras de quando foi escalado: o instrutor (que não vem, sem a habilitação, bloqueado pelo aluno, fora dos limites da lei ou acima do peso com o aluno), o avião (em manutenção, sem saldo até a revisão de 50 horas, ou o Parafuso fora do avião “Só Parafuso”), o horário (fechado nesta data ou fora da disponibilidade do aluno) e o pedido (outra duração, ou de voo para Ground).
-        <i>Sugestões</i>, em cada conflito, mostra o que pode voar no lugar sem mexer nos outros voos: outro avião do mesmo tipo (primeiro um que já saiu<span data-funcionalidade="hangar">, depois o da frente do hangar</span>), outro instrutor (habilitado, livre, dentro do peso e dos limites da lei; quem voa com o tanque cheio vem antes, e a sugestão diz quando é preciso reduzir o combustível), os dois, ou um horário mais tarde no mesmo dia (na escala de hoje, só os que ainda não passaram).
+        <i>Sugestões</i>, em cada conflito, mostra o que pode voar no lugar: outro avião do mesmo tipo (primeiro um que já saiu<span data-funcionalidade="hangar">, depois o da frente do hangar</span>), outro instrutor (habilitado, livre, dentro do peso e dos limites da lei; quem voa com o tanque cheio vem antes, e a sugestão diz quando é preciso reduzir o combustível), os dois, ou um horário mais tarde no mesmo dia (na escala de hoje, só os que ainda não passaram).
         <i>Aplicar</i> muda o voo, que continua fixo, e o histórico desfaz; na turma de Ground, a mudança vale para a turma inteira.
         <i>Soltar o voo</i> tira o cadeado e o app escolhe de novo o horário, o avião e o instrutor, em volta dos outros voos fixos; quando o pedido mudou, é a sugestão que resolve.
-        Sem nada no mesmo horário nem mais tarde, a lista mostra também o horário mais perto antes dele.
+        Depois, a lista mostra também o horário mais perto (antes dele, ou fora da disponibilidade do pedido, quando já há um mais tarde) e outro tipo de recurso que a missão permite; o que fica fora da disponibilidade e o outro tipo pedem antes a confirmação com o aluno (dois cliques), e o pedido muda com a sugestão (o histórico desfaz os dois).
         O voo <i>Cancelado</i> da data aberta (de hoje em diante) também tem <i>Sugestões</i>, para o aluno não perder o voo porque o instrutor ou o avião faltou: o motivo do cancelamento sai da busca (o instrutor, o avião, ou o horário na meteorologia e no operacional), e a lista vem nesta ordem: o mesmo horário e avião com outro instrutor, outro avião no mesmo horário, o horário mais perto (antes ou depois) e outro tipo de recurso que a missão permite.
         O que fica fora da disponibilidade do pedido, ou em outro tipo de recurso, pede antes a confirmação com o aluno (dois cliques); as habilitações, o peso, a lei, o "Não escalar com" e os períodos fechados valem sempre.
-        Aplicada, a sugestão volta o voo para Pendente, no lugar dela, e o histórico desfaz; sem nada, a gaveta diz "Impossível nesta data", com o porquê.
+        A sugestão que faria do voo local o 7º do horário avisa (no máximo 6 voos locais saem no mesmo horário) e também pede dois cliques (<i>Aplicar mesmo assim</i>).
+        Cada sugestão é conferida com a escala refeita: na escala ainda não aprovada, os voos sem cadeado se rearrumam em volta dela; a que muda ou tira outro voo diz qual (“Muda também…”) e pede dois cliques, e só sem nenhuma assim a gaveta diz “sem mexer nos outros voos”.
+        Aplicada, a sugestão volta o voo para Pendente, no lugar dela, e o histórico desfaz; o instrutor dela passa a ser o escolhido só no pedido que já tinha um; sem nada, a gaveta diz "Impossível nesta data", com o que impediu cada horário (o período fechado, o horário que já passou, o aluno ocupado, nenhum avião ou instrutor).
         Não há sugestões para o voo de uma data passada, o que já tem resultado e o cancelado porque o aluno faltou.
-        A recusa do pedido cujo instrutor escolhido não serve (não vem, não tem a habilitação, está em "Não escalar com") também tem <i>Sugestões</i>: outro instrutor, ou o Automático, que encaixa o pedido sem mudar nenhum outro voo.
+        A recusa do pedido cujo instrutor escolhido não serve (não vem, não tem a habilitação, está em "Não escalar com") também tem <i>Sugestões</i>, de hoje em diante: outro instrutor, ou o Automático, que encaixa o pedido sem mudar nenhum outro voo (na escala de hoje, num horário que ainda não passou; quando outro instrutor só o poria num horário que já passou, a gaveta diz isso, e o voo mais tarde se agenda em <i>+ Agendar voo</i>).
         Por último, <i>Cancelar o voo</i> abre o pedido do motivo, já marcado pelo conflito.
         O selo ao lado do título diz quando e quem aprovou.
         <i>Reabrir</i> solta os voos (menos os que têm status de andamento: Atrasado, Em Voo, Pousou e Cancelado), e a escala volta a ser refeita inteira a cada alteração.
@@ -618,13 +622,18 @@
       <p>A agenda de pedidos da secretaria: a lista dos pedidos da data aberta e o formulário que registra um pedido.
       Cada pedido é registrado para a <i>Data do pedido</i>, um campo do formulário: ela começa na data aberta, ou na primeira que ainda aceita pedidos, e não muda a data aberta no app.
       Para ver os pedidos de outro dia, escolha o dia no calendário, que mostra quantos cada um tem.
-      Cada pedido tem o aluno, a missão, o recurso, o horário, a duração (fracionada, até 5 h; o Ground tem 01h30) e quem anotou.
-      A missão decide os recursos que podem ser escolhidos (quando ela só permite um, ele já vem escolhido), e o recurso decide os horários, que são os configurados para ele em Recursos: a Navegação no PA-34, por exemplo, tem os horários do PA-34, e no C152, os do C152.
-      O campo <i>Horário</i> só abre depois do aluno, da missão e do recurso; ao trocar a missão ou o recurso, o horário que a lista nova não tem sai, e o app diz.
-      No máximo 6 voos locais (Voo Local, Voo Solo e TGL) saem no mesmo horário (determinação da diretoria): ao agendar o 7º, o horário fica indisponível, e o app diz o próximo horário possível.
-      O Voo Solo sai sempre às 06:30.
-      Se o aluno já tem voo marcado na data, o app avisa (pode ser um reagendamento feito por outra pessoa) e só registra mais um com “Registrar mesmo assim”.
-      Cada pedido vira um voo na demanda, com o recurso, o horário e a duração dele (o pedido de antes de a agenda guardar o recurso entra no recurso padrão da missão).
+      Cada pedido tem o aluno, a missão, o recurso, o horário, a duração (fracionada, até 5 h; o Ground tem 01h30) e quem anotou, escolhidos nesta ordem.
+      A missão espera o aluno: para o aluno de um curso, o campo traz as missões do curso dele, uma lista por fase, na ordem do programa (sem as dispensadas; o Noturno de dois dias pela noite, com os translados), como <i>NAV-150NM · Navegação · C152 · 3 h</i>; uma missão já voada continua na lista, e nada da ordem do curso é conferido.
+      Para o aluno sem curso (ou com o curso encerrado, ou sem missões no programa), o campo traz os tipos de missão, e diz por quê.
+      Trocar o aluno mantém a missão quando ela também é do novo aluno; quando não é, a missão, o recurso e o horário saem, e o app diz.
+      A missão decide os recursos que podem ser escolhidos: a missão do curso tem o dela, que já vem escolhido, com as horas dela na duração (que pode ser mudada); o tipo de missão que só permite um também. O tipo de recurso que não tem nenhum recurso ativo aparece com “(nenhum ativo)”, e o app avisa, mas registra.
+      O recurso decide os horários, que são os configurados para ele em Recursos: a Navegação no PA-34, por exemplo, tem os horários do PA-34, e no C152, os do C152.
+      O campo <i>Horário</i> só abre depois do aluno, da missão e do recurso, e diz quantos horários a lista tem; ao trocar a missão ou o recurso, o horário que a lista nova não tem sai, e o app diz.
+      O Noturno sai sempre às 17:30, e o Voo Solo, às 06:30.
+      No máximo 6 voos locais (Voo Local, Voo Solo e TGL) saem no mesmo horário (determinação da diretoria): no 7º, o app avisa, com o próximo horário com vaga, e só registra com “Registrar mesmo assim”; o pedido guarda quem confirmou e quando.
+      Se o aluno já tem voo marcado na data, o app também avisa (pode ser um reagendamento feito por outra pessoa) e só registra mais um com “Registrar mesmo assim”.
+      A confirmação vale para aquele pedido: trocar o aluno, a data, a missão, o recurso ou o horário a desfaz. Depois do prazo, quem vira “Registrar mesmo assim” é a <i>Exceção da Coordenação</i>.
+      Cada pedido vira um voo na demanda, com o recurso, o horário e a duração dele, e a missão do curso escolhida (o pedido de antes de a agenda guardar o recurso entra no recurso padrão da missão).
       O pedido para o dia seguinte só pode ser registrado até as 13:00 (horário de Brasília); depois disso, só para os próximos dias.
       O aeroclube não opera aos domingos: domingo não tem escala nem pedidos (no calendário, o domingo não abre), e os voos de segunda são agendados até sábado às 10:00.
       Operadores e Administradores podem registrar fora do prazo com a <i>Exceção da Coordenação</i>, que fica marcada no pedido: para eles, as datas fechadas aparecem na <i>Data do pedido</i> com “prazo encerrado”.</p>
@@ -664,10 +673,10 @@
       Na <i>+ missão</i> do mesmo aluno, a sugestão é a missão seguinte.
       Mudar à mão a missão, o recurso ou a duração tira o código.
       O resultado vai para o curso da missão, mesmo que o aluno troque de curso no mesmo dia.
-      Na importação da agenda, quando a próxima missão do aluno é do tipo pedido, o pedido já entra como ela; o voo da mesma missão que já está na demanda com uma missão do curso fica com ela.</p>
+      Na importação da agenda, o pedido com a missão do curso escolhida na Agenda entra como ela, com o recurso e as horas do pedido (no lugar da que saiu do programa depois, a próxima do mesmo tipo, quando há, e o aviso da importação diz qual; sem os programas dos cursos lidos, ele espera a importação seguinte); o pedido sem ela, quando a próxima missão do aluno é do tipo pedido, já entra como a próxima (quando nenhuma serve, o aviso da importação diz); o voo da mesma missão que já está na demanda com uma missão do curso fica com ela, e um pedido de outra missão do curso vira outro voo.</p>
       <p data-sem-funcionalidade="progresso"><b>Alunos de um curso</b> (o curso de cada aluno fica em Alunos, e o programa do curso, em Cursos): o código da missão do curso que o pedido já tem (por exemplo, PP-07) aparece ao lado do nome.
       Mudar à mão a missão, o recurso ou a duração tira o código.
-      Na importação da agenda, o voo da mesma missão que já está na demanda com uma missão do curso fica com ela.</p>
+      Na importação da agenda, o pedido com a missão do curso escolhida na Agenda entra como ela, com o recurso e as horas do pedido (a que saiu do programa depois não entra, e o aviso da importação diz; sem os programas dos cursos lidos, o pedido com ela espera a importação seguinte); o voo da mesma missão que já está na demanda com uma missão do curso fica com ela, e um pedido de outra missão do curso vira outro voo.</p>
       <p>O pedido com um voo agendado na Escala (veja Escala) mostra a marca <i>agendado 10:10 · PR-VOB</i>, com o cadeado.
       Mudar as preferências, a disponibilidade, a prioridade ou o instrutor do pedido não tira o voo do lugar (fora da disponibilidade do aluno, ele fica em conflito; com outro instrutor, continua no mesmo horário e no mesmo avião), e desligar <i>Voa</i> só o tira da escala até ligar de novo; mudar a missão, o recurso ou as horas (à mão<span data-funcionalidade="progresso">, com <i>Usar</i> ou com <i>Outra missão…</i></span>) solta o voo, e a escala encaixa o pedido de novo.
       <i>Limpar demanda</i> e tirar a missão extra também soltam o voo agendado; na limpeza, o voo Atrasado, Em Voo ou Pousou continua agendado, como está.</p>

@@ -15,6 +15,8 @@ const ANTIGAS = {
   perfis: ['altera tudo e opera a escala'],
   // A coluna de quem vem é "Vem" (a data aberta não é sempre hoje); o filtro das habilitações tem várias marcas
   instrutores: ['o interruptor de quem vem', 'filtro por habilitação'],
+  // O 7º voo local não fica mais indisponível: o app avisa e pede a confirmação (F1c)
+  pedidos: ['o horário fica indisponível, e o app diz o próximo horário possível'],
   // O peso vem antes do curso em Alunos
   alunos: ['Nome, CANAC, curso e peso'],
   // Cursos mostra um curso de cada vez (sem "todos")
@@ -39,7 +41,9 @@ const NOVAS = {
     // O voo com resultado não é desfeito, também com o progresso desligado
     'o que já tem resultado nem o pedido que mudou depois na Demanda'],
   demanda: ['Pôr um aluno na demanda'],
-  pedidos: ['Ainda não importado', 'Data do pedido', 'prazo encerrado'],
+  // A missão espera o aluno e vem do curso dele; o 7º voo local pede a confirmação (F1c)
+  pedidos: ['Ainda não importado', 'Data do pedido', 'prazo encerrado', 'as missões do curso dele', 'NAV-150NM · Navegação · C152 · 3 h', '(nenhum ativo)',
+    'só registra com “Registrar mesmo assim”; o pedido guarda quem confirmou e quando'],
   // A busca sem acentos, quantos aparecem e o "Limpar filtros"; a coluna Vem (a data aberta não é sempre hoje); o filtro
   // das habilitações, com várias marcas e a regra ("todas as marcadas")
   instrutores: ['Editar habilitações', 'sem os acentos', '12 de 40 instrutores', 'Limpar filtros', 'o interruptor Vem', 'Filtro das habilitações',

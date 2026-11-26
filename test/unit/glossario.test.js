@@ -71,3 +71,12 @@ describe('Glossário', () => {
 
   it('o glossário das telas é o das funcionalidades ligadas no app', () => assert.deepEqual(GLOSSARIO, montarGlossario(ligada)));
 });
+
+// A Agenda pelo curso do aluno (F1c): a missão do pedido e o 7º voo local, com o limite da configuração
+describe('Glossário: a Agenda', () => {
+  it('a missão do pedido vem do curso do aluno, e o 7º voo local pede a confirmação', () => {
+    assert.match(GLOSSARIO['missao-do-pedido'].texto, /as missões do programa dele, por fase/);
+    assert.equal(GLOSSARIO['setimo-voo-local'].termo, `${LIMITE_DE_VOOS_LOCAIS + 1}º voo local`);
+    assert.match(GLOSSARIO['setimo-voo-local'].texto, new RegExp(`No máximo ${LIMITE_DE_VOOS_LOCAIS} voos locais .*“Registrar mesmo assim”`));
+  });
+});

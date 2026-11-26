@@ -1,7 +1,7 @@
 // Backend local: os documentos da escala ficam no localStorage deste navegador (modo sem login).
 // cadastro e dia:AAAA-MM-DD são o formato por data; estado, escala, historico e bi são os documentos antigos, que
 // migrarDocumentosAntigos (storage.js) converte para o formato por data.
-import { prazoDaAgendaPermite, RECURSO_DO_PEDIDO } from '../agenda.js';
+import { prazoDaAgendaPermite, RECURSO_DO_PEDIDO, recusaDoPedido } from '../agenda.js';
 import { gravarDadosPessoais, semQuemSaiu } from '../dados-pessoais.js';
 import { acumularHoras } from '../limites.js';
 import { hojeISO } from '../format.js';
@@ -65,7 +65,7 @@ const estadoDosCursos = cursos => {
 };
 
 // Erros da agenda com o mesmo código do servidor (PT403: fora do prazo; 23514: dado inválido; P0002: não achado)
-const erroDaAgenda = (code, message) => Object.assign(new Error(message), { code });
+const erroDaAgenda = (code, message, campo = null) => Object.assign(new Error(message), { code, campo });
 const textoObrigatorio = (valor, max) => typeof valor === 'string' && valor.trim().length >= 1 && valor.trim().length <= max;
 
 // Formato acpm2 (7 janelas) convertido para as 9 janelas atuais
@@ -157,29 +157,35 @@ export const backendLocal = {
       .sort((a, b) => ordem(a.data, b.data) || ordem(a.registrado_em, b.registrado_em));
   },
 
-  // O pedido é num horário específico, com a duração de 0,1 a 5 h (o Ground, 01h30): como no servidor
-  async registrarSolicitacao({ data, aluno, aluno_nome, missao, janela, horario = null, horas, observacao = null, registrado_por, excecao = false, recurso = null }, agora = new Date()) {
-    if (janela !== 'horario' || !/^[0-2][0-9]:[0-5][0-9]$/.test(horario || '')) throw erroDaAgenda('22023', 'o pedido é num horário específico');
+  // Como a função de 13 argumentos do servidor (a migração missao_do_curso_e_limite_do_pedido), na mesma ordem: o pedido é
+  // num horário específico, com a duração de 0,1 a 5 h (o Ground, 01h30); o recurso, o horário fixo e a missão do curso
+  // (recusaDoPedido, com os cursos deste navegador); no máximo LIMITE_DE_VOOS_LOCAIS voos locais no mesmo horário, a não
+  // ser com a confirmação (confirmarLimite), que fica registrada quando o limite foi passado (quem: quem anotou, já que
+  // este navegador não tem conta); o prazo e a exceção da coordenação; e os textos e o formato do recurso
+  async registrarSolicitacao({ data, aluno, aluno_nome, missao, janela, horario = null, horas, observacao = null, registrado_por, excecao = false, recurso = null, missaoDoCurso = null, confirmarLimite = false }, agora = new Date()) {
+    if (janela !== 'horario' || !/^[0-2][0-9]:[0-5][0-9]$/.test(horario || '')) throw erroDaAgenda('22023', 'o pedido é num horário específico', 'horario');
     const h = String(missao).startsWith('Ground') ? GROUND_DURATION_H : duracaoDigitada(horas);
-    if (h === null) throw erroDaAgenda('22023', `a duração vai de 0,1 h a ${DURACAO_MAXIMA_H} h`);
+    if (h === null) throw erroDaAgenda('22023', `a duração vai de 0,1 h a ${DURACAO_MAXIMA_H} h`, 'horas');
+    const recusa = recusaDoPedido({ missao, recurso, horario, horas: h, missaoDoCurso }, cursosGuardados().cursos);
+    if (recusa) throw erroDaAgenda(recusa.code, recusa.mensagem, recusa.campo);
+    const lista = lerJson(CHAVE_AGENDA) || [];
+    const local = m => MISSOES_LOCAIS.includes(m);
+    const alemDoLimite = local(missao) && lista.filter(s => s.data === data && !s.cancelada_em && s.horario === horario && local(s.missao)).length >= LIMITE_DE_VOOS_LOCAIS;
+    if (alemDoLimite && !confirmarLimite) throw erroDaAgenda('PT422', `já há ${LIMITE_DE_VOOS_LOCAIS} voos locais às ${horario}`, 'locais');
     const noPrazo = prazoDaAgendaPermite(data, agora);
     if (!noPrazo && !excecao) throw erroDaAgenda('PT403', 'prazo encerrado: pedido para o dia seguinte só até as 13:00');
     if (!textoObrigatorio(registrado_por, 80) || !textoObrigatorio(aluno_nome, 80) || !textoObrigatorio(missao, 60)) {
       throw erroDaAgenda('23514', 'pedido incompleto: confira aluno, missão, horário e quem anotou');
     }
-    const tipo = (recurso || '').trim() || null;
-    if (tipo !== null && !RECURSO_DO_PEDIDO.test(tipo)) throw erroDaAgenda('23514', 'recurso inválido');
-    const lista = lerJson(CHAVE_AGENDA) || [];
-    // No máximo LIMITE_DE_VOOS_LOCAIS voos locais no mesmo horário, como no servidor
-    const local = m => MISSOES_LOCAIS.includes(m);
-    if (local(missao) && lista.filter(s => s.data === data && !s.cancelada_em && s.horario === horario && local(s.missao)).length >= LIMITE_DE_VOOS_LOCAIS) {
-      throw erroDaAgenda('PT422', `já há ${LIMITE_DE_VOOS_LOCAIS} voos locais às ${horario}`);
-    }
+    const tipo = recurso.trim();
+    if (!RECURSO_DO_PEDIDO.test(tipo)) throw erroDaAgenda('23514', 'recurso inválido');
     const id = proximoId(lista);
     lista.push({
-      id, data, aluno, aluno_nome: aluno_nome.trim(), missao, janela, horario, horas: h, recurso: tipo,
+      id, data, aluno, aluno_nome: aluno_nome.trim(), missao, janela, horario, horas: h, recurso: tipo, missao_do_curso: missaoDoCurso || null,
       observacao: (observacao || '').trim().slice(0, 300) || null, registrado_por: registrado_por.trim(),
-      registrado_em: agora.toISOString(), conta: null, excecao: !noPrazo, cancelada_em: null, cancelada_por: null
+      registrado_em: agora.toISOString(), conta: null, excecao: !noPrazo,
+      limite_confirmado_por: alemDoLimite ? registrado_por.trim() : null, limite_confirmado_em: alemDoLimite ? agora.toISOString() : null,
+      cancelada_em: null, cancelada_por: null
     });
     localStorage.setItem(CHAVE_AGENDA, JSON.stringify(lista));
     return id;
