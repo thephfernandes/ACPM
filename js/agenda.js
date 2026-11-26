@@ -158,7 +158,9 @@ export function pedidoDaSolicitacao(solicitacao, horarios, { eq, nb } = {}) {
   const pedido = {
     fly: true, mis: solicitacao.missao, eq: equipamento,
     p1, p2, nb: registradas ?? nb ?? duracaoPadraoDaMissao(solicitacao.missao), ss: 1, pr: 3,
-    ...(jan ? { jan } : {})
+    ...(jan ? { jan } : {}),
+    // O 7º voo local no horário confirmado na Agenda ("Registrar mesmo assim"): o motor o deixa passar do limite no minuto dele
+    ...(solicitacao.limite_confirmado_por && solicitacao.limite_confirmado_em ? { limiteConfirmado: true } : {})
   };
   // A duração fixa da missão vale mais que as outras (normalizeMissionFields a impõe)
   normalizeMissionFields(pedido);

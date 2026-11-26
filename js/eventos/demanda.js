@@ -97,6 +97,8 @@ comConfirmacao('#clr', 'Confirmar limpeza', () => {
 // com o código e o curso dela, e o aluno voa; o instrutor escolhido continua. Devolve o que o histórico diz do voo
 // agendado do pedido (que deixa de ser fixo)
 function usarMissaoDoCurso(s, target, mid, { codigo, curso, mis, eq, nb }) {
+  // A confirmação do 7º voo local (Q8) foi dada na Agenda para a missão e o recurso de antes: com outros, ela não vale
+  if (target.etapa !== codigo || target.cursoDaEtapa !== curso || target.mis !== mis || target.eq !== eq) delete target.limiteConfirmado;
   Object.assign(target, { fly: true, mis, eq, nb, etapa: codigo, cursoDaEtapa: curso });
   ajustarPreferencias(target, horariosDaMissao(S.horarios, target.mis, target.eq));
   normalizeMissionFields(target);
@@ -230,8 +232,11 @@ aoMudarCampo('d', (t, { f, c, id, mid }) => {
     if (extras.length) rDem();
   } else if (f === 'jan') {
     // Disponibilidade do aluno: o voo só começa nessas janelas (vazio: qualquer horário)
+    const anterior = target.jan;
     if (t.value) target.jan = t.value;
     else delete target.jan;
+    // A confirmação do 7º voo local (Q8) foi dada na Agenda para o horário de antes: noutro, ela não vale
+    if (target.jan !== anterior) delete target.limiteConfirmado;
     historico = ['mod', `Pedido ${s.nm}: disponibilidade ${rotuloDaDisponibilidade(target.jan)} (${target.mis})`];
   } else {
     // A duração digitada: de 0,1 h a 5 h, em décimos; fora disso, não vale
@@ -253,6 +258,8 @@ aoMudarCampo('d', (t, { f, c, id, mid }) => {
     // agendado dele na Escala deixa de ser fixo. A mesma duração digitada de outro jeito (1.0 no lugar de 1) não muda o voo
     const mudouOVoo = ['mis', 'eq', 'nb'].includes(f) && target[f] !== anterior;
     if (mudouOVoo) for (const campo of ['etapa', 'cursoDaEtapa']) delete target[campo];
+    // A confirmação do 7º voo local (Q8) foi dada na Agenda para a missão e o recurso de antes: com outros, ela não vale
+    if (mudouOVoo && f !== 'nb') delete target.limiteConfirmado;
     const solto = mudouOVoo ? soltarAgendado(s.id, mid) : '';
     if (f === 'mis') {
       const mRule = MIS[target.mis] || MIS['Voo Local'];

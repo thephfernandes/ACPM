@@ -90,7 +90,7 @@ export function importarSolicitacoes(estado, solicitacoes, { situacao = [], prog
     pedido.solicitacao = solicitacao.id;
     if (copiada) {
       // O voo continua com o instrutor escolhido; a disponibilidade e a missão do curso passam a ser as do pedido
-      for (const campo of ['jan', 'etapa', 'cursoDaEtapa']) delete copiada[campo];
+      for (const campo of ['jan', 'etapa', 'cursoDaEtapa', 'limiteConfirmado']) delete copiada[campo];
       Object.assign(copiada, pedido);
       resumo.atualizados++;
     } else {

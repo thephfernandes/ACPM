@@ -17,7 +17,7 @@ import { OPCOES_DE_BURACOS, OPCOES_DE_HORARIOS, normalizarCriterios } from '../c
 import { metricasDaEscala } from '../metricas.js';
 import { ligada } from '../funcionalidades.js';
 import { sumUniqueOperationalHours, consolidateTimelineSlots } from '../engine.js';
-import { S, RES, AUDIT_LOG, TL_MODE, EIXO_INVERTIDO, OCULTAR_INDISPONIVEIS, DATA, isGestor, dadoIndisponivel, estadoDaEscala, inativoNaDataAberta } from '../state.js';
+import { S, RES, AUDIT_LOG, TL_MODE, EIXO_INVERTIDO, OCULTAR_INDISPONIVEIS, DATA, isGestor, dadoIndisponivel, estadoDaEscala, inativoNaDataAberta, habilitacoesNaoConferidas } from '../state.js';
 import { cancelamentoAproveitavel, dataQueAindaVoa } from '../reparo.js';
 import { rejeicoesDosPedidos } from '../rejeicoes.js';
 import { motivoDoFixo } from '../fixos.js';
@@ -502,7 +502,16 @@ function resumo(out, al, tot) {
   const emConflito = S.aprovacao ? `${n} ${n === 1 ? 'voo em conflito' : 'voos em conflito'} na escala aprovada` : `${n} ${n === 1 ? 'voo fixo' : 'voos fixos'} em conflito`;
   if (n) h += caixa('conflitos', 'conflitos', `<summary>${emConflito}</summary><ul>${conflitos.map(conflito).join('')}</ul>`);
   if (avisos.length) h += caixa('avisos', 'avisos', `<summary>${resumoDosAvisos(avisos)}</summary><ul>${avisos.map(item).join('')}</ul>`);
-  return h + caixaDosInativos(out) + '</div>';
+  return h + caixaDosInativos(out) + caixaDasHabilitacoesNaoConferidas() + '</div>';
+}
+
+// Sem os programas dos cursos lidos, o que a missão do curso de cada pedido exige do INVA não entra na escala (nada é
+// exigido): o aviso diz quantos pedidos com missão do curso ficaram sem a conferência (js/state.js)
+function caixaDasHabilitacoesNaoConferidas() {
+  const n = habilitacoesNaoConferidas();
+  if (!n) return '';
+  return caixa('habilitacoes', 'avisos habilitacoes', `<summary>As habilitações das missões do curso não foram conferidas</summary>
+    <ul><li class="al warn">Os programas dos cursos não foram lidos: o que a missão do curso exige do INVA não foi conferido em ${n === 1 ? '1 pedido' : `${n} pedidos`} desta data: a escala foi montada sem essa conferência.</li></ul>`);
 }
 
 // Os voos da escala com quem ficou inativo no cadastro (a escala gravada continua mostrando os voos dele até ser refeita):

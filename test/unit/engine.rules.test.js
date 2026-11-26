@@ -589,3 +589,162 @@ describe('Voo agendado na Escala', () => {
     assert.deepEqual(semMarca, { ...resultado, out: resultado.out.map(({ agendado: _, ...o }) => o) });
   });
 });
+
+// F1d, "missão do curso": o pedido com a missão do curso leva o que ela exige do INVA (exige, derivado no estado da escala
+// a partir do programa: js/programa.js, comExigenciasDasMissoes). O INVA também precisa ter cada id da lista; sem ninguém
+// que tenha, o voo fica fora com sem-instrutor-habilitado (regra a). Sem exige, o motor é o de antes (os goldens)
+describe('O que a missão do curso exige do INVA', () => {
+  const comEndosso = (id, lv) => instrutor(id, lv, { hab: [...instrutor(id, lv).hab, 'endosso_solo'] });
+  const solo = (id, extra = {}) => aluno(id, { mis: 'Voo Solo', etapa: 'PP-SOLO-01', cursoDaEtapa: 'PP', exige: ['endosso_solo'], ...extra }, { curso: 'PP' });
+
+  it('só o INVA que tem a habilitação da missão do curso dá o voo, mesmo com mais habilitações', () => {
+    const { out, al } = alocar({ ins: [instrutor(1, 5), comEndosso(2, 9)], stu: [solo(1000)] });
+    assert.deepEqual(al.filter(a => a.t === 'err'), []);
+    assert.equal(out.length, 1);
+    assert.equal(out[0].insId, 2);
+    // Sem a lista, o de menos habilitações, como antes
+    const antes = alocar({ ins: [instrutor(1, 5), comEndosso(2, 9)], stu: [solo(1000, { exige: undefined })] });
+    assert.equal(antes.out[0].insId, 1);
+  });
+
+  it('sem nenhum INVA ativo com a habilitação, o voo fica fora com sem-instrutor-habilitado, dizendo qual', () => {
+    const { out, al } = alocar({ ins: [instrutor(1, 9), instrutor(2, 5)], stu: [solo(1000)] });
+    assert.equal(out.length, 0);
+    assert.deepEqual(al.map(a => [a.t, a.codigo]), [['err', 'sem-instrutor-habilitado']]);
+    assert.match(al[0].m, /nenhum instrutor ativo tem a habilitação de Voo Solo no C152 \(Voo para liberação de Solo \+ C152 \+ Endosso Solo\)/);
+    // O INVA que tem, fora nesta data, não conta
+    const fora = alocar({ ins: [{ ...comEndosso(1, 9), on: false }, instrutor(2, 5)], stu: [solo(1000)] });
+    assert.deepEqual(fora.al.map(a => a.codigo), ['sem-instrutor-habilitado']);
+  });
+
+  it('o INVA escolhido sem a habilitação da missão do curso recusa o pedido', () => {
+    const { out, al } = alocar({ ins: [instrutor(1, 9), comEndosso(2, 9)], stu: [solo(1000, { insId: 1 })] });
+    assert.equal(out.length, 0);
+    assert.equal(al[0].codigo, 'instrutor-escolhido');
+    assert.match(al[0].m, /o instrutor escolhido \(Instrutor 01\) não tem a habilitação de Voo Solo no C152 \(.*Endosso Solo\)/);
+  });
+
+  it('no Ground, a turma só recebe o aluno cuja missão do curso o INVA dela pode dar', () => {
+    const ground = (id, extra = {}) => aluno(id, { ...GROUND_C152, ...extra }, { curso: 'PP' });
+    const { out, al } = alocar({
+      ins: [instrutor(1, 1), comEndosso(2, 9)],
+      stu: [ground(1000, { pr: 5 }), ground(1001, { etapa: 'PP-GND-01', cursoDaEtapa: 'PP', exige: ['endosso_solo'] })]
+    });
+    assert.deepEqual(al, []);
+    const porAluno = Object.fromEntries(out.map(o => [o.stuId, o]));
+    assert.equal(porAluno[1000].insId, 1);
+    assert.equal(porAluno[1001].insId, 2);
+    assert.notEqual(porAluno[1000].classKey, porAluno[1001].classKey);
+    const semNinguem = alocar({ ins: [instrutor(1, 9)], stu: [ground(1001, { exige: ['endosso_solo'] })] });
+    assert.equal(semNinguem.al[0].codigo, 'sem-instrutor-habilitado');
+    assert.match(semNinguem.al[0].m, /\(Grounds \(C152, C172 e Navegação\) \+ Endosso Solo\)/);
+  });
+
+  it('o voo fixo cujo INVA não tem a habilitação da missão do curso fica em conflito, dizendo qual', () => {
+    const estado = cenario({ ins: [instrutor(1, 9)], stu: [solo(1000)] });
+    estado.fixos = { '1000_0_1': { a: 500, b: 560, r: 'PP-LJV', insId: 1 } };
+    const { out } = runAllocationEngine(estado, { compactar: false });
+    assert.deepEqual(out[0].conflitoCodigos, ['habilitacao']);
+    assert.deepEqual(out[0].conflito, ['o instrutor não tem a habilitação que a missão do curso exige (Endosso Solo)']);
+  });
+
+  it('a divisão das horas não passa o voo para quem não tem a habilitação da missão do curso', () => {
+    const { out } = runAllocationEngine(cenario({
+      ins: [comEndosso(1, 9), instrutor(2, 9)],
+      // Voo Local da missão do curso (o Voo Solo só sai às 06:30), em três horários
+      stu: [0, 1, 2].map(i => solo(1000 + i, { mis: 'Voo Local', p1: i * 2, p2: i * 2 + 1 }))
+    }));
+    assert.equal(out.length, 3);
+    assert.deepEqual([...new Set(out.map(o => o.insId))], [1]);
+  });
+});
+
+// Q8 (F1d, "limite confirmado"): o 7º voo local confirmado na Agenda ("Registrar mesmo assim") voa no horário dele, o
+// pedido com limiteConfirmado: true e o horário exato (jan). Ele passa pelo limite só no minuto dele, fixo ou não, e não
+// toma lugar dos outros: no máximo 6 sem os confirmados, mais os confirmados, onde quer que ele caia na fila (instrutor
+// escolhido, prioridade, "Priorizar com"). Depois da fila, cada confirmado num horário com mais de 6 locais avisa
+// (limite-de-locais, o texto do agendado). A ordem da fila não muda
+describe('O 7º voo local confirmado', () => {
+  const instrutores = Array.from({ length: 9 }, (_, i) => instrutor(i + 1, 9));
+  const seis = () => [0, 1, 2, 3, 4, 5].map(i => aluno(1000 + i, { p1: 500, p2: -1, jan: 'h500' }));
+  const confirmado = (extra = {}, campos = {}) => aluno(1006, { p1: 500, p2: -1, jan: 'h500', limiteConfirmado: true, ...extra }, campos);
+  const AVISO = { t: 'warn', s: 'Aluno 1006', fKey: '1006_0_1', stuId: 1006, codigo: 'limite-de-locais', m: 'Agendado às 08:20 como o 7º voo local do horário: no máximo 6 voos locais saem no mesmo horário.' };
+  const locaisAs = (out, a) => out.filter(o => o.a === a && ['Voo Local', 'Voo Solo', 'TGL (TMA)'].includes(o.mis)).map(o => o.stuId).sort();
+  const todos = [1000, 1001, 1002, 1003, 1004, 1005, 1006];
+
+  for (const [nome, extra, campos] of [
+    ['por último na fila', {}, {}],
+    ['primeiro na fila pelo instrutor escolhido', { insId: 9 }, {}],
+    ['primeiro na fila pela prioridade', { pr: 5 }, {}],
+    ['primeiro na fila pelo “Priorizar com”', {}, { voaCom: [9] }]
+  ]) {
+    it(`os sete voam às 08:20, o confirmado ${nome}, e só ele avisa`, () => {
+      for (const compactar of [false, true]) {
+        const { out, al } = runAllocationEngine(cenario({ ins: instrutores, stu: [...seis(), confirmado(extra, campos)] }), { compactar });
+        assert.deepEqual(locaisAs(out, 500), todos, `compactar: ${compactar}`);
+        assert.deepEqual(al.filter(a => a.codigo === 'limite-de-locais'), [AVISO]);
+        assert.deepEqual(al.filter(a => a.t === 'err'), []);
+      }
+    });
+  }
+
+  it('fixo (o voo aprovado) também: os sete voam às 08:20, e os seis não confirmados cabem em volta dele', () => {
+    const estado = cenario({ ins: instrutores, stu: [...seis(), confirmado()] });
+    estado.fixos = { '1006_0_1': { a: 500, b: 560, r: 'PR-VOZ', insId: 9 } };
+    const { out, al } = runAllocationEngine(estado);
+    assert.deepEqual(locaisAs(out, 500), todos);
+    assert.deepEqual(al.filter(a => a.codigo === 'limite-de-locais'), [AVISO]);
+    assert.ok(!out.some(o => o.conflito));
+  });
+
+  it('fixo e atrasado para outro horário, o confirmado conta lá como os outros: a confirmação era do minuto dele', () => {
+    // Confirmado para as 08:20, o voo aprovado atrasa para as 10:10, onde seis outros pedem o horário exato: lá ele não é
+    // o 7º confirmado, e só cinco dos seis saem às 10:10, como sem a confirmação
+    const as1010 = () => [0, 1, 2, 3, 4, 5].map(i => aluno(1000 + i, { p1: 610, p2: -1, jan: 'h610' }));
+    const saemAs1010 = limiteConfirmado => {
+      const estado = cenario({ ins: instrutores, stu: [...as1010(), confirmado({ limiteConfirmado })], fStatus: { '1006_0_1': 'Atrasado' } });
+      estado.fixos = { '1006_0_1': { a: 500, b: 560, r: 'PR-VOZ', insId: 9 } };
+      estado.fObs = { '1006_0_1': { novoInicio: 610 } };
+      const { out, al } = runAllocationEngine(estado);
+      return { aos1010: out.filter(o => o.a === 610).map(o => o.stuId).sort(), erros: al.filter(a => a.t === 'err').map(a => [a.s, a.codigo]) };
+    };
+    const sem = saemAs1010(undefined);
+    assert.equal(sem.aos1010.length, 5);
+    assert.deepEqual(saemAs1010(true), sem);
+  });
+
+  it('sem a confirmação, o 7º não sai às 08:20; o 8º não confirmado também não', () => {
+    const sem = alocar({ ins: instrutores, stu: [...seis(), confirmado({ limiteConfirmado: undefined })] });
+    assert.equal(locaisAs(sem.out, 500).length, 6);
+    assert.deepEqual(sem.al.filter(a => a.t === 'err').map(a => [a.s, a.codigo]), [['Aluno 1006', 'limite-de-locais']]);
+    const oitavo = alocar({ ins: instrutores, stu: [...seis(), confirmado(), aluno(1007, { p1: 500, p2: -1 })] });
+    assert.deepEqual(locaisAs(oitavo.out, 500), todos);
+    assert.notEqual(oitavo.out.find(o => o.stuId === 1007).a, 500, 'o 8º, sem confirmação, sai em outro horário');
+  });
+
+  it('a confirmação vale só no minuto do pedido: sem o horário exato, ou noutro horário, conta como os outros', () => {
+    const semExato = alocar({ ins: instrutores, stu: [...seis(), confirmado({ jan: undefined })] });
+    assert.equal(locaisAs(semExato.out, 500).length, 6);
+    assert.notEqual(semExato.out.find(o => o.stuId === 1006).a, 500);
+    assert.deepEqual(semExato.al.filter(a => a.codigo === 'limite-de-locais'), []);
+  });
+
+  it('com vaga no horário, o confirmado voa e não avisa; ele não ocupa a vaga de outro', () => {
+    const comVaga = alocar({ ins: instrutores, stu: [...seis().slice(0, 4), confirmado()] });
+    assert.equal(locaisAs(comVaga.out, 500).length, 5);
+    assert.deepEqual(comVaga.al.filter(a => a.codigo === 'limite-de-locais'), []);
+    // Confirmado primeiro na fila, os seis outros ainda saem às 08:20 (sete no horário, com o aviso)
+    const primeiro = alocar({ ins: instrutores, stu: [confirmado({ pr: 5 }), ...seis()] });
+    assert.deepEqual(locaisAs(primeiro.out, 500), todos);
+  });
+
+  it('dois confirmados no horário cheio: os oito voam, e cada um avisa com o lugar dele', () => {
+    const outro = aluno(1007, { p1: 500, p2: -1, jan: 'h500', limiteConfirmado: true });
+    const { out, al } = alocar({ ins: instrutores, stu: [...seis(), confirmado(), outro] });
+    assert.deepEqual(locaisAs(out, 500), [...todos, 1007]);
+    assert.deepEqual(al.filter(a => a.codigo === 'limite-de-locais').map(a => a.m), [
+      'Agendado às 08:20 como o 7º voo local do horário: no máximo 6 voos locais saem no mesmo horário.',
+      'Agendado às 08:20 como o 8º voo local do horário: no máximo 6 voos locais saem no mesmo horário.'
+    ]);
+  });
+});

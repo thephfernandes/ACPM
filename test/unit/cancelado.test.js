@@ -622,3 +622,135 @@ describe('O Ground no voo cancelado', () => {
     assert.deepEqual(opcoes.map(o => [o.pedido.eq, hm(o.mudancas.a)]), [['C172', '06:30']]);
   });
 });
+
+// F1e sobre o F1d: a missão do curso exige do INVA (exige, derivado no estado da escala: js/programa.js) também nas
+// Sugestões. A busca do cancelado e dos dois últimos grupos do conflito nunca oferece um INVA sem a habilitação da
+// missão do curso, e a cópia em que o motor confere cada sugestão (conferirNoMotor) leva o exige
+describe('As Sugestões e o que a missão do curso exige do INVA', () => {
+  const comEndosso = (id, lv = 9) => instrutor(id, lv, { hab: [...instrutor(id, lv).hab, 'endosso_solo'] });
+  const doCurso = (id, extra = {}) => aluno(id, { etapa: 'PP-01', cursoDaEtapa: 'PP', exige: ['endosso_solo'], ...extra }, { curso: 'PP' });
+  const comEle = [2];
+
+  it('o cancelado: nunca um INVA sem a habilitação, em nenhum grupo e por nenhum motivo', () => {
+    const base = () => cenario({ ins: [instrutor(1, 9), comEndosso(2), instrutor(3, 9)], stu: [doCurso(1000, { p1: 610, p2: -1 })] });
+    assert.equal(runAllocationEngine(base()).out[0].insId, 2, 'o motor dá o voo a quem tem');
+    for (const motivo of ['Instrutor indisponível', 'Manutenção da aeronave', 'Meteorologia', 'Operacional', 'Outro']) {
+      const { estado, resultado, voo } = cancelado(base(), 1000, motivo);
+      const r = sugerirParaCancelado(estado, resultado, voo.fKey);
+      assert.ok(r.opcoes.every(o => comEle.includes(o.mudancas.insId)), `${motivo}: ${textos(r).join(' | ')}`);
+      if (motivo !== 'Instrutor indisponível') assert.ok(r.opcoes.length > 0, `${motivo}: com o INVA que tem, há lugar`);
+    }
+    // Sem o INVA que tem (ele faltou), nada: os outros dois não servem à missão do curso
+    const { estado, resultado, voo } = cancelado(base(), 1000, 'Instrutor indisponível');
+    const r = sugerirParaCancelado(estado, resultado, voo.fKey);
+    assert.deepEqual(textos(r), []);
+    assert.equal(r.impossivel[0], 'No mesmo horário: nenhum avião com um instrutor que sirva.');
+    assert.match(r.impossivel[1], /nenhum instrutor que sirva/);
+  });
+
+  it('o conflito: nem a troca no mesmo horário nem os dois últimos grupos oferecem um INVA sem a habilitação', () => {
+    const base = cenario({ ins: [instrutor(1, 9), comEndosso(2)], stu: [doCurso(1000, { p1: 610, p2: -1 })] });
+    const v = runAllocationEngine(base).out;
+    // A escala aprovada, e o INVA que tem sai do dia
+    const estado = { ...base, fixos: fixosAoAprovar({}, v), aprovacao: { em: '2026-11-10T21:05:00.000Z', por: 'Operador 01' }, ins: base.ins.map(x => (x.id === 2 ? { ...x, on: false } : x)) };
+    const resultado = runAllocationEngine(estado);
+    assert.ok(resultado.out[0].conflito);
+    const opcoes = sugerirReparos(estado, resultado, v[0].fKey);
+    assert.deepEqual(opcoes.filter(o => o.mudancas).map(o => o.texto), []);
+    assert.deepEqual(opcoes.map(o => o.tipo), ['soltar', 'cancelar']);
+  });
+
+  it('o motor confere cada sugestão numa cópia com o exige da missão do curso (o cancelado, o conflito e o recusado)', () => {
+    const vistos = [];
+    const motor = s => { vistos.push(pedidoDoAluno(s.stu.find(x => x.id === 1000), 0).exige); return runAllocationEngine(s); };
+    const base = () => cenario({ ins: [instrutor(1, 9), comEndosso(2), comEndosso(3)], stu: [doCurso(1000, { p1: 610, p2: -1 })] });
+    const c = cancelado(base(), 1000, 'Instrutor indisponível');
+    const doCancelado = sugerirParaCancelado(c.estado, c.resultado, c.voo.fKey, { motor });
+    assert.ok(doCancelado.opcoes.length > 0 && vistos.length > 0);
+    assert.ok(doCancelado.opcoes.every(o => o.mudancas.insId === 3));
+    // O conflito (o INVA de antes fora do dia, na escala aprovada)
+    const v = runAllocationEngine(base()).out;
+    const aprovada = { ...base(), fixos: fixosAoAprovar({}, v), aprovacao: { em: '2026-11-10T21:05:00.000Z', por: 'Operador 01' } };
+    aprovada.ins = aprovada.ins.map(x => (x.id === v[0].insId ? { ...x, on: false } : x));
+    const r = runAllocationEngine(aprovada);
+    const doConflito = sugerirReparos(aprovada, r, v[0].fKey, { motor }).filter(o => o.mudancas);
+    assert.ok(doConflito.length > 0 && doConflito.every(o => [2, 3].includes(o.mudancas.insId)));
+    // O recusado: o escolhido sem a habilitação; só o outro com ela, e "Automático" diz quem tem
+    const recusado = cenario({ ins: [instrutor(1, 9), comEndosso(2), instrutor(3, 9)], stu: [doCurso(1000, { p1: 610, p2: -1, insId: 1 })] });
+    const rr = runAllocationEngine(recusado);
+    assert.equal(rr.al[0].codigo, 'instrutor-escolhido');
+    assert.deepEqual(sugestoesDoRejeitado(recusado, rr, '1000_0_1', { motor }).map(o => o.texto), ['Com Instrutor 02: 10:10 no PP-LJV', 'Automático (o app escolhe Instrutor 02): 10:10 no PP-LJV']);
+    assert.ok(vistos.length >= 4);
+    assert.ok(vistos.every(e => Array.isArray(e) && e.length === 1 && e[0] === 'endosso_solo'), JSON.stringify(vistos));
+  });
+});
+
+// F1e sobre o F1d: o 7º voo local confirmado na Agenda (limiteConfirmado, no minuto exato do pedido) passa do limite e
+// não toma o lugar dos outros (js/engine.js). O aviso das Sugestões conta como o motor: o confirmado no minuto dele não
+// conta, e o próprio voo confirmado nesse minuto não avisa; a sugestão que muda o horário do pedido tira a confirmação
+describe('As Sugestões e o 7º voo local confirmado', () => {
+  const instrutores = () => Array.from({ length: 10 }, (_, i) => instrutor(i + 1, 9));
+  const as0820 = n => Array.from({ length: n }, (_, i) => aluno(1000 + i, { p1: 500, p2: -1, jan: 'h500' }));
+  const confirmado = () => aluno(1006, { p1: 500, p2: -1, jan: 'h500', limiteConfirmado: true });
+  const aprovar = (estado) => ({ ...estado, fixos: { ...fixosAoAprovar({}, runAllocationEngine(estado).out.filter(o => !estado.fixos || !estado.fixos[o.fKey])), ...estado.fixos }, aprovacao: { em: '2026-11-10T21:05:00.000Z', por: 'Operador 01' } });
+  const locaisAs = (out, a) => out.filter(o => o.a === a && o.status !== 'Cancelado').length;
+
+  it('o cancelado que é o 7º confirmado: no mesmo horário, a sugestão não avisa, e o motor o deixa como o 7º sem mexer nos seis', () => {
+    const base = cenario({ ins: instrutores(), stu: [...as0820(6), confirmado()] });
+    assert.equal(locaisAs(runAllocationEngine(base).out, 500), 7);
+    const { estado, resultado, voo } = cancelado(base, 1006, 'Instrutor indisponível');
+    const [primeira] = sugerirParaCancelado(estado, resultado, voo.fKey).opcoes;
+    assert.equal(primeira.mudancas.a, 500);
+    assert.equal(primeira.confirmar, undefined, primeira.confirmar);
+    assert.equal(primeira.muda, undefined);
+    aproveitarCancelado(estado, resultado, voo.fKey, primeira);
+    const depois = runAllocationEngine(estado);
+    assert.equal(locaisAs(depois.out, 500), 7);
+    assert.deepEqual(depois.al.filter(a => a.codigo === 'limite-de-locais').map(a => [a.s, a.m]), [['Aluno 1006', 'Agendado às 08:20 como o 7º voo local do horário: no máximo 6 voos locais saem no mesmo horário.']]);
+    assert.ok(estado.stu.find(s => s.id === 1006).limiteConfirmado, 'a confirmação fica: o horário é o dela');
+  });
+
+  // O Aluno 1007 voa às 06:30 e é cancelado pela meteorologia; o pedido passa a só poder às 08:20, na escala aprovada
+  const paraAs0820 = (naoConfirmados) => {
+    const base = cenario({ ins: instrutores(), stu: [...as0820(naoConfirmados), confirmado(), aluno(1007, { p1: 390, p2: -1 })] });
+    const c = cancelado(base, 1007, 'Meteorologia');
+    const estado = aprovar(c.estado);
+    estado.stu.find(s => s.id === 1007).jan = 'h500';
+    const resultado = runAllocationEngine(estado);
+    assert.equal(locaisAs(resultado.out, 500), naoConfirmados + 1);
+    const opcao = sugerirParaCancelado(estado, resultado, c.voo.fKey).opcoes.find(o => o.mudancas.a === 500);
+    assert.ok(opcao, 'a sugestão das 08:20');
+    aproveitarCancelado(estado, resultado, c.voo.fKey, opcao);
+    const avisos = runAllocationEngine(estado).al.filter(a => a.codigo === 'limite-de-locais').map(a => [a.s, a.m]);
+    return { opcao, avisos };
+  };
+
+  it('cinco e o confirmado às 08:20: o voo é o 6º dos não confirmados, a sugestão não avisa, e o motor avisa só o confirmado', () => {
+    const { opcao, avisos } = paraAs0820(5);
+    assert.equal(opcao.confirmar, undefined, opcao.confirmar);
+    assert.deepEqual(avisos, [['Aluno 1006', 'Agendado às 08:20 como o 7º voo local do horário: no máximo 6 voos locais saem no mesmo horário.']]);
+  });
+
+  it('seis e o confirmado às 08:20: a sugestão avisa que o voo é o 7º, o mesmo número que o motor dá a ele depois', () => {
+    const { opcao, avisos } = paraAs0820(6);
+    assert.equal(opcao.confirmar, 'Às 08:20, o 7º voo local do horário: no máximo 6 voos locais saem no mesmo horário.');
+    assert.equal(opcao.armado, 'Aplicar mesmo assim');
+    assert.deepEqual(avisos.find(([s]) => s === 'Aluno 1007'), ['Aluno 1007', 'Agendado às 08:20 como o 7º voo local do horário: no máximo 6 voos locais saem no mesmo horário.']);
+  });
+
+  it('a sugestão que muda o horário do pedido confirmado tira a confirmação (era do minuto de antes); desfeita, ela volta', () => {
+    // O confirmado das 08:20, cancelado pela meteorologia: o horário mais perto fica fora da disponibilidade (h500)
+    const base = cenario({ ins: instrutores(), stu: [...as0820(6), confirmado()] });
+    const { estado, resultado, voo } = cancelado(base, 1006, 'Meteorologia');
+    const opcao = sugerirParaCancelado(estado, resultado, voo.fKey).opcoes.find(o => o.pedido && o.pedido.jan);
+    assert.ok(opcao, 'um horário fora da disponibilidade');
+    assert.notEqual(opcao.mudancas.a, 500);
+    const rev = aproveitarCancelado(estado, resultado, voo.fKey, opcao);
+    const pedido = estado.stu.find(s => s.id === 1006);
+    assert.equal(pedido.jan, `h${opcao.mudancas.a}`);
+    assert.equal(pedido.limiteConfirmado, undefined);
+    desfazerAproveitamento(estado, rev);
+    assert.equal(pedido.jan, 'h500');
+    assert.equal(pedido.limiteConfirmado, true);
+  });
+});

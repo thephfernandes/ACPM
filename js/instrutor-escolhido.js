@@ -13,7 +13,7 @@ import { normalizarLimites } from './limites.js';
 import { problemasDoInstrutor } from './viabilidade.js';
 import { isGroundMission } from './rules.js';
 import { pinoDoVoo, fixoPeloStatus, fixosQueVoltam } from './fixos.js';
-import { chaveDoVoo, pedidoDoAluno, statusDoVoo, umPorUnidade, compromissoDoVoo } from './voo.js';
+import { chaveDoVoo, pedidoDoAluno, statusDoVoo, umPorUnidade, compromissoDoVoo, exigeDosVoos } from './voo.js';
 import { inativoNoEstado } from './inativos.js';
 
 const instrutorValido = v => Number.isInteger(v) && v > 0;
@@ -23,7 +23,8 @@ function impedimentoDoPedido(estado, x, aluno, pedido) {
   // O inativo no cadastro primeiro: no estado da escala ele também não vem
   if (inativoNoEstado(estado, x)) return 'inativo';
   if (!x.on) return 'fora nesta data';
-  if (!podeFazer(x, pedido.mis, isGroundMission(pedido.mis) ? GROUND_EQ_TYPE : pedido.eq, { curso: aluno.curso })) return 'sem a habilitação';
+  // Com o que a missão do curso do pedido exige do INVA (exige: o estado da escala o deriva; a Demanda o passa)
+  if (!podeFazer(x, pedido.mis, isGroundMission(pedido.mis) ? GROUND_EQ_TYPE : pedido.eq, { curso: aluno.curso, exige: pedido.exige })) return 'sem a habilitação';
   if ((aluno.bl || []).includes(x.id)) return 'em Não escalar com';
   return '';
 }
@@ -59,10 +60,12 @@ export function instrutoresDoVoo(estado, resultado, fKey) {
   const alunos = new Map(estado.stu.map(s => [s.id, s]));
   const limites = normalizarLimites(estado.limites);
   const historicoDe = historicoDoDia(estado);
+  const exige = exigeDosVoos(estado.stu)(grupo);
   // O instrutor inativo no cadastro não é opção, a não ser o do próprio voo (com a nota)
   const opcoes = estado.ins.filter(x => !inativoNoEstado(estado, x) || x.id === voo.insId).map(x => {
-    // Com o curso do aluno (o noturno do PC é IFR) e o avião do voo (a habilitação própria dele)
-    const contexto = { curso: (alunos.get(voo.stuId) || {}).curso, recurso: voo.isGround ? null : recursoDaFrota(Array.isArray(estado.frota) ? estado.frota : FROTA_INICIAL, voo.r) };
+    // Com o curso do aluno (o noturno do PC é IFR), o avião do voo (a habilitação própria dele) e o que a missão do curso
+    // dos pedidos da unidade exige do INVA
+    const contexto = { curso: (alunos.get(voo.stuId) || {}).curso, recurso: voo.isGround ? null : recursoDaFrota(Array.isArray(estado.frota) ? estado.frota : FROTA_INICIAL, voo.r), exige };
     const [problema] = problemasDoInstrutor(x, { mis: voo.mis, tipo: voo.isGround ? GROUND_EQ_TYPE : voo.eqType, a: voo.a, b: voo.b, alunos: grupo.map(o => alunos.get(o.stuId)), stuKg: voo.stuKg, ...contexto }, {
       compromissos: outros.filter(o => o.insId === x.id).map(o => compromissoDoVoo(o)),
       historico: historicoDe(x.id), limites, peso: voo.isGround ? null : {}

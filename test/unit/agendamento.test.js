@@ -22,7 +22,7 @@ import { T } from '../../js/config.js';
 import { hm } from '../../js/format.js';
 import { HORARIOS_PADRAO, DE_30_EM_30 } from '../../js/horarios.js';
 import { aluno, cenario, instrutor, missaoExtra, apenas, GROUND_C152 } from '../helpers/montar.js';
-import { novoCurso } from '../../js/programa.js';
+import { novoCurso, comExigenciasDasMissoes } from '../../js/programa.js';
 import { MODELOS } from '../../js/modelos-de-curso.js';
 
 const DATA = '2026-11-11', HOJE = '2026-11-10';
@@ -1197,5 +1197,45 @@ describe('Agendamento: a prévia e o rodízio', () => {
     assert.equal(noturno({ instrutor: 1 }).texto, 'Na fila do rodízio (Voo noturno), a vez é de Instrutor 02.');
     // Fora das categorias do rodízio (o Voo Local no C152), nenhuma nota
     assert.equal(agendar(estado, { escolhas: { aluno: 1001, missao: 'tipo:Voo Local' }, tocados: ['missao'] }).avaliacao.notas.find(n => n.codigo === 'rodizio'), undefined);
+  });
+});
+
+describe('Agendamento: o que a missão do curso exige do INVA', () => {
+  // O PP com PE-04 exigindo Endosso Solo (regra a: nenhum INVA tem, até o Pedro marcar)
+  const PP_EXIGE = { ...PP, missoes: PP.missoes.map(m => (m.codigo === 'PE-04' ? { ...m, exige: ['endosso_solo'] } : m)) };
+  const amb = () => ambiente({ programa: [PP_EXIGE] });
+  // A simulação é a escala que fica: o mesmo agendamento gravado no estado e a escala com as exigências derivadas
+  const depoisDeGravar = (estado, proposta) => {
+    const gravado = structuredClone(estado);
+    aplicarAgendamento(gravado, null, proposta);
+    return runAllocationEngine(comExigenciasDasMissoes(gravado, [PP_EXIGE]));
+  };
+  const conflitos = (res, fKey) => (res.out.find(o => o.fKey === fKey) || {}).conflitoCodigos || [];
+
+  it('a missão do curso escolhida exige do INVA: sem quem tenha, o diálogo bloqueia, como a escala gravada', () => {
+    const estado = doDia();
+    const { formulario, sim, fKey, avaliacao } = agendar(comExigenciasDasMissoes(estado, [PP_EXIGE]), { amb: amb(), escolhas: { aluno: 1001, missao: 'missao:PP:PE-04' }, tocados: ['missao'] });
+    assert.deepEqual(formulario.selecao.exige, ['endosso_solo']);
+    assert.deepEqual(conflitos(sim, fKey), ['habilitacao']);
+    assert.deepEqual(conflitos(depoisDeGravar(estado, formulario.proposta), fKey), ['habilitacao']);
+    const bloqueio = avaliacao.bloqueios.find(b => b.codigo === 'habilitacao');
+    assert.ok(bloqueio, avaliacao.bloqueios.map(b => b.codigo).join());
+    assert.equal(bloqueio.texto, 'O instrutor não tem a habilitação que a missão do curso exige (Endosso Solo).');
+    // Com o INVA 02 habilitado, ele é o padrão e nada bloqueia
+    const habilitado = doDia({ ins: [instrutor(1, 9), { ...instrutor(2, 9), hab: [...instrutor(2, 9).hab, 'endosso_solo'] }] });
+    const ok = agendar(comExigenciasDasMissoes(habilitado, [PP_EXIGE]), { amb: amb(), escolhas: { aluno: 1001, missao: 'missao:PP:PE-04' }, tocados: ['missao'] });
+    assert.equal(ok.formulario.proposta.insId, 2);
+    assert.deepEqual(ok.avaliacao.bloqueios, []);
+  });
+
+  it('o pedido que não voa e guarda uma missão do curso não leva a exigência dela para o voo novo de outro tipo', () => {
+    const estado = doDia({ s1001: { etapa: 'PE-04', cursoDaEtapa: 'PP' } });
+    const derivado = comExigenciasDasMissoes(estado, [PP_EXIGE]);
+    assert.deepEqual(derivado.stu[1].exige, ['endosso_solo']);
+    const { formulario, sim, fKey, avaliacao } = agendar(derivado, { amb: amb(), escolhas: { aluno: 1001, missao: 'tipo:Voo Local' }, tocados: ['missao'] });
+    assert.deepEqual(formulario.selecao.exige, []);
+    assert.deepEqual(conflitos(sim, fKey), []);
+    assert.deepEqual(conflitos(depoisDeGravar(estado, formulario.proposta), fKey), []);
+    assert.equal(avaliacao.bloqueios.find(b => b.codigo === 'habilitacao'), undefined);
   });
 });

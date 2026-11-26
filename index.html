@@ -558,8 +558,8 @@
         <i>Soltar o voo</i> tira o cadeado e o app escolhe de novo o horário, o avião e o instrutor, em volta dos outros voos fixos; quando o pedido mudou, é a sugestão que resolve.
         Depois, a lista mostra também o horário mais perto (antes dele, ou fora da disponibilidade do pedido, quando já há um mais tarde) e outro tipo de recurso que a missão permite; o que fica fora da disponibilidade e o outro tipo pedem antes a confirmação com o aluno (dois cliques), e o pedido muda com a sugestão (o histórico desfaz os dois).
         O voo <i>Cancelado</i> da data aberta (de hoje em diante) também tem <i>Sugestões</i>, para o aluno não perder o voo porque o instrutor ou o avião faltou: o motivo do cancelamento sai da busca (o instrutor, o avião, ou o horário na meteorologia e no operacional), e a lista vem nesta ordem: o mesmo horário e avião com outro instrutor, outro avião no mesmo horário, o horário mais perto (antes ou depois) e outro tipo de recurso que a missão permite.
-        O que fica fora da disponibilidade do pedido, ou em outro tipo de recurso, pede antes a confirmação com o aluno (dois cliques); as habilitações, o peso, a lei, o "Não escalar com" e os períodos fechados valem sempre.
-        A sugestão que faria do voo local o 7º do horário avisa (no máximo 6 voos locais saem no mesmo horário) e também pede dois cliques (<i>Aplicar mesmo assim</i>).
+        O que fica fora da disponibilidade do pedido, ou em outro tipo de recurso, pede antes a confirmação com o aluno (dois cliques); as habilitações, o peso, a lei, o "Não escalar com" e os períodos fechados valem sempre, também as que a missão do curso exige do INVA (marcadas em <i>Cursos</i>).
+        A sugestão que faria do voo local o 7º do horário avisa (no máximo 6 voos locais saem no mesmo horário) e também pede dois cliques (<i>Aplicar mesmo assim</i>); como na escala, o 7º confirmado na Agenda não conta no horário dele, e ele mesmo, de volta ao horário confirmado, não avisa. A sugestão que muda a disponibilidade ou o tipo do pedido confirmado tira a confirmação (ela era do horário de antes).
         Cada sugestão é conferida com a escala refeita: na escala ainda não aprovada, os voos sem cadeado se rearrumam em volta dela; a que muda ou tira outro voo diz qual (“Muda também…”) e pede dois cliques, e só sem nenhuma assim a gaveta diz “sem mexer nos outros voos”.
         Aplicada, a sugestão volta o voo para Pendente, no lugar dela, e o histórico desfaz; o instrutor dela passa a ser o escolhido só no pedido que já tinha um; sem nada, a gaveta diz "Impossível nesta data", com o que impediu cada horário (o período fechado, o horário que já passou, o aluno ocupado, nenhum avião ou instrutor).
         Não há sugestões para o voo de uma data passada, o que já tem resultado e o cancelado porque o aluno faltou.
@@ -631,6 +631,7 @@
       O campo <i>Horário</i> só abre depois do aluno, da missão e do recurso, e diz quantos horários a lista tem; ao trocar a missão ou o recurso, o horário que a lista nova não tem sai, e o app diz.
       O Noturno sai sempre às 17:30, e o Voo Solo, às 06:30.
       No máximo 6 voos locais (Voo Local, Voo Solo e TGL) saem no mesmo horário (determinação da diretoria): no 7º, o app avisa, com o próximo horário com vaga, e só registra com “Registrar mesmo assim”; o pedido guarda quem confirmou e quando.
+      Confirmado, ele voa naquele horário sem tomar a vaga dos outros seis, e a Escala mostra o aviso do limite nele.
       Se o aluno já tem voo marcado na data, o app também avisa (pode ser um reagendamento feito por outra pessoa) e só registra mais um com “Registrar mesmo assim”.
       A confirmação vale para aquele pedido: trocar o aluno, a data, a missão, o recurso ou o horário a desfaz. Depois do prazo, quem vira “Registrar mesmo assim” é a <i>Exceção da Coordenação</i>.
       Cada pedido vira um voo na demanda, com o recurso, o horário e a duração dele, e a missão do curso escolhida (o pedido de antes de a agenda guardar o recurso entra no recurso padrão da missão).
@@ -785,7 +786,7 @@
         Clique numa janela para mudar; <i>Aplicar turno</i> marca várias de uma vez.
         A coluna <i>Mês</i> mostra as horas de voo do instrutor no mês com a escala desta data (em destaque a partir de 90% do limite).</li>
         <li><b>Cadastro:</b> nome, CANAC, peso (em destaque quando falta) e as habilitações.
-        <i>Editar habilitações</i> abre um painel ao lado com as 21 habilitações em grupos: Ground e simulador, Voo, Aviões e os três do checador (o curso PP, PC ou INVA; o motor MNTE ou MLTE; as regras VFR ou IFR: o voo de cheque exige uma marca de cada), e as horas de voo do instrutor no mês, no semestre e no ano; ali também se informam as horas de voo feitas fora do app (neste mês e, no ano, antes deste mês).
+        <i>Editar habilitações</i> abre um painel ao lado com as 23 habilitações em grupos: Ground e simulador, Voo (com <i>Endosso Solo</i> e <i>Voo de Navegação ≥ 150 NM</i>, que ninguém começa tendo), Aviões e os três do checador (o curso PP, PC ou INVA; o motor MNTE ou MLTE; as regras VFR ou IFR: o voo de cheque exige uma marca de cada), e as horas de voo do instrutor no mês, no semestre e no ano; ali também se informam as horas de voo feitas fora do app (neste mês e, no ano, antes deste mês).
         <i>Dados pessoais</i> abre os dados do instrutor (veja Alunos).
         Embaixo ficam os <b>limites da Lei do Aeronauta</b> (veja <a href="#manual-regras">Como a escala é montada</a>), que só o Administrador muda.</li>
       </ul>
@@ -799,7 +800,8 @@
       O Esc ou um clique fora fecha o filtro, que continua valendo; a habilitação própria que sai da frota, em Recursos, sai também do filtro.
       O Gestor e a Secretaria também filtram.</p>
       <p>O instrutor só recebe uma missão se tiver as habilitações que ela exige (veja a tabela em <a href="#manual-regras">Como a escala é montada</a>) e se estiver disponível durante o voo inteiro.
-      O voo pode exigir mais: o noturno do aluno do PC é IFR (o instrutor precisa da habilitação IFR), e o recurso com <i>Habilitação própria</i> (Recursos) exige a dele, que aparece num grupo próprio em <i>Editar habilitações</i>.</p>
+      O voo pode exigir mais: o noturno do aluno do PC é IFR (o instrutor precisa da habilitação IFR), o recurso com <i>Habilitação própria</i> (Recursos) exige a dele, que aparece num grupo próprio em <i>Editar habilitações</i>, e a missão do curso do pedido exige as que estão marcadas nela, em Cursos (<i>Habilitações que o INVA precisa</i>).
+      Marque primeiro os INVAs que têm a habilitação (aqui) e depois as missões que a exigem (em Cursos): a missão marcada antes de algum INVA ativo ter fica com o voo fora da escala, com o motivo.</p>
 
       <h4>Recursos</h4>
       <p>Duas vistas, com a busca e as categorias valendo nas duas.
@@ -848,6 +850,9 @@
       Cada fase tem um nome, o módulo e quando abre: <i>Depois das fases anteriores</i> (o padrão), <i>Desde o início do curso</i> ou <i>Depois de…</i> as fases escolhidas, sempre anteriores (no PP, a Fase 6, do voo noturno, abre depois da Fase 4, embora venha depois da Fase 8).
       Cada missão tem um código (por exemplo, PP-07, até 15 letras, números, pontos e hífens, sem repetir no curso), um nome, o tipo de missão da escala, o recurso, as horas (o Ground é sempre na sala, com 1h30) e quando voar: <i>Depois das anteriores</i> (o padrão), <i>Livre na fase</i> (a qualquer hora com a fase aberta, como o SPIN do PP; a fase só fica completa com ela) ou <i>Depois de…</i> as missões escolhidas, sempre anteriores, de qualquer fase.
       <i>Dispensada</i> vale como feita para todos os alunos<span data-funcionalidade="progresso"> (não é sugerida e não entra no progresso)</span>; <i>Avaliação</i> marca as missões de avaliação.
+      <i>Habilitações que o INVA precisa</i> marca o que a missão exige do INVA além do tipo de missão e do recurso (por exemplo, <i>Endosso Solo</i> ou <i>Voo de Navegação ≥ 150 NM</i>), nos grupos de <i>Editar habilitações</i>: o voo do pedido que escolheu essa missão do curso só vai para quem tem todas.
+      Nenhuma missão começa com alguma marcada; marque os INVAs antes, em Instrutores: enquanto nenhum INVA ativo tem a habilitação, a linha da missão diz <i>Nenhum INVA ativo tem…</i>, e os voos dela ficam fora da escala. Cada missão exige até 10; marcar ou desmarcar uma refaz a escala da data aberta.
+      Sem os programas dos cursos lidos, a escala não confere essas habilitações, e a Escala avisa.
       Numa missão Noturno, <i>Trecho</i> diz se ela é a ida (o translado para BH), a noite (o noturno em BH) ou a volta (o translado do dia seguinte): as missões de um Noturno vêm juntas na fase, nesta ordem, e são um voo só<span data-funcionalidade="progresso">; a próxima missão oferece a noite com os translados (<i>NOT (com TSL-01 e TSL-02)</i>), e o resultado dela vale para os três</span>.<span data-funcionalidade="progresso">
       A próxima missão na Demanda e o progresso em Alunos seguem essas regras.</span></p>
       <p>Embaixo do título do curso ficam os alunos dele e, no curso com mais de uma fase, o índice das fases.
@@ -893,7 +898,7 @@
         Com a mesma prioridade, o aluno com <b>Priorizar com</b> (Alunos) vai antes.</li>
         <li>Depois os voos e simuladores, por <b>prioridade</b> (5 primeiro); com a mesma prioridade, quem <b>agendou primeiro</b> na agenda sai primeiro, e o pedido posto à mão na Demanda vem depois dos agendados; empatados, na ordem do cadastro dos alunos.</li>
         <li>Para cada pedido, tenta a 1ª preferência, depois a 2ª e depois o horário livre mais perto da 1ª, entre os horários de decolagem da categoria, sempre dentro da disponibilidade do aluno e das janelas abertas.
-        No máximo 6 voos locais (Voo Local, Voo Solo e TGL) saem no mesmo horário, e o Voo Solo sai sempre às 06:30.</li>
+        No máximo 6 voos locais (Voo Local, Voo Solo e TGL) saem no mesmo horário, e o Voo Solo sai sempre às 06:30; o 7º confirmado na Agenda voa no horário dele, a mais, com o aviso.</li>
         <li>O <b>avião</b>: o instrutor fica no mesmo avião durante o dia; fora isso, o voo vai para um avião que já saiu (o de menor folga até o voo, para não deixar buraco no meio do dia) e, quando precisa de outro, <span data-funcionalidade="hangar">sai o da frente do <i>hangar</i> (a ordem em Recursos)</span><span data-sem-funcionalidade="hangar">sai o primeiro livre na ordem da frota</span>.</li>
       </ol>
       <p>Um voo só entra na escala quando tudo isto vale ao mesmo tempo:</p>

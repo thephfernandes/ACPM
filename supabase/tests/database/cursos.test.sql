@@ -10,7 +10,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = public, extensions;
 
-select plan(91);
+select plan(105);
 
 insert into auth.users (id, email, created_at, updated_at) values
   ('00000000-0000-4000-f000-000000000001', 'administrador@cursos.acpm.invalid', now(), now()),
@@ -62,11 +62,11 @@ create function pg_temp.programa()
     {"id": "00000000-0000-4000-9001-000000000003", "nome": "Fase 3 – Noturno", "modulo": null, "regra": "depois", "requer": ["00000000-0000-4000-9001-000000000001"]}
   ],
   "missoes": [
-    {"id": "00000000-0000-4000-9002-000000000001", "fase": "00000000-0000-4000-9001-000000000001", "codigo": "ZZ9-01", "nome": "Primeiro voo", "mis": "Voo Local", "eq": "C152", "nb": 1, "regra": "ordem", "requer": [], "dispensada": false, "avaliacao": false},
-    {"id": "00000000-0000-4000-9002-000000000002", "fase": "00000000-0000-4000-9001-000000000001", "codigo": "ZZ9-02", "nome": "Ground do C152", "mis": "Ground C152", "eq": "Sala Ground", "nb": 1.5, "regra": "livre", "requer": [], "dispensada": false, "avaliacao": false},
-    {"id": "00000000-0000-4000-9002-000000000003", "fase": "00000000-0000-4000-9001-000000000002", "codigo": "ZZ9-03", "nome": "Adaptação", "mis": "Voo Local", "eq": "C152", "nb": 1, "regra": "ordem", "requer": [], "dispensada": true, "avaliacao": false},
-    {"id": "00000000-0000-4000-9002-000000000004", "fase": "00000000-0000-4000-9001-000000000002", "codigo": "ZZ9-04", "nome": "Solo", "mis": "Voo Solo", "eq": "C152", "nb": 1, "regra": "depois", "requer": ["00000000-0000-4000-9002-000000000001"], "dispensada": false, "avaliacao": true},
-    {"id": "00000000-0000-4000-9002-000000000005", "fase": "00000000-0000-4000-9001-000000000003", "codigo": "ZZ9-05", "nome": "Noturno", "mis": "Noturno", "eq": "C172", "nb": 3, "regra": "ordem", "requer": [], "dispensada": false, "avaliacao": false}
+    {"id": "00000000-0000-4000-9002-000000000001", "fase": "00000000-0000-4000-9001-000000000001", "codigo": "ZZ9-01", "nome": "Primeiro voo", "mis": "Voo Local", "eq": "C152", "nb": 1, "regra": "ordem", "requer": [], "dispensada": false, "avaliacao": false, "exige": []},
+    {"id": "00000000-0000-4000-9002-000000000002", "fase": "00000000-0000-4000-9001-000000000001", "codigo": "ZZ9-02", "nome": "Ground do C152", "mis": "Ground C152", "eq": "Sala Ground", "nb": 1.5, "regra": "livre", "requer": [], "dispensada": false, "avaliacao": false, "exige": []},
+    {"id": "00000000-0000-4000-9002-000000000003", "fase": "00000000-0000-4000-9001-000000000002", "codigo": "ZZ9-03", "nome": "Adaptação", "mis": "Voo Local", "eq": "C152", "nb": 1, "regra": "ordem", "requer": [], "dispensada": true, "avaliacao": false, "exige": []},
+    {"id": "00000000-0000-4000-9002-000000000004", "fase": "00000000-0000-4000-9001-000000000002", "codigo": "ZZ9-04", "nome": "Solo", "mis": "Voo Solo", "eq": "C152", "nb": 1, "regra": "depois", "requer": ["00000000-0000-4000-9002-000000000001"], "dispensada": false, "avaliacao": true, "exige": []},
+    {"id": "00000000-0000-4000-9002-000000000005", "fase": "00000000-0000-4000-9001-000000000003", "codigo": "ZZ9-05", "nome": "Noturno", "mis": "Noturno", "eq": "C172", "nb": 3, "regra": "ordem", "requer": [], "dispensada": false, "avaliacao": false, "exige": []}
   ]}'::jsonb $$;
 
 -- O programa com o Noturno em trechos: na Fase 3, a ida (ZZ9-06), a noite (a ZZ9-05) e a volta (ZZ9-07), juntas e nesta
@@ -79,13 +79,13 @@ create function pg_temp.noturno()
     {"id": "00000000-0000-4000-9001-000000000003", "nome": "Fase 3 – Noturno", "modulo": null, "regra": "depois", "requer": ["00000000-0000-4000-9001-000000000001"]}
   ],
   "missoes": [
-    {"id": "00000000-0000-4000-9002-000000000001", "fase": "00000000-0000-4000-9001-000000000001", "codigo": "ZZ9-01", "nome": "Primeiro voo", "mis": "Voo Local", "eq": "C152", "nb": 1, "regra": "ordem", "requer": [], "dispensada": false, "avaliacao": false},
-    {"id": "00000000-0000-4000-9002-000000000002", "fase": "00000000-0000-4000-9001-000000000001", "codigo": "ZZ9-02", "nome": "Ground do C152", "mis": "Ground C152", "eq": "Sala Ground", "nb": 1.5, "regra": "livre", "requer": [], "dispensada": false, "avaliacao": false},
-    {"id": "00000000-0000-4000-9002-000000000003", "fase": "00000000-0000-4000-9001-000000000002", "codigo": "ZZ9-03", "nome": "Adaptação", "mis": "Voo Local", "eq": "C152", "nb": 1, "regra": "ordem", "requer": [], "dispensada": true, "avaliacao": false},
-    {"id": "00000000-0000-4000-9002-000000000004", "fase": "00000000-0000-4000-9001-000000000002", "codigo": "ZZ9-04", "nome": "Solo", "mis": "Voo Solo", "eq": "C152", "nb": 1, "regra": "depois", "requer": ["00000000-0000-4000-9002-000000000001"], "dispensada": false, "avaliacao": true},
-    {"id": "00000000-0000-4000-9002-000000000006", "fase": "00000000-0000-4000-9001-000000000003", "codigo": "ZZ9-06", "nome": "Translado de ida", "mis": "Noturno", "eq": "C172", "nb": 1, "regra": "ordem", "requer": [], "dispensada": false, "avaliacao": false, "trecho": "ida"},
-    {"id": "00000000-0000-4000-9002-000000000005", "fase": "00000000-0000-4000-9001-000000000003", "codigo": "ZZ9-05", "nome": "Noturno", "mis": "Noturno", "eq": "C172", "nb": 3, "regra": "ordem", "requer": [], "dispensada": false, "avaliacao": false, "trecho": "noite"},
-    {"id": "00000000-0000-4000-9002-000000000007", "fase": "00000000-0000-4000-9001-000000000003", "codigo": "ZZ9-07", "nome": "Translado de volta", "mis": "Noturno", "eq": "C172", "nb": 1, "regra": "ordem", "requer": [], "dispensada": false, "avaliacao": false, "trecho": "volta"}
+    {"id": "00000000-0000-4000-9002-000000000001", "fase": "00000000-0000-4000-9001-000000000001", "codigo": "ZZ9-01", "nome": "Primeiro voo", "mis": "Voo Local", "eq": "C152", "nb": 1, "regra": "ordem", "requer": [], "dispensada": false, "avaliacao": false, "exige": []},
+    {"id": "00000000-0000-4000-9002-000000000002", "fase": "00000000-0000-4000-9001-000000000001", "codigo": "ZZ9-02", "nome": "Ground do C152", "mis": "Ground C152", "eq": "Sala Ground", "nb": 1.5, "regra": "livre", "requer": [], "dispensada": false, "avaliacao": false, "exige": []},
+    {"id": "00000000-0000-4000-9002-000000000003", "fase": "00000000-0000-4000-9001-000000000002", "codigo": "ZZ9-03", "nome": "Adaptação", "mis": "Voo Local", "eq": "C152", "nb": 1, "regra": "ordem", "requer": [], "dispensada": true, "avaliacao": false, "exige": []},
+    {"id": "00000000-0000-4000-9002-000000000004", "fase": "00000000-0000-4000-9001-000000000002", "codigo": "ZZ9-04", "nome": "Solo", "mis": "Voo Solo", "eq": "C152", "nb": 1, "regra": "depois", "requer": ["00000000-0000-4000-9002-000000000001"], "dispensada": false, "avaliacao": true, "exige": []},
+    {"id": "00000000-0000-4000-9002-000000000006", "fase": "00000000-0000-4000-9001-000000000003", "codigo": "ZZ9-06", "nome": "Translado de ida", "mis": "Noturno", "eq": "C172", "nb": 1, "regra": "ordem", "requer": [], "dispensada": false, "avaliacao": false, "exige": [], "trecho": "ida"},
+    {"id": "00000000-0000-4000-9002-000000000005", "fase": "00000000-0000-4000-9001-000000000003", "codigo": "ZZ9-05", "nome": "Noturno", "mis": "Noturno", "eq": "C172", "nb": 3, "regra": "ordem", "requer": [], "dispensada": false, "avaliacao": false, "exige": [], "trecho": "noite"},
+    {"id": "00000000-0000-4000-9002-000000000007", "fase": "00000000-0000-4000-9001-000000000003", "codigo": "ZZ9-07", "nome": "Translado de volta", "mis": "Noturno", "eq": "C172", "nb": 1, "regra": "ordem", "requer": [], "dispensada": false, "avaliacao": false, "exige": [], "trecho": "volta"}
   ]}'::jsonb $$;
 
 -- O programa com os códigos de ZZ9-02 e ZZ9-03 trocados
@@ -134,6 +134,31 @@ begin
     from jsonb_array_elements(public.programa_dos_cursos()) c, jsonb_array_elements(c -> 'missoes') with ordinality m(e, i)
     where c ->> 'sigla' = 'ZZ9' and m.e ? 'trecho'));
 end;
+$$;
+
+-- Grava o ZZ9 com estes conteúdos, um depois do outro (a partir da versão 1), e devolve a última versão que a gravação deu
+-- e o que cada missão que exige alguma habilitação do INVA exige, na ordem do programa, como quem lê a escala recebe
+create function pg_temp.com_exige(variadic p_cursos jsonb[])
+  returns jsonb language plpgsql as $$
+declare
+  v_versao integer := 1;
+  v_curso jsonb;
+begin
+  foreach v_curso in array p_cursos loop
+    v_versao := (public.salvar_curso('ZZ9', v_versao, v_curso, 'ZZ9: alteração de teste') ->> 'versao')::integer;
+  end loop;
+  return jsonb_build_object('retorno', v_versao, 'exige', (
+    select coalesce(jsonb_agg(jsonb_build_array(m.e ->> 'codigo', m.e -> 'exige') order by m.i), '[]'::jsonb)
+    from jsonb_array_elements(public.programa_dos_cursos()) c, jsonb_array_elements(c -> 'missoes') with ordinality m(e, i)
+    where c ->> 'sigla' = 'ZZ9' and jsonb_array_length(m.e -> 'exige') > 0));
+end;
+$$;
+
+-- O conteúdo sem a lista exige nas missões (como a aba de antes da migração 20261127110000 manda)
+create function pg_temp.sem_exige(p_curso jsonb)
+  returns jsonb language sql as $$
+  select jsonb_set(p_curso, '{missoes}', (select coalesce(jsonb_agg(e - 'exige' order by i), '[]'::jsonb)
+    from jsonb_array_elements(p_curso -> 'missoes') with ordinality t(e, i)))
 $$;
 
 -- O ZZ9 como ficou: a versão, o código de cada missão (por id) e se saiu do programa, e a última versão registrada
@@ -194,6 +219,14 @@ select has_function('public', 'salvar_curso', array['text', 'integer', 'jsonb', 
 select has_function('public', 'importar_cursos', array['jsonb', 'integer'], 'função importar_cursos existe');
 select has_function('public', 'missao_e_recurso_validos', array['text', 'text', 'numeric'], 'função missao_e_recurso_validos existe');
 select has_column('public', 'missoes_do_curso', 'trecho', 'coluna trecho (o trecho do Noturno) existe em missoes_do_curso');
+-- O que a missão exige do INVA (migração 20261127110000): a lista, vazia em todas as missões que já estavam (regra a)
+select has_column('public', 'missoes_do_curso', 'exige', 'coluna exige (o que a missão exige do INVA) existe em missoes_do_curso');
+select col_type_is('public', 'missoes_do_curso', 'exige', 'text[]', 'exige é uma lista de textos');
+select col_not_null('public', 'missoes_do_curso', 'exige', 'exige nunca é nula');
+select col_has_default('public', 'missoes_do_curso', 'exige', 'exige começa vazia');
+select has_function('public', 'exige_da_missao_valido', array['text[]'], 'função exige_da_missao_valido existe');
+select is((select count(*)::integer from public.missoes_do_curso where exige <> '{}'), 0,
+  'nenhuma missão do curso exige habilitação do INVA depois da migração (regra a)');
 -- A conversão compara o programa sem o trecho do Noturno
 select is(public.assinatura_do_programa(pg_temp.noturno()),
   public.assinatura_do_programa(pg_temp.noturno() #- '{missoes,4,trecho}' #- '{missoes,5,trecho}' #- '{missoes,6,trecho}'),
@@ -240,11 +273,11 @@ select is((select e - 'alteracoes' from jsonb_array_elements(public.programa_dos
     {"id": "00000000-0000-4000-9001-000000000003", "nome": "Fase 3 – Noturno", "modulo": null, "ordem": 2, "regra": "depois", "requer": ["00000000-0000-4000-9001-000000000001"], "removida": false}
   ],
   "missoes": [
-    {"id": "00000000-0000-4000-9002-000000000001", "fase": "00000000-0000-4000-9001-000000000001", "codigo": "ZZ9-01", "nome": "Primeiro voo", "mis": "Voo Local", "eq": "C152", "nb": 1, "ordem": 0, "regra": "ordem", "requer": [], "dispensada": false, "avaliacao": false, "removida": false, "comResultados": true},
-    {"id": "00000000-0000-4000-9002-000000000002", "fase": "00000000-0000-4000-9001-000000000001", "codigo": "ZZ9-02", "nome": "Ground do C152", "mis": "Ground C152", "eq": "Sala Ground", "nb": 1.5, "ordem": 1, "regra": "livre", "requer": [], "dispensada": false, "avaliacao": false, "removida": false, "comResultados": false},
-    {"id": "00000000-0000-4000-9002-000000000003", "fase": "00000000-0000-4000-9001-000000000002", "codigo": "ZZ9-03", "nome": "Adaptação", "mis": "Voo Local", "eq": "C152", "nb": 1, "ordem": 0, "regra": "ordem", "requer": [], "dispensada": true, "avaliacao": false, "removida": false, "comResultados": false},
-    {"id": "00000000-0000-4000-9002-000000000004", "fase": "00000000-0000-4000-9001-000000000002", "codigo": "ZZ9-04", "nome": "Solo", "mis": "Voo Solo", "eq": "C152", "nb": 1, "ordem": 1, "regra": "depois", "requer": ["00000000-0000-4000-9002-000000000001"], "dispensada": false, "avaliacao": true, "removida": false, "comResultados": false},
-    {"id": "00000000-0000-4000-9002-000000000005", "fase": "00000000-0000-4000-9001-000000000003", "codigo": "ZZ9-05", "nome": "Noturno", "mis": "Noturno", "eq": "C172", "nb": 3, "ordem": 0, "regra": "ordem", "requer": [], "dispensada": false, "avaliacao": false, "removida": false, "comResultados": false}
+    {"id": "00000000-0000-4000-9002-000000000001", "fase": "00000000-0000-4000-9001-000000000001", "codigo": "ZZ9-01", "nome": "Primeiro voo", "mis": "Voo Local", "eq": "C152", "nb": 1, "ordem": 0, "regra": "ordem", "requer": [], "dispensada": false, "avaliacao": false, "exige": [], "removida": false, "comResultados": true},
+    {"id": "00000000-0000-4000-9002-000000000002", "fase": "00000000-0000-4000-9001-000000000001", "codigo": "ZZ9-02", "nome": "Ground do C152", "mis": "Ground C152", "eq": "Sala Ground", "nb": 1.5, "ordem": 1, "regra": "livre", "requer": [], "dispensada": false, "avaliacao": false, "exige": [], "removida": false, "comResultados": false},
+    {"id": "00000000-0000-4000-9002-000000000003", "fase": "00000000-0000-4000-9001-000000000002", "codigo": "ZZ9-03", "nome": "Adaptação", "mis": "Voo Local", "eq": "C152", "nb": 1, "ordem": 0, "regra": "ordem", "requer": [], "dispensada": true, "avaliacao": false, "exige": [], "removida": false, "comResultados": false},
+    {"id": "00000000-0000-4000-9002-000000000004", "fase": "00000000-0000-4000-9001-000000000002", "codigo": "ZZ9-04", "nome": "Solo", "mis": "Voo Solo", "eq": "C152", "nb": 1, "ordem": 1, "regra": "depois", "requer": ["00000000-0000-4000-9002-000000000001"], "dispensada": false, "avaliacao": true, "exige": [], "removida": false, "comResultados": false},
+    {"id": "00000000-0000-4000-9002-000000000005", "fase": "00000000-0000-4000-9001-000000000003", "codigo": "ZZ9-05", "nome": "Noturno", "mis": "Noturno", "eq": "C172", "nb": 3, "ordem": 0, "regra": "ordem", "requer": [], "dispensada": false, "avaliacao": false, "exige": [], "removida": false, "comResultados": false}
   ]}'::jsonb, 'o programa volta com as fases e as missões em ordem, os requisitos e quais missões já têm resultados');
 
 -- O que o Administrador não grava (o ZZ9 continua na versão 1)
@@ -313,6 +346,21 @@ select is(pg_temp.desfeito($$ select pg_temp.com_trechos(pg_temp.noturno() #- '{
   '{"retorno": 2, "trechos": [["ZZ9-06", "ida"], ["ZZ9-05", "noite"]]}'::jsonb, 'o Noturno com a ida e a noite, sem a volta');
 select is(pg_temp.desfeito($$ select pg_temp.com_trechos(pg_temp.noturno() #- '{missoes,4}') $$),
   '{"retorno": 2, "trechos": [["ZZ9-05", "noite"], ["ZZ9-07", "volta"]]}'::jsonb, 'o Noturno com a noite e a volta, sem a ida');
+-- O que a missão exige do INVA: a lista volta na leitura; sem ela, a missão fica com a que tinha (nada fica gravado)
+select is(pg_temp.desfeito($$ select pg_temp.com_exige(jsonb_set(pg_temp.programa(), '{missoes,3,exige}', '["endosso_solo"]')) $$),
+  '{"retorno": 2, "exige": [["ZZ9-04", ["endosso_solo"]]]}'::jsonb, 'a missão guarda as habilitações que exige do INVA');
+select is(pg_temp.desfeito($$ select pg_temp.com_exige(jsonb_set(pg_temp.programa(), '{missoes,3,exige}', '["endosso_solo"]'),
+    pg_temp.sem_exige(pg_temp.programa())) $$),
+  '{"retorno": 3, "exige": [["ZZ9-04", ["endosso_solo"]]]}'::jsonb, 'a missão sem a lista exige fica com o que exigia do INVA');
+select is(pg_temp.desfeito($$ select pg_temp.com_exige(jsonb_set(pg_temp.programa(), '{missoes,3,exige}', '["endosso_solo"]'), pg_temp.programa()) $$),
+  '{"retorno": 3, "exige": []}'::jsonb, 'a lista exige vazia tira o que a missão exigia do INVA');
+select is(pg_temp.erro($$ select public.salvar_curso('ZZ9', 1, jsonb_set(pg_temp.programa(), '{missoes,3,exige}', '["Endosso Solo"]'), 'ZZ9: alteração de teste') $$),
+  '22023 exige', 'exige com um id fora do formato é recusado (22023, exige)');
+select is(pg_temp.erro($$ select public.salvar_curso('ZZ9', 1, jsonb_set(pg_temp.programa(), '{missoes,3,exige}',
+    (select jsonb_agg('hab_' || n) from generate_series(0, 10) n)), 'ZZ9: alteração de teste') $$),
+  '22023 exige', 'exige com mais de 10 habilitações é recusado (22023, exige)');
+select is(pg_temp.erro($$ select public.salvar_curso('ZZ9', 1, jsonb_set(pg_temp.programa(), '{missoes,3,exige}', '"endosso_solo"'), 'ZZ9: alteração de teste') $$),
+  '22023 exige', 'exige fora de uma lista é recusado (22023, exige)');
 select is((select versao from public.cursos where sigla = 'ZZ9'), 1, 'e o ZZ9 continua na versão 1');
 select is(pg_temp.erro($$ select public.salvar_curso('ZZ9', 1, jsonb_set(pg_temp.noturno(), '{missoes,4,mis}', '"Navegação"'), 'ZZ9: alteração de teste') $$),
   '22023 trecho', 'trecho numa missão que não é Noturno é recusado (22023, trecho)');
@@ -369,6 +417,8 @@ select throws_ok($$ delete from public.versoes_dos_cursos where curso = 'ZZ9' $$
 reset role;
 select throws_ok($$ update public.missoes_do_curso set trecho = 'ida' where curso = 'ZZ9' and codigo = 'ZZ9-01' $$, '23514', null,
   'o trecho só fica numa missão Noturno, também direto na tabela');
+select throws_ok($$ update public.missoes_do_curso set exige = array['Endosso Solo'] where curso = 'ZZ9' and codigo = 'ZZ9-01' $$, '23514', null,
+  'a lista exige fica no formato, também direto na tabela');
 
 -- A conversão única, com o cadastro ainda no formato de antes (um abaixo do formato dos cursos, na versão 7)
 update public.documentos set conteudo = jsonb_build_object('esquema', public.formato_dos_cursos() - 1, 'stu', '[]'::jsonb, 'ins', '[]'::jsonb)
@@ -386,6 +436,8 @@ select is(pg_temp.desfeito($$ select pg_temp.importar(jsonb_build_array(pg_temp.
 select is(pg_temp.importar(pg_temp.legado(), 7), '{"trazidas": 2, "versao": 2, "fases": ["Programa"], "missoes": ["ZZ8-01", "ZZ8-02"],
   "alteracao": [2, "Programa trazido do cadastro (2 missões)", "Operador de teste"]}'::jsonb,
   'o operador traz o programa do cadastro (antes do formato dos cursos, a versão lida)');
+select is((select count(*)::integer from public.missoes_do_curso where curso = 'ZZ8' and exige <> '{}'), 0,
+  'a conversão do cadastro traz as missões sem exigir nada do INVA');
 select is(pg_temp.importar(pg_temp.legado(), 7), '{"trazidas": 0, "versao": 2, "fases": ["Programa"], "missoes": ["ZZ8-01", "ZZ8-02"],
   "alteracao": [2, "Programa trazido do cadastro (2 missões)", "Operador de teste"]}'::jsonb,
   'trazer o mesmo programa de novo não grava nada');

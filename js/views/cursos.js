@@ -15,6 +15,7 @@
 import { MIS, DURACAO_MAXIMA_H } from '../config.js';
 import { percursoDoCurso, rotuloDaFase, nomeDaFase, requisitosPossiveis } from '../programa.js';
 import { MODELOS } from '../modelos-de-curso.js';
+import { GRUPOS_DE_HABILITACAO, nomeDaHabilitacao } from '../habilitacoes.js';
 import { FUSO_DO_AEROCLUBE } from '../agenda.js';
 import { nomeDaData } from '../agendamento.js';
 import { ApiClient } from '../storage.js';
@@ -148,6 +149,27 @@ function requisitosDaMissao(curso, m, abertas) {
     ${grupos.map(([f, lista]) => `<fieldset><legend>${esc(rotuloDaFase(f))}</legend>${lista.map(marca).join('')}</fieldset>`).join('')}</details>`;
 }
 
+// O que a missão exige do INVA além do tipo de missão e do recurso (exige: ids do registro das habilitações), e as que
+// nenhum INVA ativo do cadastro tem: os voos dela ficam fora da escala até um INVA ter (regra a: o aviso fica na linha)
+const nomesDoExige = m => (m.exige || []).map(nomeDaHabilitacao);
+export const exigeSemInstrutor = m => (m.exige || []).filter(h => !S.ins.some(x => !inativo(x) && Array.isArray(x.hab) && x.hab.includes(h)));
+export const textoDoExigeSemInstrutor = lista => `Nenhum INVA ativo tem ${resumoDaLista(lista.map(nomeDaHabilitacao))}`;
+function avisoDoExige(m) {
+  const faltam = exigeSemInstrutor(m);
+  return faltam.length ? `<p class="aviso-exige" data-aviso-exige>${esc(textoDoExigeSemInstrutor(faltam))}: os voos ficam fora da escala.</p>` : '';
+}
+
+// A caixa "Habilitações que o INVA precisa" de uma missão: o resumo (nenhuma além do tipo, ou as marcadas) e uma marca
+// para cada habilitação do registro, nos grupos do painel "Editar habilitações" (a própria de um recurso não entra: ela
+// é do recurso)
+function exigeDaMissao(m, abertas) {
+  const marcadas = new Set(m.exige || []), id = `exige-${m.id}`, codigo = esc(m.codigo);
+  const marca = h => `<label class="chk"><input type="checkbox" data-cf="exige" value="${esc(h)}" aria-label="${codigo} exige ${esc(nomeDaHabilitacao(h))}"${marcadas.has(h) ? ' checked' : ''}> ${esc(nomeDaHabilitacao(h))}</label>`;
+  const resumo = marcadas.size ? nomesDoExige(m).join(' + ') : 'nenhuma além da missão e do recurso';
+  return `<details class="exige"${abertas.has(id) ? ' open' : ''}><summary id="${esc(id)}">Habilitações que o INVA precisa: ${esc(resumo)}</summary>
+    ${GRUPOS_DE_HABILITACAO.map(g => `<fieldset><legend>${esc(g.titulo)}</legend>${g.ids.map(marca).join('')}</fieldset>`).join('')}</details>${avisoDoExige(m)}`;
+}
+
 // Uma missão da fase, para quem muda: o número na fase, o código (travado com resultados ou com a Demanda da data aberta
 // levando o código, com o cadeado e o motivo), o nome, o tipo de missão, o recurso, as horas, quando voar (com a caixa
 // "Depois de…"), as marcas e os botões (subir, descer, tirar) com a fase dela. onde: "do PP" (o curso com uma fase só)
@@ -166,14 +188,15 @@ function linhaQueEdita(curso, fase, m, i, total, fases, onde, abertas) {
     <td class="c-eq"><select data-cf="eq" aria-label="Recurso de ${codigo}"${ground ? ' disabled' : ''}>${opcoesDoRecurso(m)}</select></td>
     <td class="c-nb"><input type="number" class="duracao" data-cf="nb" min="0.1" max="${DURACAO_MAXIMA_H}" step="0.1" inputmode="decimal" value="${esc(m.nb)}" aria-label="Horas de ${codigo}"${ground ? ' disabled' : ''}></td>
     <td class="c-quando"><select data-cf="regra" aria-label="Quando voar ${codigo}">${opcoesDaRegra(QUANDO_VOAR, m.regra, semAnteriores)}</select>${m.regra === 'depois' ? requisitosDaMissao(curso, m, abertas) : ''}</td>
-    <td class="c-marcas"><label class="chk"><input type="checkbox" data-cf="dispensada" aria-label="${codigo} dispensada"${m.dispensada ? ' checked' : ''}> Dispensada</label> <label class="chk"><input type="checkbox" data-cf="avaliacao" aria-label="${codigo} de avaliação"${m.avaliacao ? ' checked' : ''}> Avaliação</label></td>
+    <td class="c-marcas"><label class="chk"><input type="checkbox" data-cf="dispensada" aria-label="${codigo} dispensada"${m.dispensada ? ' checked' : ''}> Dispensada</label> <label class="chk"><input type="checkbox" data-cf="avaliacao" aria-label="${codigo} de avaliação"${m.avaliacao ? ' checked' : ''}> Avaliação</label>${exigeDaMissao(m, abertas)}</td>
     <td class="acoes"><div class="acoes-da-missao">${botao('missao-subir', '↑', i === 0)}${botao('missao-descer', '↓', i === total - 1)}${botao('missao-retirar', '✕', false)}${outraFase}</div></td>
   </tr>`;
 }
 
 // Uma missão da fase, para quem só consulta: tudo em texto, e as marcas como etiquetas
 function linhaDeConsulta(curso, fase, m, i) {
-  const marcas = [m.dispensada ? '<span class="tag" data-dica="dispensada">dispensada</span>' : '', m.avaliacao ? '<span class="tag">AVAL</span>' : ''];
+  const marcas = [m.dispensada ? '<span class="tag" data-dica="dispensada">dispensada</span>' : '', m.avaliacao ? '<span class="tag">AVAL</span>' : '',
+    (m.exige || []).length ? `<span class="tag exige" data-dica="habilitacoes-da-missao">INVA: ${esc(nomesDoExige(m).join(' + '))}</span>${avisoDoExige(m)}` : ''];
   return `<tr data-missao="${esc(m.id)}" data-fase="${esc(fase.id)}" data-i="${i}">
     <td class="n">${i + 1}</td>
     <td class="c-codigo codigo">${esc(m.codigo)}</td>

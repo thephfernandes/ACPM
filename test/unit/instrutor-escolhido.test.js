@@ -193,6 +193,19 @@ describe('Instrutor escolhido na Escala: o voo fica onde está', () => {
     assert.deepEqual(instrutoresDoPedido(estado, s, { ...s, insId: 4 }).map(o => [o.id, o.nota]), [[1, ''], [3, 'fora nesta data'], [4, 'em Não escalar com']]);
     assert.deepEqual(instrutoresDoPedido(estado, s, { ...s, insId: 99 })[0], { id: 99, nm: 'Instrutor fora do cadastro', nota: 'o app escolhe' });
   });
+
+  // F1d: o pedido com a missão do curso leva o que ela exige do INVA (exige); quem não tem não é opção, e o escolhido que
+  // não tem fica com o motivo. No voo da Escala também
+  it('o que a missão do curso exige do INVA vale nas opções da Demanda e da Escala', () => {
+    const comEndosso = instrutor(2, 9, { hab: [...instrutor(2, 9).hab, 'endosso_solo'] });
+    const estado = cenario({ ins: [instrutor(1, 9), comEndosso], stu: [aluno(1000, { exige: ['endosso_solo'] })] });
+    const [s] = estado.stu;
+    assert.deepEqual(instrutoresDoPedido(estado, s, s).map(o => o.id), [2]);
+    assert.deepEqual(instrutoresDoPedido(estado, s, { ...s, insId: 1 }).map(o => [o.id, o.nota]), [[1, 'sem a habilitação'], [2, '']]);
+    const resultado = runAllocationEngine(estado);
+    assert.equal(resultado.out[0].insId, 2);
+    assert.deepEqual(instrutoresDoVoo(estado, resultado, '1000_0_1').map(o => [o.id, o.nota]), [[2, ''], [1, 'sem a habilitação']]);
+  });
 });
 
 // O que a revisão independente achou: a escolha na Escala sobrevive ao status e à reabertura; "Automático" na Demanda

@@ -14,7 +14,7 @@
 // sugestão pede a confirmação com o aluno; a que faz do voo local o 7º do horário, a do operador
 import { GROUND_EQ_TYPE, T, NI, MIS, MISSOES_LOCAIS, LIMITE_DE_VOOS_LOCAIS } from './config.js';
 import { CAMPOS_DO_PEDIDO } from './dias.js';
-import { normalizeMissionFields } from './rules.js';
+import { normalizeMissionFields, minutoConfirmado } from './rules.js';
 import { HORARIOS_INICIAIS, horariosDaMissao, periodoDoMinuto, fimDasMissoesDoDia } from './horarios.js';
 import { STATUS_EM_ANDAMENTO, intervaloEfetivo } from './status.js';
 import { disponibilidadeDoAluno, doesGroundGateFlight } from './rules.js';
@@ -22,7 +22,7 @@ import { pedidoDoAluno } from './voo.js';
 import { nomeDoRecurso } from './categorias.js';
 import { hm } from './format.js';
 import { gruposDoConflito } from './conflitos.js';
-import { statusDoVoo, pedidosDosVoos } from './voo.js';
+import { statusDoVoo, pedidosDosVoos, exigeDosVoos } from './voo.js';
 import { pinoDoVoo } from './fixos.js';
 import { runAllocationEngine } from './engine.js';
 import { instrutoresDoPedido } from './instrutor-escolhido.js';
@@ -41,8 +41,10 @@ export function sugerirReparos(estado, resultado, fKey, { maximo = 3, depoisDe =
   const alunos = new Map(estado.stu.map(s => [s.id, s]));
   const pedidoDo = pedidosDosVoos(estado.stu);
   const tipo = voo.isGround ? GROUND_EQ_TYPE : voo.eqType;
-  // Os requisitos do voo: a missão, o tipo e o curso do aluno (o noturno do PC é IFR; js/frota.js)
+  // Os requisitos do voo: a missão, o tipo e o curso do aluno (o noturno do PC é IFR; js/frota.js), e o que a missão do
+  // curso dos pedidos exige do INVA
   const curso = (alunos.get(voo.stuId) || {}).curso;
+  const exige = exigeDosVoos(estado.stu)(grupo);
 
   // Os aviões que servem ao voo (o tipo, o "Só Parafuso" e o "Só VFR") e, com o instrutor, os em que ele voa
   const avioesPara = (a, b, instrutor = null) => avioesQueServem(estado, ocupacao, { tipo, mis: voo.mis, curso, a, b, ground: voo.isGround, instrutor })
@@ -50,7 +52,7 @@ export function sugerirReparos(estado, resultado, fKey, { maximo = 3, depoisDe =
   // Os instrutores que servem no avião r (o avião com habilitação própria exige a dele), cada um com o combustível a
   // menos com ele ({ x, problemas, reducao })
   const instrutoresPara = (a, b, r = voo.r) => instrutoresQueServem(estado, ocupacao,
-    { mis: voo.mis, tipo, a, b, alunos: grupo.map(v => alunos.get(v.stuId)), stuKg: voo.stuKg, curso, r }).filter(c => !c.problemas.length);
+    { mis: voo.mis, tipo, a, b, alunos: grupo.map(v => alunos.get(v.stuId)), stuKg: voo.stuKg, curso, r, exige }).filter(c => !c.problemas.length);
   const comCombustivel = (texto, { reducao }) => (reducao > 0 ? `${texto} · reduzir ${reducao} gal` : texto);
 
   // O que o conflito pede, pelo código: o pedido mudou (só soltar), o horário não serve (outro
@@ -182,13 +184,18 @@ function oQueMuda(o, d) {
 
 // No máximo 6 voos locais saem no mesmo horário (a regra do 7º local: avisa e pede a confirmação). O aviso da sugestão que
 // põe o voo local às m, onde já saem 6 na escala do motor com ela (os outros voos que não foram cancelados, no horário
-// efetivo, sem o voo e a turma dele: fora), ou null
+// efetivo, sem o voo e a turma dele: fora), ou null. Como no motor (js/engine.js), o 7º confirmado na Agenda
+// (limiteConfirmado) não conta no minuto dele, e o voo cujo pedido foi confirmado para m não avisa (estado: a cópia com a
+// sugestão aplicada, o pedido como fica)
 function avisoDosLocais(estado, resultado, voo, fora, m) {
   if (voo.isGround || !MISSOES_LOCAIS.includes(voo.mis)) return null;
+  const pedidoDo = pedidosDosVoos(estado.stu);
+  if (minutoConfirmado(pedidoDo(voo)) === m) return null;
   const locais = resultado.out.filter(o => {
     if (fora.has(o.fKey) || o.isGround || !MISSOES_LOCAIS.includes(o.mis)) return false;
     const status = statusDoVoo(o, estado.fStatus);
-    return status !== 'Cancelado' && intervaloEfetivo(o, status, (estado.fObs || {})[o.fKey]).a === m;
+    const a = intervaloEfetivo(o, status, (estado.fObs || {})[o.fKey]).a;
+    return status !== 'Cancelado' && a === m && minutoConfirmado(pedidoDo(o)) !== a;
   }).length;
   return locais >= LIMITE_DE_VOOS_LOCAIS
     ? `Às ${hm(m)}, o ${locais + 1}º voo local do horário: no máximo ${LIMITE_DE_VOOS_LOCAIS} voos locais saem no mesmo horário.` : null;
@@ -249,13 +256,15 @@ function buscaDoVoo(estado, resultado, voo, grupo, { depoisDe = null, semInstrut
   const alunos = new Map(estado.stu.map(s => [s.id, s]));
   const pedidoDo = pedidosDosVoos(estado.stu);
   const curso = (alunos.get(voo.stuId) || {}).curso;
+  // O que a missão do curso dos pedidos exige do INVA (o estado da escala o deriva): nenhum grupo oferece quem não tem
+  const exige = exigeDosVoos(estado.stu)(grupo);
   const duracao = voo.b - voo.a;
   const tipoDoVoo = voo.isGround ? GROUND_EQ_TYPE : voo.eqType;
   const passou = m => depoisDe !== null && m <= depoisDe;
   const avioes = (tipo, a, b, instrutor = null) => avioesQueServem(estado, ocupacao, { tipo, mis: voo.mis, curso, a, b, ground: voo.isGround, instrutor })
     .filter(c => !c.problema && c.r !== semAviao).map(c => c.r);
   const instrutores = (tipo, a, b, r) => instrutoresQueServem(estado, ocupacao,
-    { mis: voo.mis, tipo, a, b, alunos: grupo.map(v => alunos.get(v.stuId)), stuKg: voo.stuKg, curso, r: voo.isGround ? null : r })
+    { mis: voo.mis, tipo, a, b, alunos: grupo.map(v => alunos.get(v.stuId)), stuKg: voo.stuKg, curso, r: voo.isGround ? null : r, exige })
     .filter(c => !c.problemas.length && c.x.id !== semInstrutor);
   // Até quando o aluno pode ir (o do motor) e, no Ground, antes dos voos que dependem dele
   const fimDoAluno = fimDasMissoesDoDia(estado.stu);
@@ -483,6 +492,9 @@ function mudarOVooEOPedido(estado, resultado, voo, grupo, opcao, { cancelado }) 
       delete estado.fObs[v.fKey];
     } else estado.fixos[v.fKey] = { ...estado.fixos[v.fKey], ...opcao.mudancas, ...novaTurma };
     const { insId, ...doPedido } = opcao.pedido || {};
+    // O 7º voo local confirmado na Agenda era do horário e do tipo de antes: com outra disponibilidade ou outro tipo, a
+    // confirmação sai do pedido, como na Demanda (a reversão a devolve com o pedido de antes)
+    if (['jan', 'eq'].some(c => doPedido[c] !== undefined && doPedido[c] !== ref[c])) delete ref.limiteConfirmado;
     Object.assign(ref, doPedido);
     if (insId && ref.insId) ref.insId = insId;
     normalizeMissionFields(ref);

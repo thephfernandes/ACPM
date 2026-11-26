@@ -14,6 +14,8 @@
 // - a ordem é a posição na lista: das fases, no programa; das missões, dentro da fase;
 // - as listas de fases e de missões vêm sempre; o módulo, a regra, os requisitos, "dispensada", "avaliação" e o trecho
 //   do Noturno podem faltar (null, 'ordem', [], false, false e nenhum);
+// - o que a missão exige do INVA (exige: até 10 ids, letras minúsculas, números e _) pode faltar: a missão fica com o
+//   que exigia (nova, nada); a migração 20261127110000_habilitacoes_da_missao_do_curso carrega a lista;
 // - o trecho do Noturno ("ida", "noite" ou "volta") vai só numa missão Noturno, e na fase as missões com trecho que vêm
 //   uma logo depois da outra são um Noturno só: a ida (se houver), uma noite e a volta (se houver), nesta ordem (a noite
 //   sozinha também vale); o curso guarda o trecho só na missão que tem um;
@@ -51,11 +53,11 @@ export const PROGRAMA = {
     { id: f3, nome: 'Fase 3 – Noturno', modulo: null, regra: 'depois', requer: [f1] }
   ],
   missoes: [
-    { id: m1, fase: f1, codigo: 'ZZ9-01', nome: 'Primeiro voo', mis: 'Voo Local', eq: 'C152', nb: 1, regra: 'ordem', requer: [], dispensada: false, avaliacao: false },
-    { id: m2, fase: f1, codigo: 'ZZ9-02', nome: 'Ground do C152', mis: 'Ground C152', eq: 'Sala Ground', nb: 1.5, regra: 'livre', requer: [], dispensada: false, avaliacao: false },
-    { id: m3, fase: f2, codigo: 'ZZ9-03', nome: 'Adaptação', mis: 'Voo Local', eq: 'C152', nb: 1, regra: 'ordem', requer: [], dispensada: true, avaliacao: false },
-    { id: m4, fase: f2, codigo: 'ZZ9-04', nome: 'Solo', mis: 'Voo Solo', eq: 'C152', nb: 1, regra: 'depois', requer: [m1], dispensada: false, avaliacao: true },
-    { id: m5, fase: f3, codigo: 'ZZ9-05', nome: 'Noturno', mis: 'Noturno', eq: 'C172', nb: 3, regra: 'ordem', requer: [], dispensada: false, avaliacao: false }
+    { id: m1, fase: f1, codigo: 'ZZ9-01', nome: 'Primeiro voo', mis: 'Voo Local', eq: 'C152', nb: 1, regra: 'ordem', requer: [], dispensada: false, avaliacao: false, exige: [] },
+    { id: m2, fase: f1, codigo: 'ZZ9-02', nome: 'Ground do C152', mis: 'Ground C152', eq: 'Sala Ground', nb: 1.5, regra: 'livre', requer: [], dispensada: false, avaliacao: false, exige: [] },
+    { id: m3, fase: f2, codigo: 'ZZ9-03', nome: 'Adaptação', mis: 'Voo Local', eq: 'C152', nb: 1, regra: 'ordem', requer: [], dispensada: true, avaliacao: false, exige: [] },
+    { id: m4, fase: f2, codigo: 'ZZ9-04', nome: 'Solo', mis: 'Voo Solo', eq: 'C152', nb: 1, regra: 'depois', requer: [m1], dispensada: false, avaliacao: true, exige: [] },
+    { id: m5, fase: f3, codigo: 'ZZ9-05', nome: 'Noturno', mis: 'Noturno', eq: 'C172', nb: 3, regra: 'ordem', requer: [], dispensada: false, avaliacao: false, exige: [] }
   ]
 };
 
@@ -63,12 +65,14 @@ export const PROGRAMA = {
 const comMissao = (conteudo, qual, campos) => ({ ...conteudo, missoes: conteudo.missoes.map(m => (m.id === qual ? { ...m, ...campos } : m)) });
 const comFase = (conteudo, qual, campos) => ({ ...conteudo, fases: conteudo.fases.map(f => (f.id === qual ? { ...f, ...campos } : f)) });
 const semMissao = (conteudo, qual) => ({ ...conteudo, missoes: conteudo.missoes.filter(m => m.id !== qual) });
+// O conteúdo sem a lista exige nas missões (como a aba de antes do F1d manda)
+const semExige = conteudo => ({ ...conteudo, missoes: conteudo.missoes.map(({ exige, ...m }) => m) });
 
 // O Noturno em trechos (p_curso): na Fase 3, a ida (ZZ9-06), a noite (a ZZ9-05) e a volta (ZZ9-07), juntas e nesta
 // ordem
-const IDA = { id: m6, fase: f3, codigo: 'ZZ9-06', nome: 'Translado de ida', mis: 'Noturno', eq: 'C172', nb: 1, regra: 'ordem', requer: [], dispensada: false, avaliacao: false, trecho: 'ida' };
+const IDA = { id: m6, fase: f3, codigo: 'ZZ9-06', nome: 'Translado de ida', mis: 'Noturno', eq: 'C172', nb: 1, regra: 'ordem', requer: [], dispensada: false, avaliacao: false, exige: [], trecho: 'ida' };
 const NOITE = { ...PROGRAMA.missoes[4], trecho: 'noite' };
-const VOLTA = { id: m7, fase: f3, codigo: 'ZZ9-07', nome: 'Translado de volta', mis: 'Noturno', eq: 'C172', nb: 1, regra: 'ordem', requer: [], dispensada: false, avaliacao: false, trecho: 'volta' };
+const VOLTA = { id: m7, fase: f3, codigo: 'ZZ9-07', nome: 'Translado de volta', mis: 'Noturno', eq: 'C172', nb: 1, regra: 'ordem', requer: [], dispensada: false, avaliacao: false, exige: [], trecho: 'volta' };
 export const NOTURNO_EM_TRECHOS = { ...PROGRAMA, missoes: [...PROGRAMA.missoes.slice(0, 4), IDA, NOITE, VOLTA] };
 // Uma missão sem trecho no meio do Noturno
 const NO_MEIO = { id: m8, fase: f3, codigo: 'ZZ9-08', nome: 'Voo local em BH', mis: 'Voo Local', eq: 'C172', nb: 1 };
@@ -97,11 +101,11 @@ const ZZ9_V1 = {
     { id: f3, nome: 'Fase 3 – Noturno', modulo: null, ordem: 2, regra: 'depois', requer: [f1], removida: false }
   ],
   missoes: [
-    { id: m1, fase: f1, codigo: 'ZZ9-01', nome: 'Primeiro voo', mis: 'Voo Local', eq: 'C152', nb: 1, ordem: 0, regra: 'ordem', requer: [], dispensada: false, avaliacao: false, removida: false },
-    { id: m2, fase: f1, codigo: 'ZZ9-02', nome: 'Ground do C152', mis: 'Ground C152', eq: 'Sala Ground', nb: 1.5, ordem: 1, regra: 'livre', requer: [], dispensada: false, avaliacao: false, removida: false },
-    { id: m3, fase: f2, codigo: 'ZZ9-03', nome: 'Adaptação', mis: 'Voo Local', eq: 'C152', nb: 1, ordem: 0, regra: 'ordem', requer: [], dispensada: true, avaliacao: false, removida: false },
-    { id: m4, fase: f2, codigo: 'ZZ9-04', nome: 'Solo', mis: 'Voo Solo', eq: 'C152', nb: 1, ordem: 1, regra: 'depois', requer: [m1], dispensada: false, avaliacao: true, removida: false },
-    { id: m5, fase: f3, codigo: 'ZZ9-05', nome: 'Noturno', mis: 'Noturno', eq: 'C172', nb: 3, ordem: 0, regra: 'ordem', requer: [], dispensada: false, avaliacao: false, removida: false }
+    { id: m1, fase: f1, codigo: 'ZZ9-01', nome: 'Primeiro voo', mis: 'Voo Local', eq: 'C152', nb: 1, ordem: 0, regra: 'ordem', requer: [], dispensada: false, avaliacao: false, exige: [], removida: false },
+    { id: m2, fase: f1, codigo: 'ZZ9-02', nome: 'Ground do C152', mis: 'Ground C152', eq: 'Sala Ground', nb: 1.5, ordem: 1, regra: 'livre', requer: [], dispensada: false, avaliacao: false, exige: [], removida: false },
+    { id: m3, fase: f2, codigo: 'ZZ9-03', nome: 'Adaptação', mis: 'Voo Local', eq: 'C152', nb: 1, ordem: 0, regra: 'ordem', requer: [], dispensada: true, avaliacao: false, exige: [], removida: false },
+    { id: m4, fase: f2, codigo: 'ZZ9-04', nome: 'Solo', mis: 'Voo Solo', eq: 'C152', nb: 1, ordem: 1, regra: 'depois', requer: [m1], dispensada: false, avaliacao: true, exige: [], removida: false },
+    { id: m5, fase: f3, codigo: 'ZZ9-05', nome: 'Noturno', mis: 'Noturno', eq: 'C172', nb: 3, ordem: 0, regra: 'ordem', requer: [], dispensada: false, avaliacao: false, exige: [], removida: false }
   ]
 };
 // Um curso guardado com outra versão e outros campos em algumas missões
@@ -111,13 +115,15 @@ const ZZ9_V3 = versao(ZZ9_V2, 3, { [m2]: { codigo: 'ZZ9-03' }, [m3]: { codigo: '
 const ZZ9_V4 = versao(ZZ9_V3, 4, { [m5]: { removida: false } });
 const ZZ9_V5 = versao(ZZ9_V4, 5, { [m4]: { removida: true, requer: [] } });
 // O ZZ9 da versão 1 gravado de novo (versão 2) com a Fase 3 nestas missões, nesta ordem
-const comAFase3 = (...missoes) => ({ ...ZZ9_V1, versao: 2, missoes: [...ZZ9_V1.missoes.slice(0, 4), ...missoes.map((m, ordem) => ({ ...m, ordem, removida: false }))] });
+const comAFase3 = (...missoes) => ({ ...ZZ9_V1, versao: 2, missoes: [...ZZ9_V1.missoes.slice(0, 4), ...missoes.map((m, ordem) => ({ ...m, ordem, exige: [], removida: false }))] });
+// O ZZ9 da versão 1 gravado de novo (versão n) com a ZZ9-04 exigindo do INVA estas habilitações
+const comExige = (n, exige) => versao(ZZ9_V1, n, { [m4]: { exige } });
 const ZZ8_TRAZIDO = {
   ...ZZ8, versao: 2,
   fases: [{ id: IDS.programa, nome: 'Programa', modulo: null, ordem: 0, regra: 'ordem', requer: [], removida: false }],
   missoes: [
-    { id: IDS.legado1, fase: IDS.programa, codigo: 'ZZ8-01', nome: 'Voo local', mis: 'Voo Local', eq: 'C152', nb: 1, ordem: 0, regra: 'ordem', requer: [], dispensada: false, avaliacao: false, removida: false },
-    { id: IDS.legado2, fase: IDS.programa, codigo: 'ZZ8-02', nome: 'Navegação', mis: 'Navegação', eq: 'C152', nb: 2.5, ordem: 1, regra: 'ordem', requer: [], dispensada: false, avaliacao: false, removida: false }
+    { id: IDS.legado1, fase: IDS.programa, codigo: 'ZZ8-01', nome: 'Voo local', mis: 'Voo Local', eq: 'C152', nb: 1, ordem: 0, regra: 'ordem', requer: [], dispensada: false, avaliacao: false, exige: [], removida: false },
+    { id: IDS.legado2, fase: IDS.programa, codigo: 'ZZ8-02', nome: 'Navegação', mis: 'Navegação', eq: 'C152', nb: 2.5, ordem: 1, regra: 'ordem', requer: [], dispensada: false, avaliacao: false, exige: [], removida: false }
   ]
 };
 
@@ -227,6 +233,27 @@ export const CASOS_DO_PROGRAMA = [
     nome: '"avaliação" fora de sim ou não é recusada (22023, avaliacao)', antes: estado(ZZ9_V1),
     salvar: salvar(1, comMissao(PROGRAMA, m4, { avaliacao: 1 })), ...recusa('22023', 'avaliacao')
   },
+
+  // O que a missão exige do INVA (o ZZ9 guardado na versão 1; migração 20261127110000)
+  {
+    nome: 'a missão guarda as habilitações que exige do INVA', antes: estado(ZZ9_V1),
+    salvar: salvar(1, comMissao(PROGRAMA, m4, { exige: ['endosso_solo'] })), retorno: { versao: 2 }, depois: comExige(2, ['endosso_solo']),
+    alteracao: versaoGravada('ZZ9', 2, 'ZZ9: alteração de teste')
+  },
+  {
+    nome: 'a missão sem a lista exige fica com o que exigia do INVA', antes: estado(comExige(2, ['endosso_solo'])),
+    salvar: salvar(2, semExige(PROGRAMA)), retorno: { versao: 3 }, depois: comExige(3, ['endosso_solo']), alteracao: versaoGravada('ZZ9', 3, 'ZZ9: alteração de teste')
+  },
+  {
+    nome: 'a lista exige vazia tira o que a missão exigia do INVA', antes: estado(comExige(2, ['endosso_solo'])),
+    salvar: salvar(2, comMissao(PROGRAMA, m4, { exige: [] })), retorno: { versao: 3 }, depois: comExige(3, []), alteracao: versaoGravada('ZZ9', 3, 'ZZ9: alteração de teste')
+  },
+  { nome: 'exige com um id fora do formato é recusado (22023, exige)', antes: estado(ZZ9_V1), salvar: salvar(1, comMissao(PROGRAMA, m4, { exige: ['Endosso Solo'] })), ...recusa('22023', 'exige') },
+  {
+    nome: 'exige com mais de 10 habilitações é recusado (22023, exige)', antes: estado(ZZ9_V1),
+    salvar: salvar(1, comMissao(PROGRAMA, m4, { exige: Array.from({ length: 11 }, (_, i) => `hab_${i}`) })), ...recusa('22023', 'exige')
+  },
+  { nome: 'exige fora de uma lista é recusado (22023, exige)', antes: estado(ZZ9_V1), salvar: salvar(1, comMissao(PROGRAMA, m4, { exige: 'endosso_solo' })), ...recusa('22023', 'exige') },
 
   // O Noturno em trechos (o ZZ9 guardado na versão 1)
   {

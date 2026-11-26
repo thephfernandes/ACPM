@@ -2,6 +2,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { CATEGORIAS_DO_RODIZIO, categoriaDoRodizio, ajustarFilas, filasDoDiaSeguinte } from '../../js/rodizio.js';
+import { habilitadoNoTipo, exigencias } from '../../js/habilitacoes.js';
 
 const instrutor = (id, ...hab) => ({ id, nm: `Instrutor ${id}`, on: true, hab });
 
@@ -51,5 +52,19 @@ describe('Rodízio', () => {
     assert.deepEqual(filasDoDiaSeguinte(dia, ins), { cheque: [], mlte: [4], noturno: [1, 2], c172: [2, 3, 1] });
     assert.deepEqual(filasDoDiaSeguinte({ ...dia, filas: undefined }, ins).c172, [2, 3, 1], 'dia sem filas: começa pelo cadastro');
     assert.deepEqual(filasDoDiaSeguinte({ filas: dia.filas }, ins), ajustarFilas(dia.filas, ins), 'sem escala: as filas seguem iguais');
+  });
+
+  // A fila do C172 lê o que o tipo C172 exige no registro (js/habilitacoes.js), não um id escrito aqui
+  it('a fila do C172 é de quem tem o que o tipo C172 exige no registro', () => {
+    const c172 = CATEGORIAS_DO_RODIZIO.find(c => c.id === 'c172');
+    const doTipo = exigencias('Multimotor', 'C172').slice(1).flat();
+    assert.deepEqual(doTipo, ['c172']);
+    for (const hab of [[], ['c172'], ['local'], ['local', 'c172', 'noturno'], ['mlte']]) {
+      const x = instrutor(1, ...hab);
+      assert.equal(c172.participa(x), doTipo.every(h => hab.includes(h)), hab.join(' '));
+      assert.equal(habilitadoNoTipo(x, 'C172'), c172.participa(x));
+    }
+    assert.equal(c172.participa({ id: 1 }), false, 'sem a lista');
+    assert.equal(habilitadoNoTipo(instrutor(1, 'local'), 'Sala Ground'), true, 'tipo que não exige nada');
   });
 });

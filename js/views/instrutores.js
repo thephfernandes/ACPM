@@ -18,8 +18,8 @@ import { filtrarLinhas } from './linhas-filtradas.js';
 
 const ROTULO = new Map(HABILITACOES.map(h => [h.id, h.curto]));
 // No cadastro, todas na ordem do painel; na grade do dia, só as que mais distinguem o instrutor
-const ORDEM_DA_GRADE = ['mlte', 'c172', 'ifr', 'noturno', 'parafuso', 'solo', 'navegacao', 'local', 'tgl', 'sim_multi', 'sim_mono',
-  'ground_pa34', 'grounds'];
+const ORDEM_DA_GRADE = ['mlte', 'c172', 'ifr', 'noturno', 'parafuso', 'endosso_solo', 'solo', 'navegacao_150', 'navegacao', 'local', 'tgl',
+  'sim_multi', 'sim_mono', 'ground_pa34', 'grounds'];
 const rotuloDa = h => ROTULO.get(h) || nomeDaHabilitacao(h);
 const resumoDasHabilitacoes = x => x.hab.map(rotuloDa).join(' · ');
 // Na grade do dia, as marcas de checador (o curso, o motor e as regras) contam como uma, na frente

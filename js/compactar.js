@@ -19,7 +19,7 @@ import { disponibilidadeDoAluno, doesGroundGateFlight } from './rules.js';
 import { INTERVALO_DO_HANGAR } from './metricas.js';
 import { normalizarCriterios } from './criterios.js';
 import { intervaloEfetivo } from './status.js';
-import { statusDoVoo, unidadeDoVoo, umPorUnidade, pedidosDosVoos, ocupacaoDoVoo, compromissoDoVoo } from './voo.js';
+import { statusDoVoo, unidadeDoVoo, umPorUnidade, pedidosDosVoos, ocupacaoDoVoo, compromissoDoVoo, exigeDosVoos } from './voo.js';
 import { soma, agrupar, menorPrimeiro, paradasEntre } from './util.js';
 
 // Um voo que muda de instrutor junto com o horário vai para quem já voa até esta distância (minutos) dele
@@ -136,8 +136,10 @@ export function compactar(out, state, { saldo = () => Infinity, posicao = () => 
   const custoAtualDoAviao = r => (custosDosAvioes.has(r) ? custosDosAvioes.get(r)
     : custosDosAvioes.set(r, custoDoAviao(intervalosDe(doRecurso.get(r), []), pesos)).get(r));
 
-  // Os requisitos do voo da unidade (a missão, o tipo e o curso do aluno: o voo IFR só no avião homologado IFR)
+  // Os requisitos do voo da unidade (a missão, o tipo e o curso do aluno: o voo IFR só no avião homologado IFR) e o que a
+  // missão do curso dos pedidos dela exige do INVA
   const vooDa = u => ({ mis: u.mis, eq: u.tipo, curso: (alunos.get(u.alunos[0]) || {}).curso });
+  const exigeDa = exigeDosVoos(state.stu);
   // O recurso serve: disponível, livre (sem as unidades que saem) e, se for outro, com saldo até a revisão de 50 horas
   const horasNoRecurso = (r, sem) => { let t = 0; for (const u of doRecurso.get(r) || []) if (!sem.includes(u)) t += u.h; return t; };
   const recursoServe = (u, r, a, b, sem) => Boolean(state.av[r]) && livre(intervalosDe(doRecurso.get(r), sem), a, b)
@@ -194,7 +196,7 @@ export function compactar(out, state, { saldo = () => Infinity, posicao = () => 
         // Com o curso do aluno e o avião do voo: o avião com habilitação própria exige a dele do instrutor (novo ou não)
         const problemas = problemasDoInstrutor(x, {
           mis: u.mis, tipo: u.tipo, a, b, alunos: mudouInstrutor ? u.voos.map(o => alunos.get(o.stuId)) : [], stuKg: v.stuKg,
-          curso: vooDa(u).curso, recurso: u.isGround ? null : recursoDaFrota(frota, m.r)
+          curso: vooDa(u).curso, recurso: u.isGround ? null : recursoDaFrota(frota, m.r), exige: exigeDa(u.voos)
         }, {
           compromissos, historico: x ? historico(x.id) : null, limites,
           peso: mudouInstrutor ? { reducaoMaxima: v.comb ? v.comb.reduzirGal : 0, exigirPesoDoInstrutor: true } : null

@@ -2,7 +2,7 @@
 // com as mesmas regras de quando o escalou; o que não vale mais vira conflito, com um texto e um código. O grupo do
 // código decide as sugestões de reparo: trocar o instrutor, trocar o avião (ou a sala), passar para outro horário, ou
 // soltar o voo para o app escolher de novo (o pedido mudou).
-import { nomeDaHabilitacao, PREFIXO_DA_HABILITACAO_DO_AVIAO } from './habilitacoes.js';
+import { nomeDaHabilitacao, PREFIXO_DA_HABILITACAO_DO_AVIAO, PREFIXO_DA_MISSAO_DO_CURSO } from './habilitacoes.js';
 
 export const GRUPO_DO_CONFLITO = {
   'instrutor-saiu': 'instrutor',
@@ -34,13 +34,15 @@ const LIMITE_DO_MOTIVO = {
 };
 
 // O texto de cada problema do instrutor (os códigos de problemasDoInstrutor, js/viabilidade.js), como aparece no
-// conflito de um voo fixo. Na habilitação, o motivo diz qual faltou: a do curso do aluno ou a própria do avião
+// conflito de um voo fixo. Na habilitação, o motivo diz qual faltou: a do curso do aluno, a própria do avião, a que o
+// recurso exige ou a que a missão do curso exige
 export const TEXTO_DO_PROBLEMA = {
   'instrutor-saiu': () => 'o instrutor saiu do cadastro',
   'instrutor-indisponivel': () => 'o instrutor não está disponível',
   habilitacao: p => (!p.motivo ? 'o instrutor não tem a habilitação da missão'
     : p.motivo === 'curso' ? 'o instrutor não tem a habilitação que o curso do aluno exige nesta missão (o noturno do PC é IFR)'
       : p.motivo.startsWith(PREFIXO_DA_HABILITACAO_DO_AVIAO) ? `o instrutor não tem a habilitação própria do ${p.motivo.slice(PREFIXO_DA_HABILITACAO_DO_AVIAO.length)}`
+        : p.motivo.startsWith(PREFIXO_DA_MISSAO_DO_CURSO) ? `o instrutor não tem a habilitação que a missão do curso exige (${nomeDaHabilitacao(p.motivo.slice(PREFIXO_DA_MISSAO_DO_CURSO.length))})`
         : `o instrutor não tem a habilitação que o recurso exige (${nomeDaHabilitacao(p.motivo)})`),
   'instrutor-ocupado': () => 'o instrutor já tem outro compromisso neste horário',
   bloqueio: () => 'o aluno não voa com este instrutor',

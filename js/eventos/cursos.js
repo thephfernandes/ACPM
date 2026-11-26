@@ -11,23 +11,24 @@
 // as fases e o índice das fases) vale para todos os perfis, também enquanto a data abre: não são ações (data-act).
 // Antes de a escala abrir (js/actions.js, aindaNaoAbriu), o programa não muda: os botões recusam em registro.js, e os
 // campos e o curso novo, aqui, com o mesmo aviso
-import { aindaNaoAbriu } from '../actions.js';
+import { aindaNaoAbriu, gravarAlteracao } from '../actions.js';
 import {
   conteudoDoCurso, incluirMissao, mudarMissao, moverMissao, retirarMissao, validarCurso, percursoDoCurso, nomeDaFase, incluirFase, mudarFase,
   moverFase, retirarFase, restaurarFase, restaurarMissao, definirRegra, marcarMissao, moverMissaoParaFase, ordemRecusada, definirTrecho, mudarCurso,
-  aplicarModelo, novoCurso
+  aplicarModelo, novoCurso, exigirNaMissao, LIMITE_DO_EXIGE
 } from '../programa.js';
+import { nomeDaHabilitacao } from '../habilitacoes.js';
 import { MODELOS } from '../modelos-de-curso.js';
 import { codigoValido } from '../cursos.js';
 import { ApiClient } from '../storage.js';
 import { $, showToast, fecharNoEsc } from '../dom.js';
 import { duracaoDigitada, ERRO_DA_DURACAO } from '../rules.js';
-import { S } from '../state.js';
+import { S, estadoDaEscala } from '../state.js';
 import { confirmado } from './confirmacao.js';
 import { aoAcionar } from './registro.js';
 import {
   rCursos, podeEditarCursos, programasIndisponiveis, codigoTravado, codigoComResultados, codigoNaDemanda, codigosReservados, mostrarAlteracoes,
-  nomesDosRequisitos, listaComE, filtrarCursos, recolherFase, recolherTodasAsFases, irParaFase
+  nomesDosRequisitos, listaComE, exigeSemInstrutor, textoDoExigeSemInstrutor, filtrarCursos, recolherFase, recolherTodasAsFases, irParaFase
 } from '../views/cursos.js';
 
 import { registrarDesenho, redesenharPorNome } from '../redesenho.js';
@@ -57,6 +58,15 @@ const porNaTela = curso => {
   const programa = S.programa || [];
   S.programa = programa.some(c => c.sigla === curso.sigla) ? programa.map(c => (c.sigla === curso.sigla ? curso : c)) : [...programa, curso];
 };
+
+// O que as missões do curso exigem do INVA nos pedidos da data aberta (o estado da escala o deriva de S.programa, F1d).
+// Uma alteração do programa que muda isso refaz e grava a escala da data (gravarAlteracao sem descrição: a alteração fica
+// nas versões do curso, não no histórico da data), como uma habilitação marcada em Instrutores; também a escala já
+// gravada, que a data mostraria como estava ao abrir de novo
+const exigenciasDaData = () => JSON.stringify(estadoDaEscala().stu.map(s => [s.exige || null, (s.extra || []).map(ex => ex.exige || null)]));
+function refazerEscalaSeMudou(antes) {
+  if (exigenciasDaData() !== antes) gravarAlteracao('mod', null);
+}
 
 // O curso de onde a alteração parte: com gravações esperando, o da fila (com todas elas); senão, o da tela, a não ser
 // que ele seja mais antigo que o confirmado aqui
@@ -164,6 +174,7 @@ async function mostrarOGravado(sigla, gravado, erro) {
   } catch {
     // Sem conexão: fica o último curso confirmado
   }
+  const exigenciasAntes = exigenciasDaData();
   if (programa) {
     const esperando = [...filas.values()].map(f => f.curso).filter(c => !programa.some(p => p.sigla === c.sigla));
     S.programa = [...programa.map(c => (filas.has(c.sigla) ? filas.get(c.sigla).curso : c)), ...esperando];
@@ -172,6 +183,7 @@ async function mostrarOGravado(sigla, gravado, erro) {
   } else {
     S.programa = (S.programa || []).filter(c => c.sigla !== sigla);
   }
+  refazerEscalaSeMudou(exigenciasAntes);
   const ativo = document.activeElement;
   const focoNoCurso = Boolean(ativo && ativo.closest(`#cursos .curso[data-curso="${sigla}"]`));
   rCursos(); redesenharPorNome('alunos', 'pedidos-do-dia');
@@ -224,9 +236,12 @@ function alterar(curso, novo, descricao, { comSigla = true } = {}) {
   const fila = filas.get(sigla);
   fila.curso = novo;
   fila.itens.push({ curso: novo, conteudo: conteudoDoCurso(novo), descricao: comSigla ? `${sigla}: ${descricao}` : descricao });
+  const exigenciasAntes = exigenciasDaData();
   porNaTela(novo);
-  // Primeiro a fila sai para o servidor; depois Alunos e a Demanda são refeitos (um desenho que falha não a segura)
+  // Primeiro a fila sai para o servidor; depois a escala (quando o que as missões exigem do INVA mudou), Alunos e a
+  // Demanda são refeitos (um desenho que falha não a segura)
   if (!fila.enviando) enviar(sigla, fila);
+  refazerEscalaSeMudou(exigenciasAntes);
   redesenharPorNome('alunos', 'pedidos-do-dia');
 }
 
@@ -423,6 +438,12 @@ function mudarCampoDaMissao(campo) {
     novo = definirRegra(curso, m.id, 'depois', lista);
   } else if (cf === 'dispensada' || cf === 'avaliacao') {
     novo = marcarMissao(curso, m.id, cf, campo.checked);
+  } else if (cf === 'exige') {
+    // As habilitações que o INVA precisa: a lista inteira, como está marcada na caixa da missão (até 10, como o servidor
+    // guarda: a 11ª é recusada com o motivo)
+    const lista = [...tr.querySelectorAll('[data-cf="exige"]:checked')].map(x => x.value);
+    if (lista.length > LIMITE_DO_EXIGE) return recusar(`A missão ${m.codigo} exige do INVA no máximo ${LIMITE_DO_EXIGE} habilitações além da missão e do recurso: desmarque uma antes de marcar outra.`);
+    novo = exigirNaMissao(curso, m.id, lista);
   } else if (cf === 'trecho') {
     // O Noturno desmanchado (a ida sem a noite logo depois, por exemplo) é recusado na conferência, com o motivo
     novo = definirTrecho(curso, m.id, campo.value);
@@ -451,12 +472,16 @@ function mudarCampoDaMissao(campo) {
     : cf === 'regra' || cf === 'requer' ? regraNaDescricao(novo, salva, salva.codigo, false)
       : cf === 'dispensada' ? `${salva.codigo} ${salva.dispensada ? 'dispensada' : 'deixa de ser dispensada'}`
         : cf === 'avaliacao' ? `${salva.codigo} ${salva.avaliacao ? 'é avaliação' : 'deixa de ser avaliação'}`
+          : cf === 'exige' ? (salva.exige.length ? `${salva.codigo} exige do INVA ${listaComE(salva.exige.map(nomeDaHabilitacao))}` : `${salva.codigo} não exige mais habilitação do INVA além da missão e do recurso`)
           : cf === 'trecho' ? `${salva.codigo} ${salva.trecho ? `é ${TRECHOS[salva.trecho]} do Noturno` : 'deixa de ser trecho do Noturno'}`
             : cf === 'fase' ? `${salva.codigo} passou para a ${nomeDaFase(novo.fases.find(f => f.id === salva.fase))}`
               : `${salva.codigo} alterada`;
   alterar(curso, novo, descricao);
   refazerAba();
   if (cf === 'regra' && salva.regra === 'depois') abrirRequisitos(m.id);
+  // Marcada antes de algum INVA ativo ter (regra a): nada a impede, e o aviso diz o que acontece com os voos dela
+  const semInstrutor = cf === 'exige' ? exigeSemInstrutor(salva).filter(h => !(m.exige || []).includes(h)) : [];
+  if (semInstrutor.length) showToast(`${textoDoExigeSemInstrutor(semInstrutor)}: os voos de ${salva.codigo} ficam fora da escala até um INVA ter (marque em Instrutores › Editar habilitações).`);
   // A missão foi para outra fase: o foco a acompanha
   if (cf === 'fase') focar([`#cursos tr[data-missao="${m.id}"] [data-cf="fase"]`]);
 }

@@ -17,6 +17,7 @@ import { normalizarCursos } from '../../js/cursos.js';
 import { FORMATO_DOS_CURSOS } from '../../js/migracoes.js';
 import { CASOS_DO_PROGRAMA, PROGRAMA, IDS, NOTURNO_EM_TRECHOS } from '../helpers/casos-do-programa.js';
 import { noturnosDoCurso, rotuloDaMissao, definirTrecho, mudarCurso, aplicarModelo, novoCurso } from '../../js/programa.js';
+import { exigirNaMissao, comExigenciasDasMissoes, exigeDaMissaoDoPedido } from '../../js/programa.js';
 import { MODELOS } from '../../js/modelos-de-curso.js';
 
 const gerarId = (sigla, codigo) => `${sigla}:${codigo}`;
@@ -413,7 +414,7 @@ describe('O programa lido, nos formatos certos (normalizarProgramas)', () => {
   const fase = (n, campos = {}) => ({ id: u(n), nome: `Fase ${n}`, modulo: null, ordem: n - 1, regra: 'ordem', requer: [], removida: false, ...campos });
   const missaoDe = (n, faseN, campos = {}) => ({
     id: u(100 + n), fase: u(faseN), codigo: `PP-${String(n).padStart(2, '0')}`, nome: `Missão ${n}`, mis: 'Voo Local', eq: 'C152', nb: 1,
-    ordem: n - 1, regra: 'ordem', requer: [], dispensada: false, avaliacao: false, removida: false, comResultados: false, ...campos
+    ordem: n - 1, regra: 'ordem', requer: [], dispensada: false, avaliacao: false, exige: [], removida: false, comResultados: false, ...campos
   });
   const curso = (campos = {}) => ({
     sigla: 'PP', nome: 'Piloto Privado', ordem: 0, ativo: true, versao: 3, fases: [fase(1), fase(2)],
@@ -1006,5 +1007,76 @@ describe('Os cursos novos, o nome, encerrar e o cronograma do PP', () => {
       assert.equal(definirTrecho(x, id(codigo), trecho), null, `${codigo} ${trecho}`);
     }
     assert.deepEqual(recusa(semVolta), null, 'a ida e a noite continuam um Noturno');
+  });
+});
+
+// F1d, "missão do curso": a missão do curso exige do INVA uma lista de ids do registro das habilitações (exige; vazia até
+// o Pedro marcar em Cursos, regra a). O estado da escala deriva a lista de cada pedido pela missão do curso dele (etapa,
+// no curso cursoDaEtapa ou no do aluno), nunca guardada; sem os programas lidos, nada é exigido
+describe('O que a missão do curso exige do INVA', () => {
+  const NO_FORMATO = { esquema: FORMATO_DOS_CURSOS, versao: 7 };
+  function zz9(exigeDaM4 = ['endosso_solo']) {
+    const estado = { cursos: cursosIniciais(), resultados: [], cadastro: NO_FORMATO };
+    const conteudo = { ...PROGRAMA, missoes: PROGRAMA.missoes.map(m => (m.id === IDS.m4 ? { ...m, exige: exigeDaM4 } : m)) };
+    const { cursos } = gravarCurso(estado, { sigla: 'ZZ9', versaoLida: 0, conteudo, descricao: 'Curso ZZ9 criado', agora: AGORA });
+    return normalizarProgramas(programaComResultados({ cursos }));
+  }
+
+  it('a missão lida e as missões novas têm a lista (vazia sem nada marcado); a tela manda a lista na gravação', () => {
+    const programa = zz9();
+    const curso = programa.find(c => c.sigla === 'ZZ9');
+    assert.deepEqual(curso.missoes.map(m => [m.codigo, m.exige]), [['ZZ9-01', []], ['ZZ9-02', []], ['ZZ9-03', []], ['ZZ9-04', ['endosso_solo']], ['ZZ9-05', []]]);
+    assert.deepEqual(conteudoDoCurso(curso).missoes.find(m => m.id === IDS.m4).exige, ['endosso_solo']);
+    assert.deepEqual(incluirMissao(curso, IDS.f1, () => '00000000-0000-4000-8abc-000000000999').missao.exige, []);
+    // Fora do formato, a lista lida fica vazia; repetida, uma vez
+    const [lido] = normalizarProgramas([{ ...curso, missoes: curso.missoes.map((m, i) => ({ ...m, exige: [['X'], 'Endosso', null, ['ifr', 'ifr'], undefined][i] })) }]);
+    assert.deepEqual(lido.missoes.map(m => m.exige), [[], [], [], ['ifr'], []]);
+  });
+
+  it('exigirNaMissao: a lista inteira, só ids do registro (sem a habilitação própria de um recurso), na ordem dele, até 10', () => {
+    const curso = zz9([]).find(c => c.sigla === 'ZZ9');
+    const marcada = exigirNaMissao(curso, IDS.m4, ['endosso_solo', 'navegacao_150']);
+    assert.deepEqual(marcada.missoes.find(m => m.id === IDS.m4).exige, ['navegacao_150', 'endosso_solo']);
+    assert.notEqual(marcada, curso);
+    assert.deepEqual(curso.missoes.find(m => m.id === IDS.m4).exige, [], 'o recebido não muda');
+    assert.equal(exigirNaMissao(marcada, IDS.m4, ['navegacao_150', 'endosso_solo']), null, 'nada muda');
+    assert.deepEqual(exigirNaMissao(marcada, IDS.m4, []).missoes.find(m => m.id === IDS.m4).exige, []);
+    assert.equal(exigirNaMissao(curso, IDS.m4, ['aviao:PR-VOM']), null, 'a habilitação própria é do recurso');
+    assert.equal(exigirNaMissao(curso, IDS.m4, ['nao_existe']), null);
+    assert.equal(exigirNaMissao(curso, IDS.m4, 'endosso_solo'), null);
+    assert.equal(exigirNaMissao(curso, '00000000-0000-4000-8abc-000000000000', ['endosso_solo']), null);
+    assert.equal(exigirNaMissao(retirarMissao(curso, IDS.m4), IDS.m4, ['endosso_solo']), null, 'a missão tirada do programa não muda');
+  });
+
+  it('aplicar o modelo: as missões do modelo não exigem nada; a do mesmo código guarda o que exigia', () => {
+    const pp = cursoPP();
+    assert.ok(pp.missoes.every(m => Array.isArray(m.exige) && m.exige.length === 0));
+    const comSolo = { ...pp, missoes: pp.missoes.map(m => (m.codigo === 'TMA-01' ? { ...m, exige: ['endosso_solo'] } : m)) };
+    const { curso } = aplicarModelo(comSolo, MODELOS['pp-acpm'], gerarId);
+    assert.deepEqual(curso.missoes.filter(m => m.exige.length).map(m => [m.codigo, m.exige]), [['TMA-01', ['endosso_solo']]]);
+  });
+
+  it('o pedido leva o que a missão do curso dele exige: pelo curso da missão, senão pelo do aluno; os extras também', () => {
+    const programa = zz9();
+    const aluno = { id: 1000, nm: 'Aluno 1000', curso: 'ZZ9', fly: true, mis: 'Voo Solo', etapa: 'ZZ9-04', extra: [{ mid: 1, fly: true, mis: 'Voo Local', etapa: 'ZZ9-01' }, { mid: 2, fly: true, mis: 'Voo Solo', etapa: 'ZZ9-04', cursoDaEtapa: 'ZZ9' }] };
+    const outro = { id: 1001, nm: 'Aluno 1001', curso: 'PP', fly: true, mis: 'Voo Solo', etapa: 'ZZ9-04', cursoDaEtapa: 'ZZ9', extra: [] };
+    const semCurso = { id: 1002, nm: 'Aluno 1002', fly: true, mis: 'Voo Solo', etapa: 'ZZ9-04', extra: [] };
+    const estado = { stu: [aluno, outro, semCurso], ins: [] };
+    const novo = comExigenciasDasMissoes(estado, programa);
+    assert.deepEqual(novo.stu[0].exige, ['endosso_solo']);
+    assert.deepEqual(novo.stu[0].extra.map(ex => ex.exige), [undefined, ['endosso_solo']]);
+    assert.deepEqual(novo.stu[1].exige, ['endosso_solo'], 'pelo curso da missão, não pelo do aluno');
+    assert.equal(novo.stu[2], semCurso, 'sem curso, nada');
+    assert.equal(estado.stu[0].exige, undefined, 'o estado recebido não muda');
+    assert.deepEqual(exigeDaMissaoDoPedido(programa, aluno, aluno), ['endosso_solo']);
+    assert.deepEqual(exigeDaMissaoDoPedido(programa, { etapa: 'ZZ9-99' }, aluno), []);
+    // Sem os programas lidos, ou sem nada marcado, o mesmo estado
+    assert.equal(comExigenciasDasMissoes(estado, null), estado);
+    assert.equal(comExigenciasDasMissoes(estado, []), estado);
+    assert.equal(comExigenciasDasMissoes(estado, zz9([])), estado);
+    // A missão tirada do programa depois do pedido continua exigindo
+    const curso = programa.find(c => c.sigla === 'ZZ9');
+    const semM4 = programa.map(c => (c === curso ? retirarMissao(curso, IDS.m4) : c));
+    assert.deepEqual(comExigenciasDasMissoes(estado, semM4).stu[0].exige, ['endosso_solo']);
   });
 });

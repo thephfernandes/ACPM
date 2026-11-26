@@ -168,11 +168,11 @@ test.describe('Instrutores', () => {
     const grupos = ['Ground e simulador', 'Voo', 'Aviões', 'Checador: curso', 'Checador: motor', 'Checador: regras', 'Habilitação própria do recurso'];
     await expect(painel.locator('legend')).toHaveText(grupos);
     const grupo = nome => painel.locator('fieldset', { has: page.locator('legend', { hasText: nome }) }).locator('label');
-    await expect(grupo('Voo')).toHaveText(['TGL (TMA)', 'Local', 'Navegação', 'Liberação de Solo', 'Parafuso (SPIN)', 'IFR', 'Noturno']);
+    await expect(grupo('Voo')).toHaveText(['TGL (TMA)', 'Local', 'Navegação', 'Nav. ≥ 150 NM', 'Liberação de Solo', 'Endosso Solo', 'Parafuso (SPIN)', 'IFR', 'Noturno']);
     await expect(grupo('Aviões')).toHaveText(['C152', 'C172', 'MLTE (PA-34)']);
     await expect(grupo('Checador: curso')).toHaveText(['Checador PP', 'Checador PC', 'Checador INVA']);
     await expect(grupo('Habilitação própria do recurso')).toHaveText(['Avião PR-VOM']);
-    await expect(painel.locator('input[data-filtro]')).toHaveCount(22);
+    await expect(painel.locator('input[data-filtro]')).toHaveCount(24);
 
     // Uma marca: quem tem Noturno
     await caixa('noturno').check();
@@ -420,6 +420,31 @@ test.describe('Instrutores', () => {
     await expect(page.locator('#audit-log-list')).toContainText('Peso Novo instrutor: 80 kg');
     await expect(page.locator('#audit-log-list')).toContainText('Habilitação incluída: Novo instrutor · C172');
     await expect(page.locator('#audit-log-list')).toContainText('Habilitação retirada: Novo instrutor · Voo Local');
+  });
+
+  // N5 (F1d): Endosso Solo e Nav. ≥ 150 NM no grupo Voo de "Editar habilitações", ao lado da Liberação de Solo e da
+  // Navegação; ninguém começa com elas (regra a), e marcar uma grava e vai para o histórico
+  test('"Editar habilitações" tem Endosso Solo e Nav. ≥ 150 NM, desmarcadas para todos, e marcar grava', async ({ page }) => {
+    await abrirSintetico(page);
+    await irParaVista(page, 'ins', 'cadastro');
+    const habs = await page.locator('#inst .cd').evaluateAll(linhas => linhas.map(l => l.dataset.hab));
+    expect(habs.length).toBeGreaterThan(30);
+    expect(habs.filter(h => /\b(endosso_solo|navegacao_150)\b/.test(h))).toEqual([]);
+    await page.locator('#inst .cd[data-id="9"] [data-act="editar-habs"]').click();
+    const painel = page.locator('#painel-instrutor');
+    await expect(painel).toBeVisible();
+    const voo = painel.locator('fieldset', { has: page.locator('legend', { hasText: /^Voo$/ }) }).locator('label');
+    await expect(voo).toHaveText(['TGL (TMA)', 'Voo Local', 'Voo de Navegação', 'Voo de Navegação ≥ 150 NM', 'Voo para liberação de Solo',
+      'Endosso Solo', 'Voo de Parafuso (SPIN)', 'Voo IFR', 'Voo Noturno']);
+    await expect(painel.locator('[data-f="hab"][data-h="endosso_solo"]')).not.toBeChecked();
+    await expect(painel.locator('[data-f="hab"][data-h="navegacao_150"]')).not.toBeChecked();
+    await painel.locator('[data-f="hab"][data-h="endosso_solo"]').check();
+    await expect(page.locator('#inst .cd[data-id="9"]')).toHaveAttribute('data-hab', /\bsolo endosso_solo\b/);
+    await expect(page.locator('#audit-log-list')).toContainText('Habilitação incluída: Instrutor 09 · Endosso Solo');
+    await page.locator('#btn-fechar-painel-instrutor').click();
+    // O filtro das habilitações acha quem a tem
+    await filtrarHabilitacoes(page, ['endosso_solo']);
+    await expect(page.locator('#inst .cd:visible .nm')).toHaveValue('Instrutor 09');
   });
 
   test('as habilitações não são cumulativas e valem na escala', async ({ page }) => {

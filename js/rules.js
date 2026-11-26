@@ -1,6 +1,6 @@
 // Regras das missões: Ground School, precedência Ground → voo
 // e normalização de pedidos (inclusive nomes de missão de versões anteriores).
-import { MIS, NI, T, PRE, GROUND_EQ_TYPE, GROUND_DURATION_H, DURACAO_MAXIMA_H } from './config.js';
+import { MIS, NI, T, PRE, GROUND_EQ_TYPE, GROUND_DURATION_H, DURACAO_MAXIMA_H, MISSOES_LOCAIS } from './config.js';
 import { hm, lerHoras } from './format.js';
 import { periodoDoMinuto, minutoDaPreferencia, preferenciaValida, HORARIO_DO_SOLO } from './horarios.js';
 import { codigoValido, siglaValida } from './cursos.js';
@@ -15,6 +15,9 @@ function minutoExato(jan) {
   const minuto = horario ? minutoDaPreferencia(+horario[1]) : -1;
   return minuto >= T[0] && minuto <= T[NI] ? minuto : null;
 }
+// O minuto em que o 7º voo local confirmado na Agenda (limiteConfirmado, Q8) passa do limite de 6: o horário exato do
+// pedido (jan); null no pedido não confirmado, sem horário exato ou que não é local. O motor e as Sugestões contam assim
+export const minutoConfirmado = d => (Boolean(d) && MISSOES_LOCAIS.includes(d.mis) && d.limiteConfirmado === true ? minutoExato(d.jan) : null);
 // O que a disponibilidade permite: uma função do horário de início, ou null (sem disponibilidade: qualquer horário)
 export function disponibilidadeDoAluno(jan) {
   if (typeof jan !== 'string') return null;
@@ -85,7 +88,7 @@ export const blank = () => ({ fly: false, mis: 'Voo Local', eq: 'C152', p1: T[1]
 // por "Limpar demanda" (js/fixos.js). Muda o pedido e o devolve
 export function deixarEmBranco(pedido) {
   Object.assign(pedido, blank());
-  for (const campo of ['jan', 'etapa', 'cursoDaEtapa', 'solicitacao', 'insId']) delete pedido[campo];
+  for (const campo of ['jan', 'etapa', 'cursoDaEtapa', 'solicitacao', 'insId', 'limiteConfirmado']) delete pedido[campo];
   return pedido;
 }
 
@@ -180,6 +183,8 @@ export function normalizeMissionFields(target) {
   if (Object.hasOwn(target, 'solicitacao') && !(Number.isInteger(target.solicitacao) && target.solicitacao > 0)) delete target.solicitacao;
   // O instrutor escolhido pelo operador para o pedido
   if (Object.hasOwn(target, 'insId') && !(Number.isInteger(target.insId) && target.insId > 0)) delete target.insId;
+  // O 7º voo local no horário confirmado na Agenda (formato 27): só true fica
+  if (Object.hasOwn(target, 'limiteConfirmado') && target.limiteConfirmado !== true) delete target.limiteConfirmado;
   const mRule = missionRule(target.mis) || MIS['Voo Local'];
   if (!mRule.eq.includes(target.eq)) target.eq = mRule.defEq;
   if (mRule.isGround) {

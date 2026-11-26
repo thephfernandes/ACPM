@@ -189,6 +189,20 @@ chama a função de 13 argumentos, e não tenta outra quando o servidor não a t
 não foi possível registrar). Ela só acrescenta: o app no ar continua igual com ela. Depois, com nenhuma aba de antes aberta,
 outra migração pode tirar as funções de 10 e de 11 argumentos.
 
+## O que a missão do curso exige do INVA
+
+O que o INVA tem (`ins[].hab`), o que um recurso exige (`frota[].exige`) e o que uma missão do curso exige são listas de
+ids do mesmo registro, `js/habilitacoes.js`. A migração `20261127110000_habilitacoes_da_missao_do_curso.sql` acrescenta a
+coluna `missoes_do_curso.exige` (`text[]`, vazia em toda missão: nenhuma é marcada por ela; até 10 ids com letras
+minúsculas, números e `_`) e recria `programa_do_curso` (a leitura, que devolve a lista) e `gravar_programa` (por onde
+`salvar_curso` e `importar_cursos` gravam): a lista fora do formato é recusada (`22023`, `exige`), e a missão que vem sem
+ela fica com a que tinha. A regra está também em `gravarCurso` (`js/programa.js`), que o modo local, o servidor falso e o
+cliente falso usam, com os casos de `test/helpers/casos-do-programa.js` (verificações de `cursos.test.sql`). O estado da
+escala deriva a lista de cada pedido pela missão do curso dele (`exige`, nunca gravado), e o motor também a pede do INVA.
+
+**A ordem:** a migração na prévia com `npm run test:db`, e só então o merge (o app novo manda a lista em cada missão). Ela
+só acrescenta: o app no ar continua igual com ela.
+
 ## A sessão da TV da recepção
 
 A TV fica ligada dias seguidos, sem ninguém por perto, e nunca mostra um quadro velho como se fosse o de agora
@@ -251,6 +265,14 @@ ganha `exige: ['aviao:<matrícula>']`, e a marca `habilitacaoPropria` fica como 
 `inativo` de alunos, instrutores e recursos (`stu[].inativo`, `ins[].inativo`, `frota[].inativo`, só `true`), que a aba
 do formato 25 tiraria ao gravar o cadastro. O dia não muda. Só o app muda (o banco recusa o conteúdo de antes pelo
 número): o primeiro acesso de um Operador ou Administrador regrava os dias e o cadastro no 26.
+
+No formato 27, os instrutores podem ter duas habilitações novas do registro, `endosso_solo` (Endosso Solo) e
+`navegacao_150` (Voo de Navegação ≥ 150 NM), que a aba do formato 26 tiraria como desconhecidas ao gravar o cadastro.
+Nada é convertido: ninguém as recebe (são marcadas em Instrutores › "Editar habilitações"), e nenhum tipo de missão as
+exige; só uma missão do curso que as peça (Cursos). O número também protege, no dia, a confirmação do 7º voo local do
+horário no pedido (`pedidos[].limiteConfirmado`, só `true`, vinda do pedido da agenda confirmado com "Registrar mesmo
+assim"): com ela, o motor deixa esse voo passar do limite no minuto exato do pedido, sem tomar a vaga dos outros seis. Só
+o app muda: o primeiro acesso de um Operador ou Administrador regrava os dias e o cadastro no 27.
 
 ## Estrutura
 

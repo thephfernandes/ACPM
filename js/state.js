@@ -5,6 +5,7 @@ import { pedidoDoAluno } from './voo.js';
 import { hojeISO } from './format.js';
 import { ligada } from './funcionalidades.js';
 import { estadoParaEscalar, inativo, inativoValeEm } from './inativos.js';
+import { comExigenciasDasMissoes } from './programa.js';
 
 export let S = ApiClient.createFreshState();
 export let RES = null;
@@ -49,10 +50,20 @@ export function getMissionTarget(stuId, mid = 0) {
 // Sugestões): de hoje em diante, sem os inativos do cadastro (js/inativos.js); com o hangar desligado
 // (js/funcionalidades.js), sem a ordem guardada (hangar: null é a ordem da frota), que continua em S. Também numa data
 // passada: a ordem guardada passa de uma data para a outra mesmo desligada, e com ela a data feita na ordem da frota
-// mudaria de aviões ao ser alterada no dia seguinte. Nunca é gravado: quem muda os dados muda S
+// mudaria de aviões ao ser alterada no dia seguinte. Cada pedido com a missão do curso leva o que ela exige do INVA
+// (exige, de S.programa, também com o progresso desligado; sem os programas lidos, nada: habilitacoesNaoConferidas).
+// Nunca é gravado: quem muda os dados muda S
 export function estadoDaEscala() {
-  const estado = estadoParaEscalar(S, { data: DATA, hoje: hojeISO() });
+  const estado = comExigenciasDasMissoes(estadoParaEscalar(S, { data: DATA, hoje: hojeISO() }), programaLido());
   return ligada('hangar') ? estado : { ...estado, hangar: null };
+}
+// Os programas dos cursos lidos (null quando a leitura falhou ou eles ainda esperam a conversão do cadastro)
+export const programaLido = () => (dadoIndisponivel('cursos') || dadoIndisponivel('cursos-pendentes') ? null : S.programa || null);
+// Sem os programas lidos, o que as missões do curso dos pedidos que voam exigem do INVA não foi conferido: quantos
+// pedidos com missão do curso (o aviso da Escala)
+export function habilitacoesNaoConferidas() {
+  if (programaLido()) return 0;
+  return S.stu.flatMap(s => [s, ...(Array.isArray(s.extra) ? s.extra : [])]).filter(d => d && d.fly && typeof d.etapa === 'string').length;
 }
 // O aluno, o instrutor ou o recurso inativo no cadastro, na data aberta (de hoje em diante)
 export const inativoNaDataAberta = item => inativo(item) && inativoValeEm(DATA, hojeISO());

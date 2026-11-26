@@ -31,6 +31,20 @@ describe('Importar as solicitações da agenda para a demanda', () => {
     assert.deepEqual(e.importadas, [1]);
   });
 
+  // Q8 (F1d): o pedido com o 7º voo local confirmado na Agenda (limite_confirmado_por e _em) entra com
+  // limiteConfirmado: true; o que não foi confirmado, sem o campo. O voo à mão que dá lugar ao pedido fica com o do pedido
+  it('o 7º voo local confirmado entra com limiteConfirmado; o voo que dá lugar ao pedido perde o de antes', () => {
+    const e = estado();
+    const confirmado = { janela: 'horario', horario: '08:20', limite_confirmado_por: 'Maria', limite_confirmado_em: '2026-11-10T14:00:00.000Z' };
+    importarSolicitacoes(e, [pedido(1, 1000, confirmado), pedido(2, 1001)]);
+    assert.deepEqual([e.stu[0].limiteConfirmado, e.stu[0].jan], [true, 'h500']);
+    assert.equal(Object.hasOwn(e.stu[1].extra[0], 'limiteConfirmado'), false);
+    const outro = estado();
+    outro.stu[2].limiteConfirmado = true;
+    importarSolicitacoes(outro, [pedido(3, 1002, { janela: 'horario', horario: '10:10' })]);
+    assert.deepEqual([outro.stu[2].solicitacao, Object.hasOwn(outro.stu[2], 'limiteConfirmado')], [3, false]);
+  });
+
   it('aluno já voando outra missão: o pedido entra como missão extra', () => {
     const e = estado();
     importarSolicitacoes(e, [pedido(2, 1001)]);

@@ -7,7 +7,8 @@ import { esc, opts, hm, chaveDeBusca } from '../format.js';
 import { isGroundMission, opcoesDeDisponibilidade, duracaoFixaDaMissao } from '../rules.js';
 import { horariosDaMissao } from '../horarios.js';
 import { descreverExigencias } from '../habilitacoes.js';
-import { S, estadoDaEscala, inativoNaDataAberta } from '../state.js';
+import { S, estadoDaEscala, inativoNaDataAberta, programaLido } from '../state.js';
+import { exigeDaMissaoDoPedido } from '../programa.js';
 import { $, trocarConteudo } from '../dom.js';
 import { renderAuditPanel } from './escala.js';
 import { etapaNaDemanda } from './etapas.js';
@@ -33,7 +34,8 @@ function opcoesDeHorario(lista, valor) {
 // O instrutor do pedido: "Automático" (o app escolhe; com o “Priorizar com” do aluno, um dos instrutores dele) ou um escolhido
 // pelo operador, que vale mais que a escolha do app
 function opcoesDeInstrutor(stu, d) {
-  const lista = instrutoresDoPedido(estadoDaEscala(), stu, d).map(o => [o.id, o.nota ? `${o.nm} (${o.nota})` : o.nm]);
+  // Com o que a missão do curso do pedido exige do INVA
+  const lista = instrutoresDoPedido(estadoDaEscala(), stu, { ...d, exige: exigeDaMissaoDoPedido(programaLido(), d, stu) }).map(o => [o.id, o.nota ? `${o.nm} (${o.nota})` : o.nm]);
   // O "Priorizar com" do aluno, só com os instrutores ativos na data (o inativo não é escolhido pelo app)
   const pares = (stu.voaCom || []).map(id => S.ins.find(x => x.id === id)).filter(x => x && !inativoNaDataAberta(x)).map(x => x.nm);
   return opts([['', pares.length ? `Automático (prioriza ${pares.join(', ')})` : 'Automático'], ...lista], d.insId || '');
@@ -58,7 +60,8 @@ export const singleDemandRowHTML = (stu, d, mid = 0) => {
     ? `<div class="stu-cell"><span class="sm">↳ missão extra</span>${etapa}<button class="x edit-only" data-act="del-mis" data-id="${stu.id}" data-mid="${mid}" aria-label="Tirar a missão extra de ${esc(stu.nm)}" title="Tirar esta missão extra">✕</button></div>`
     : `<div class="stu-cell"><span>${esc(stu.nm)}</span>${inativoNaDataAberta(stu) ? ' <span class="tag">inativo</span>' : ''}${etapa}<button class="btn-add-mis edit-only" data-act="add-mis" data-id="${stu.id}" title="Outra missão para este aluno no mesmo dia" aria-label="Mais uma missão para ${esc(stu.nm)}">+ missão</button></div>`;
   const soParafuso = d.mis === 'Parafuso' && d.eq === 'C152' ? matriculasDoTipo(S.frota || [], 'C152', { parafuso: true }) : [];
-  const exige = `Exige ${descreverExigencias(d.mis, isGnd ? GROUND_EQ_TYPE : d.eq, { curso: stu.curso })}${soParafuso.length ? ` (no ${soParafuso.join(' ou ')})` : ''}`;
+  // O que a missão exige do INVA: o tipo, o avião, o curso do aluno e a missão do curso do pedido
+  const exige = `Exige ${descreverExigencias(d.mis, isGnd ? GROUND_EQ_TYPE : d.eq, { curso: stu.curso, exige: exigeDaMissaoDoPedido(programaLido(), d, stu) })}${soParafuso.length ? ` (no ${soParafuso.join(' ou ')})` : ''}`;
   const de = ` de ${esc(stu.nm)}`;
 
   const nbOpts = isGnd

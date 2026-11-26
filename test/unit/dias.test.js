@@ -44,6 +44,20 @@ describe('Separar e juntar', () => {
     assert.deepEqual(estado.win, Array(9).fill(true));
   });
 
+  // Q8 (F1d, formato 27): a confirmação do 7º voo local fica no pedido do dia (só true), no principal e na missão extra
+  it('o 7º voo local confirmado (limiteConfirmado) vai e volta com o pedido do dia; fora de true, sai na leitura', () => {
+    const estado = normalizado({ ...estadoSintetico(), ins: [instrutor(1, 9)], stu: [
+      aluno(1000, { jan: 'h500', limiteConfirmado: true }, { extra: [missaoExtra(1, { jan: 'h500', limiteConfirmado: true })] }),
+      aluno(1001, { limiteConfirmado: 'sim' }), aluno(1002, { limiteConfirmado: false })
+    ] });
+    assert.deepEqual(estado.stu.map(s => s.limiteConfirmado), [true, undefined, undefined]);
+    const { cadastro, dia } = separar(estado);
+    assert.deepEqual([dia.pedidos[1000].limiteConfirmado, dia.pedidos[1000].extra[0].limiteConfirmado, Object.hasOwn(dia.pedidos[1001], 'limiteConfirmado')], [true, true, false]);
+    assert.equal(Object.hasOwn(cadastro.stu[0], 'limiteConfirmado'), false, 'o cadastro não leva o campo do pedido');
+    const junto = juntar(cadastro, dia);
+    assert.deepEqual([junto.stu[0].limiteConfirmado, junto.stu[0].extra[0].limiteConfirmado], [true, true]);
+  });
+
   it('ignora no dia instrutores e alunos que saíram do cadastro', () => {
     const estado = normalizado({ ...estadoSintetico(), ins: [instrutor(1, 1), instrutor(2, 2)], stu: [aluno(1000), aluno(1001)] });
     const { cadastro, dia } = separar(estado);

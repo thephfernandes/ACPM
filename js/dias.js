@@ -17,9 +17,10 @@ import { dataIsoValida } from './format.js';
 
 // Os campos do pedido do dia (o pedido principal é o próprio aluno: o resto dele é do cadastro). jan: disponibilidade do
 // aluno (só quando o pedido tem uma); etapa: o código da missão do curso; solicitacao: o id do pedido da agenda que virou
-// este voo; insId: o instrutor escolhido pelo operador (só quando há um). Desfazer um voo agendado na Escala devolve
+// este voo; insId: o instrutor escolhido pelo operador (só quando há um); limiteConfirmado: o 7º voo local do horário
+// confirmado na Agenda (só true, formato 27). Desfazer um voo agendado na Escala devolve
 // estes campos do pedido como estavam (js/reversoes.js)
-export const CAMPOS_DO_PEDIDO = ['fly', 'mis', 'eq', 'p1', 'p2', 'nb', 'ss', 'pr', 'jan', 'etapa', 'solicitacao', 'insId', 'cursoDaEtapa'];
+export const CAMPOS_DO_PEDIDO = ['fly', 'mis', 'eq', 'p1', 'p2', 'nb', 'ss', 'pr', 'jan', 'etapa', 'solicitacao', 'insId', 'cursoDaEtapa', 'limiteConfirmado'];
 
 // Cada recurso da frota começa disponível; o dia guarda só o que muda
 const avDaFrota = frota => Object.fromEntries(frota.map(f => [f.reg, true]));

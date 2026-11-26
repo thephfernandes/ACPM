@@ -10,7 +10,7 @@ import { disponibilidadeAtual } from './rules.js';
 import { LIMITES_DA_LEI } from './limites.js';
 import { cursosVazios } from './cursos.js';
 
-export const ESQUEMA = 26;
+export const ESQUEMA = 27;
 // O formato dos cursos: o formato do cadastro a partir do qual os programas vivem nas tabelas próprias (antes dele, vale
 // o programa guardado no cadastro, que a conversão única traz para as tabelas). O 22 é o do instrutor escolhido e o 23,
 // o dos atributos da frota; um aumento é esta linha mais public.formato_dos_cursos() (a migração dos cursos), com o
@@ -221,6 +221,13 @@ const PASSOS = {
       frota: cadastro.frota.map(f => (f && typeof f === 'object' && f.habilitacaoPropria === true && f.exige === undefined && typeof f.reg === 'string'
         ? { ...f, exige: [habilitacaoDoAviao(f.reg.trim().toUpperCase())] } : f))
     } : cadastro),
+    dia: dia => dia
+  },
+  // Versão 27: as habilitações Endosso Solo (endosso_solo) e Voo de Navegação ≥ 150 NM (navegacao_150) nos instrutores, que
+  // a aba da versão anterior tiraria como desconhecidas ao gravar o cadastro, e a confirmação do 7º voo local no pedido do
+  // dia (limiteConfirmado, só true). Nada é convertido: ninguém recebe as habilitações novas (são marcadas em Instrutores)
+  27: {
+    cadastro: cadastro => cadastro,
     dia: dia => dia
   }
 };

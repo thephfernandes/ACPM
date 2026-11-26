@@ -80,6 +80,25 @@ test.describe('Demanda', () => {
     await expect(linha.locator('[data-f="jan"]')).toHaveValue('h610');
   });
 
+  // Q8 (F1d): a confirmação do 7º voo local foi dada na Agenda para a missão e o horário do pedido: mudados na Demanda, ela
+  // sai do pedido (noutro horário ele conta como os outros); a duração mudada não a tira
+  test('a disponibilidade ou a missão mudada tira do pedido a confirmação do 7º voo local; a duração, não', async ({ page }) => {
+    const confirmado = { p1: 500, p2: -1, jan: 'h500', limiteConfirmado: true };
+    await abrir(page, { estado: cenario({ ins: [instrutor(1, 9), instrutor(2, 9), instrutor(3, 9)], stu: [aluno(1000, confirmado), aluno(1001, confirmado), aluno(1002, confirmado)] }) });
+    await irPara(page, 'dem');
+    const guardado = () => page.evaluate(data => {
+      const pedidos = JSON.parse(localStorage.getItem(`acpm4_dia_${data}`)).pedidos;
+      return Object.fromEntries(['1000', '1001', '1002'].map(id => [id, pedidos[id].limiteConfirmado === true]));
+    }, AMANHA);
+    await expect.poll(guardado).toEqual({ 1000: true, 1001: true, 1002: true });
+    await linhaDoAluno(page, 'Aluno 1000').locator('[data-f="jan"]').selectOption('h610');
+    await linhaDoAluno(page, 'Aluno 1001').locator('[data-f="mis"]').selectOption('TGL (TMA)');
+    await linhaDoAluno(page, 'Aluno 1002').locator('[data-f="nb"]').fill('1.5');
+    await linhaDoAluno(page, 'Aluno 1002').locator('[data-f="nb"]').press('Enter');
+    await expect(page.locator('#audit-log-list')).toContainText('Pedido Aluno 1002: Voo Local');
+    await expect.poll(guardado).toEqual({ 1000: false, 1001: false, 1002: true });
+  });
+
   // A limpeza também solta os voos que limpa, seja qual for o motivo do cadeado (a escala aprovada, o instrutor escolhido
   // na Escala, o status), e reabre a escala aprovada. O voo que já pousou fica como está: o pedido, o cadeado e o status
   test('"Limpar demanda" solta os voos que limpa (o cadeado e o status de antes) e reabre a escala; o voo que pousou fica', async ({ page }) => {
@@ -540,6 +559,18 @@ test.describe('Voo agendado na Escala', () => {
     await expect(page.locator('#audit-log-list')).toContainText('Aluno 1000: PP-01 na demanda (Voo Local · C152 · 1 h) (deixa de ser fixo)');
     await abrirEscala(page);
     await expect(voo(page, 'Aluno 1000').locator('.fixo')).toHaveCount(0);
+  });
+
+  // Q8 (F1d): a confirmação do 7º voo local era da missão de antes; a missão do curso posta no pedido a tira
+  comProgresso('a próxima missão do curso (Usar) tira do pedido a confirmação do 7º voo local', async ({ page }) => {
+    const cursos = { PP: [{ id: 'PP-01', nome: 'Familiarização', mis: 'Voo Local', eq: 'C152', nb: 1 }], PC: [], INVA: [] };
+    await abrir(page, { estado: dia({ pedido1000: { mis: 'TGL (TMA)', limiteConfirmado: true }, aluno1000: { curso: 'PP' }, cursos }) });
+    const confirmado = () => page.evaluate(d => JSON.parse(localStorage.getItem(`acpm4_dia_${d}`)).pedidos[1000].limiteConfirmado === true, AMANHA);
+    await naDemanda(page);
+    await expect.poll(confirmado).toBe(true);
+    await pedido(page, 1000).locator('[data-act="usar-proxima"]').click();
+    await expect(pedido(page, 1000).locator('.etapa')).toHaveText('PP-01');
+    await expect.poll(confirmado).toBe(false);
   });
 
   test('a mesma duração digitada de outro jeito (1.0 no lugar de 1) não muda o pedido: o voo continua agendado', async ({ page }) => {

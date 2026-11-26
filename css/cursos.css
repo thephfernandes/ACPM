@@ -20,10 +20,14 @@
 #cursos summary { cursor: pointer; }
 #cursos summary:focus-visible { outline: 2px solid var(--ac); outline-offset: 2px; border-radius: 3px; }
 /* "Depois de…": o resumo do que o item espera e, aberta, uma marca para cada fase ou missão anterior (as missões, por fase) */
-#cursos details.requisitos summary { color: var(--ac); font-size: 13.5px; }
-#cursos details.requisitos fieldset { display: flex; flex-wrap: wrap; gap: 0 14px; margin: 6px 0 0; padding: 2px 10px 6px; border: 1px solid var(--ln); border-radius: 6px; }
-#cursos details.requisitos legend { padding: 0 4px; font-size: 12.5px; color: var(--mu); }
-#cursos details.requisitos .chk { font-size: 13.5px; white-space: nowrap; }
+#cursos details.requisitos summary, #cursos details.exige summary { color: var(--ac); font-size: 13.5px; }
+#cursos details.requisitos fieldset, #cursos details.exige fieldset { display: flex; flex-wrap: wrap; gap: 0 14px; margin: 6px 0 0; padding: 2px 10px 6px; border: 1px solid var(--ln); border-radius: 6px; }
+#cursos details.requisitos legend, #cursos details.exige legend { padding: 0 4px; font-size: 12.5px; color: var(--mu); }
+#cursos details.requisitos .chk, #cursos details.exige .chk { font-size: 13.5px; white-space: nowrap; }
+/* "Habilitações que o INVA precisa": a caixa da missão (nos grupos do painel das habilitações) e o aviso, na linha, da
+   habilitação que nenhum INVA ativo tem */
+#cursos details.exige { margin-top: 4px; }
+#cursos .aviso-exige { margin: 4px 0 0; padding: 2px 8px; border-left: 3px solid var(--wa); background: var(--wa-bg); color: var(--wa); font-size: 13px; white-space: normal; }
 #cursos details.retiradas, #cursos details.alteracoes { margin-top: 12px; }
 #cursos details.retiradas summary, #cursos details.alteracoes summary { font-weight: 600; }
 #cursos details.retiradas ul { list-style: none; margin: 6px 0 0; padding: 0; }

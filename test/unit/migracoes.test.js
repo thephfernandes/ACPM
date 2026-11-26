@@ -11,8 +11,8 @@ import { habilitacoesDoNivel } from '../../js/habilitacoes.js';
 describe('Migrações do formato dos dados', () => {
   // O único lugar que fixa o número: cada passo que muda o formato muda este número, o PASSOS de js/migracoes.js e o
   // README ("Formato dos dados"); os outros testes usam ESQUEMA
-  it('o formato dos dados gravados é o 26', () => {
-    assert.equal(ESQUEMA, 26);
+  it('o formato dos dados gravados é o 27', () => {
+    assert.equal(ESQUEMA, 27);
   });
 
   it('dia: renomeia os simuladores na disponibilidade e na escala, sem perder nada', () => {
@@ -242,7 +242,7 @@ describe('Formato 26', () => {
       null, 'texto'
     ]);
     const novo = migrarCadastro(cadastro);
-    assert.equal(novo.esquema, 26);
+    assert.equal(novo.esquema, ESQUEMA);
     assert.deepEqual(novo.frota, [
       { reg: 'PR-VOM', tipo: 'PA-34', habilitacaoPropria: true, outro: 1, exige: ['aviao:PR-VOM'] },
       { reg: 'pr-low ', tipo: 'C152', habilitacaoPropria: true, exige: ['aviao:PR-LOW'] },
@@ -250,11 +250,34 @@ describe('Formato 26', () => {
       { reg: 'PR-Y', tipo: 'C152', inativo: true },
       null, 'texto'
     ]);
-    assert.deepEqual(migrarCadastro({ esquema: 25, nid: 1000, ins: [], stu: [] }), { esquema: 26, nid: 1000, ins: [], stu: [] });
+    assert.deepEqual(migrarCadastro({ esquema: 25, nid: 1000, ins: [], stu: [] }), { esquema: ESQUEMA, nid: 1000, ins: [], stu: [] });
   });
 
   it('o dia não muda', () => {
     const dia = { esquema: 25, win: [true], av: { 'PR-VOM': true } };
-    assert.deepEqual(migrarDia(dia), { ...dia, esquema: 26 });
+    assert.deepEqual(migrarDia(dia), { ...dia, esquema: ESQUEMA });
+  });
+});
+
+// Formato 27 (F1d): as habilitações endosso_solo e navegacao_150 nos instrutores (a aba do 26 as tiraria como
+// desconhecidas) e o limiteConfirmado do pedido do dia. Nada é convertido: ninguém recebe as novas (regra a)
+describe('Formato 27', () => {
+  it('o cadastro não muda: ninguém recebe Endosso Solo nem Nav. ≥ 150 NM, e quem já as tem fica com elas', () => {
+    const cadastro = {
+      esquema: 26, nid: 1003, stu: [],
+      ins: [
+        { id: 1, nm: 'Instrutor 01', hab: habilitacoesDoNivel(9) },
+        { id: 2, nm: 'Instrutor 02', hab: ['local', 'c152', 'endosso_solo', 'navegacao_150'] },
+        { id: 3, nm: 'Instrutor 03', outro: 1 }
+      ],
+      frota: [{ reg: 'PR-VOM', tipo: 'PA-34', exige: ['aviao:PR-VOM'] }]
+    };
+    assert.deepEqual(migrarCadastro(structuredClone(cadastro)), { ...cadastro, esquema: 27 });
+    assert.ok(!habilitacoesDoNivel(9).includes('endosso_solo') && !habilitacoesDoNivel(9).includes('navegacao_150'));
+  });
+
+  it('o dia não muda', () => {
+    const dia = { esquema: 26, win: [true], pedidos: [{ id: 1000, fly: true, mis: 'Voo Local', limiteConfirmado: true }] };
+    assert.deepEqual(migrarDia(structuredClone(dia)), { ...dia, esquema: 27 });
   });
 });

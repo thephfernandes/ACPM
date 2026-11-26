@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   isGroundMission, doesGroundGateFlight, migrateLegacyMissionName, normalizeMissionFields, blank, disponibilidadeDoAluno, disponibilidadeAtual,
   rotuloDaDisponibilidade, opcoesDeDisponibilidade, proximoMid, duracaoDigitada, ERRO_DA_DURACAO, chaveTemSobras, alvoDoNovoPedido,
-  pesoValido, pesoDigitado, pesoDoTexto, ERRO_DO_PESO
+  pesoValido, pesoDigitado, pesoDoTexto, ERRO_DO_PESO, deixarEmBranco
 } from '../../js/rules.js';
 import { podeFazer, descreverExigencias } from '../../js/habilitacoes.js';
 
@@ -53,6 +53,18 @@ describe('Regras de missão', () => {
     const comLista = { mis: ['Navegação'], eq: 'C152', p1: 500, p2: -1, nb: [2], ss: 1 };
     assert.doesNotThrow(() => normalizeMissionFields(comLista));
     assert.equal(comLista.mis, 'Voo Local');
+  });
+
+  // Q8 (F1d): a confirmação do 7º voo local no pedido do dia fica só quando é true; o pedido em branco não a leva
+  it('limiteConfirmado fica só quando é true, e o pedido em branco não o leva', () => {
+    for (const [valor, fica] of [[true, true], [false, false], ['sim', false], [1, false], [null, false]]) {
+      const pedido = { mis: 'Voo Local', eq: 'C152', p1: 500, p2: -1, nb: 1, ss: 1, jan: 'h500', limiteConfirmado: valor };
+      normalizeMissionFields(pedido);
+      assert.equal(Object.hasOwn(pedido, 'limiteConfirmado'), fica, String(valor));
+    }
+    const pedido = { ...blank(), fly: true, jan: 'h500', limiteConfirmado: true, solicitacao: 3 };
+    deixarEmBranco(pedido);
+    assert.equal(Object.hasOwn(pedido, 'limiteConfirmado'), false);
   });
 
   it('uma sessão por missão: pedidos antigos com 2 ou 3 sessões passam a ter uma só (para dividir, "+ missão")', () => {

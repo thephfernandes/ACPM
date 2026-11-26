@@ -4,7 +4,7 @@ import { NOTURNO, T, DAY, MIS, DEFAULT_LIM, GROUND_EQ_TYPE, GROUND_REG, GROUND_D
 import { FROTA_INICIAL, matriculasDoTipo, matriculasParaOVoo, motivoDoAviao, aviaoServe, instrutorVoaNoAviao, recursoDaFrota } from './frota.js';
 import { hm, fmtH, numeroBr, duracaoHm } from './format.js';
 import { repousoAntesDaVolta, historicoDoDia } from './noturno.js';
-import { isGroundMission, doesGroundGateFlight, disponibilidadeDoAluno, rotuloDaDisponibilidade, duracaoValida, duracaoFixaDaMissao } from './rules.js';
+import { isGroundMission, doesGroundGateFlight, disponibilidadeDoAluno, rotuloDaDisponibilidade, duracaoValida, duracaoFixaDaMissao, minutoConfirmado } from './rules.js';
 import { HORARIOS_INICIAIS, horariosDaMissao, periodoDoMinuto, minutoDaPreferencia, ordenarPelaPreferencia, fimDasMissoesDoDia } from './horarios.js';
 import { podeFazer, descreverExigencias } from './habilitacoes.js';
 import { categoriaDoRodizio, ajustarFilas } from './rodizio.js';
@@ -15,7 +15,7 @@ import { TEXTO_DO_PROBLEMA } from './conflitos.js';
 import { normalizarHangar, posicaoNoHangar } from './hangar.js';
 import { normalizarLimites } from './limites.js';
 import { compactar, custoDaEscala } from './compactar.js';
-import { chaveDoVoo, statusDoVoo, unidadeDoVoo, umPorUnidade, pedidosDosVoos, ocupacaoDoVoo, compromissoDoVoo } from './voo.js';
+import { chaveDoVoo, statusDoVoo, unidadeDoVoo, umPorUnidade, pedidosDosVoos, ocupacaoDoVoo, compromissoDoVoo, exigeDosVoos } from './voo.js';
 import { menorPrimeiro, soma, paradasEntre } from './util.js';
 
 // Entre os instrutores possíveis, primeiro os que têm menos habilitações: os mais versáteis ficam livres
@@ -171,6 +171,8 @@ function paradoDasUnidades(unidades) {
 function equalizarHoras(out, state, limites, historico) {
   const ativos = state.ins.filter(x => x.on);
   const alunos = new Map(state.stu.map(s => [s.id, s]));
+  // O que a missão do curso dos pedidos da unidade exige do INVA (quem recebe a unidade também precisa ter)
+  const exigeDa = exigeDosVoos(state.stu);
   const grupos = new Map();
   out.forEach(o => {
     const chave = unidadeDoVoo(o);
@@ -199,7 +201,7 @@ function equalizarHoras(out, state, limites, historico) {
     const [v] = u.voos;
     // O curso do aluno e o avião do voo (o noturno do PC exige IFR; o avião com habilitação própria, a dele)
     const recurso = u.isGround ? null : recursoDaFrota(Array.isArray(state.frota) ? state.frota : FROTA_INICIAL, v.r);
-    return !problemasDoInstrutor(x, { mis: u.mis, tipo: u.isGround ? GROUND_EQ_TYPE : u.eqType, a: u.a, b: u.b, alunos: u.voos.map(o => alunos.get(o.stuId)), stuKg: v.stuKg, curso: (alunos.get(v.stuId) || {}).curso, recurso },
+    return !problemasDoInstrutor(x, { mis: u.mis, tipo: u.isGround ? GROUND_EQ_TYPE : u.eqType, a: u.a, b: u.b, alunos: u.voos.map(o => alunos.get(o.stuId)), stuKg: v.stuKg, curso: (alunos.get(v.stuId) || {}).curso, recurso, exige: exigeDa(u.voos) },
       { compromissos: deles.map(compromisso), historico: historico(x.id), limites, peso: { reducaoMaxima: v.comb ? v.comb.reduzirGal : 0, exigirPesoDoInstrutor: true } }).length;
   };
 
@@ -245,7 +247,7 @@ const MOTIVO_SEM_PAR = {
 };
 function motivoSemPar(doPar, stu, d, tipo, fc) {
   if (doPar.every(x => !x.on)) return 'fora nesta data';
-  const habilitado = x => podeFazer(x, d.mis, tipo, { curso: stu.curso });
+  const habilitado = x => podeFazer(x, d.mis, tipo, { curso: stu.curso, exige: d.exige });
   if (doPar.every(x => !x.on || !habilitado(x))) return 'sem a habilitação da missão';
   if (doPar.every(x => !x.on || !habilitado(x) || (stu.bl || []).includes(x.id))) return 'em “Não escalar com”';
   const contagens = Object.entries(fc || {}).filter(([k, n]) => n && Object.hasOwn(MOTIVO_SEM_PAR, k)).sort((a, b) => b[1] - a[1]);
@@ -360,7 +362,9 @@ export function runAllocationEngine(state, opcoes = {}) {
   const ocupacoesDeAtraso = [];
   // Os voos que ficaram sem o instrutor do “Priorizar com” do aluno (fKey → o aviso, que sai no fim)
   const semPar = new Map();
-  // Os voos locais (Voo Local, Voo Solo e TGL) que saem em cada horário
+  // Os voos locais (Voo Local, Voo Solo e TGL) que saem em cada horário, sem os confirmados: o 7º voo local confirmado na
+  // Agenda (limiteConfirmado, Q8) passa do limite no minuto exato do pedido (jan), fixo ou não, e não conta aqui, então
+  // não toma lugar dos outros, onde quer que caia na fila (no máximo 6 sem os confirmados, mais os confirmados)
   const locaisNoHorario = {};
 
   // A volta do noturno de ontem (state.noturnosDaVespera, lido da escala gravada da véspera): o translado de BH decola às
@@ -426,7 +430,7 @@ export function runAllocationEngine(state, opcoes = {}) {
     if (status !== 'Cancelado') {
       // O aluno que entra na turma do instrutor não muda a ocupação dele nem a lei
       const recursoDoPino = ground || mudouDeTipo ? null : recursoDaFrota(frota, r);
-      problemasDoInstrutor(x, { mis: d.mis, tipo, a, b, efetivo, alunos: [stu], stuKg: stu.kg, curso: stu.curso, recurso: recursoDoPino }, {
+      problemasDoInstrutor(x, { mis: d.mis, tipo, a, b, efetivo, alunos: [stu], stuKg: stu.kg, curso: stu.curso, recurso: recursoDoPino, exige: d.exige }, {
         compromissos: (x && compromissos[x.id]) || [], historico: x ? historico(x.id) : null, limites, jaOcupa: daMesmaTurma,
         peso: ground || mudouDeTipo ? null : {}, todos: true
       }).forEach(p => marcar(p.codigo, TEXTO_DO_PROBLEMA[p.codigo](p)));
@@ -464,9 +468,9 @@ export function runAllocationEngine(state, opcoes = {}) {
           avisar('depois-das-17h30', AIRCRAFT_EQ_TYPES.includes(tipo) ? `Agendado até as ${hm(b)}: o voo de dia pousa até as ${hm(fim)}.`
             : `Agendado até as ${hm(b)}: com o Noturno no dia, o aluno termina as outras missões até as ${hm(fim)}.`);
         }
-        // No máximo 6 voos locais saindo no mesmo horário: conferido antes de contar este
+        // No máximo 6 voos locais saindo no mesmo horário: conferido antes de contar este (o confirmado avisa depois da fila)
         const locais = locaisNoHorario[efetivo.a] || 0;
-        if (!ground && MISSOES_LOCAIS.includes(d.mis) && locais >= LIMITE_DE_VOOS_LOCAIS) {
+        if (!ground && MISSOES_LOCAIS.includes(d.mis) && minutoConfirmado(d) !== efetivo.a && locais >= LIMITE_DE_VOOS_LOCAIS) {
           avisar('limite-de-locais', `Agendado às ${hm(a)} como o ${locais + 1}º voo local do horário: no máximo ${LIMITE_DE_VOOS_LOCAIS} voos locais saem no mesmo horário.`);
         }
         // O peso que falta, como no voo escalado pelo motor (os outros voos fixos não avisam)
@@ -490,7 +494,8 @@ export function runAllocationEngine(state, opcoes = {}) {
       };
       if (efetivo.a === a) ocupar(efetivo);
       else ocupacoesDeAtraso.push(() => ocupar(efetivo));
-      if (!ground && MISSOES_LOCAIS.includes(d.mis)) locaisNoHorario[efetivo.a] = (locaisNoHorario[efetivo.a] || 0) + 1;
+      // O confirmado só não conta no minuto confirmado: atrasado para outro horário, ele conta lá como os outros
+      if (!ground && MISSOES_LOCAIS.includes(d.mis) && minutoConfirmado(d) !== efetivo.a) locaisNoHorario[efetivo.a] = (locaisNoHorario[efetivo.a] || 0) + 1;
       if (!daMesmaTurma) {
         if (x) load[x.id] = (load[x.id] || 0) + h;
         eu[ground ? GROUND_REG : r] = (eu[ground ? GROUND_REG : r] || 0) + h;
@@ -575,7 +580,7 @@ export function runAllocationEngine(state, opcoes = {}) {
     const quem = escolhido ? `o instrutor escolhido (${escolhido.nm})` : '';
     const impedimento = !escolhido ? null
       : !escolhido.on ? `${quem} não está disponível nesta data`
-        : !podeFazer(escolhido, d.mis, tipoDoPedido, { curso: stu.curso }) ? `${quem} não tem a habilitação de ${d.mis}${isGnd ? '' : ` no ${d.eq}`} (${descreverExigencias(d.mis, tipoDoPedido, { curso: stu.curso })})`
+        : !podeFazer(escolhido, d.mis, tipoDoPedido, { curso: stu.curso, exige: d.exige }) ? `${quem} não tem a habilitação de ${d.mis}${isGnd ? '' : ` no ${d.eq}`} (${descreverExigencias(d.mis, tipoDoPedido, { curso: stu.curso, exige: d.exige })})`
           : (stu.bl || []).includes(escolhido.id) ? `${quem} está em “Não escalar com” deste aluno` : null;
     if (impedimento) {
       al.push({ t: 'err', s: labelStu, m: `Rejeitado: ${impedimento}.`, codigo: 'instrutor-escolhido' });
@@ -595,7 +600,9 @@ export function runAllocationEngine(state, opcoes = {}) {
     // RAMO A: ALOCAÇÃO DE GROUND SCHOOL (01h30 = 90 MIN · TURMA COLETIVA)
     // ========================================================================
     if (isGnd) {
-      const habilitado = x => podeFazer(x, d.mis, GROUND_EQ_TYPE);
+      // A missão do curso do pedido pode exigir mais do INVA (exige): a turma aberta também precisa servir a ele
+      const habilitado = x => podeFazer(x, d.mis, GROUND_EQ_TYPE, { exige: d.exige });
+      const exigeMais = Array.isArray(d.exige) && d.exige.length > 0;
       const durMin = GROUND_DURATION_MIN; // 90 min (1.5 h)
       const endMax = fimDoAluno(stuId, d.mis, GROUND_EQ_TYPE);
       const starts = DAY.filter(w => state.win[w] && T[w] + durMin <= endMax && naDisponibilidade(T[w]));
@@ -644,6 +651,7 @@ export function runAllocationEngine(state, opcoes = {}) {
           if (!free(stuBusy, stuId, cls.a, cls.b)) continue;
           if (stu.bl.includes(cls.x.id)) continue;
           if (!naPassada(cls.x)) continue;
+          if (exigeMais && !habilitado(cls.x)) continue;
           if (cls.b > earliestFlightPrefMin && candidateWins.some(w => T[w] + durMin <= earliestFlightPrefMin)) continue;
           chosenClass = cls;
           break;
@@ -662,7 +670,7 @@ export function runAllocationEngine(state, opcoes = {}) {
             const a = T[w], b = a + durMin;
             if (!free(stuBusy, stuId, a, b)) { fcGnd.stu_busy++; continue; }
 
-            const sameWinCls = existingClasses.find(c => c.w === w && !stu.bl.includes(c.x.id) && naPassada(c.x));
+            const sameWinCls = existingClasses.find(c => c.w === w && !stu.bl.includes(c.x.id) && naPassada(c.x) && (!exigeMais || habilitado(c.x)));
             if (sameWinCls) {
               chosenClass = sameWinCls;
               break;
@@ -671,7 +679,7 @@ export function runAllocationEngine(state, opcoes = {}) {
             // Há uma única sala de Ground: só abre turma nova com a sala livre durante toda a 01h30
             if (!free(used, GROUND_REG, a, b)) { fcGnd.sala++; continue; }
 
-            const { servem: f2, barrou } = instrutoresQueServem(passada.pool, x => problemasDoInstrutor(x, { mis: d.mis, tipo: GROUND_EQ_TYPE, a, b, alunos: [stu] },
+            const { servem: f2, barrou } = instrutoresQueServem(passada.pool, x => problemasDoInstrutor(x, { mis: d.mis, tipo: GROUND_EQ_TYPE, a, b, alunos: [stu], exige: d.exige },
               { compromissos: compromissos[x.id] || [], historico: historico(x.id), limites }));
             if (barrou) { fcGnd[barrou]++; continue; }
 
@@ -744,7 +752,7 @@ export function runAllocationEngine(state, opcoes = {}) {
         // O motivo, com o código que diz onde resolver
         let codigo, why;
         if (!state.ins.some(x => x.on && habilitado(x))) {
-          [codigo, why] = ['sem-instrutor-habilitado', `nenhum instrutor ativo tem a habilitação de ${d.mis} (${descreverExigencias(d.mis, GROUND_EQ_TYPE)})`];
+          [codigo, why] = ['sem-instrutor-habilitado', `nenhum instrutor ativo tem a habilitação de ${d.mis} (${descreverExigencias(d.mis, GROUND_EQ_TYPE, { exige: d.exige })})`];
         } else if (semPrazo.length && !candidateWins.length) {
           [codigo, why] = ['ground-antes-do-voo-fixo', `o Ground precisa terminar antes do voo fixo das ${hm(prazoFixo)}, e não há horário para ele antes disso`];
         } else if (!starts.length) {
@@ -776,7 +784,9 @@ export function runAllocationEngine(state, opcoes = {}) {
     const night = d.mis === 'Noturno';
     const isParafuso = d.mis === 'Parafuso';
     const local = MISSOES_LOCAIS.includes(d.mis);
-    const exige = descreverExigencias(d.mis, d.eq, { curso: stu.curso });
+    // O 7º voo local confirmado passa do limite só no minuto do pedido (Q8)
+    const confirmadoEm = minutoConfirmado(d);
+    const exige = descreverExigencias(d.mis, d.eq, { curso: stu.curso, exige: d.exige });
     // Voo de categoria do rodízio: primeiro quem ainda não voou nela hoje, depois a ordem da fila
     const categoria = categoriaDoRodizio(d.mis, d.eq);
     const voosHoje = x => (categoria ? voosNaCategoria[`${categoria}:${x.id}`] || 0 : 0);
@@ -835,8 +845,8 @@ export function runAllocationEngine(state, opcoes = {}) {
         fc = { locais: 0, stu_busy: 0, eq: 0, revisao: 0, disp: 0, busy: 0, bloq: 0, limite: 0, peso: 0, aviaoProprio: 0 };
         if (comMenosCombustivel && !lim) break;
         for (const p of inicios) {
-          // No máximo 6 voos locais saindo no mesmo horário
-          if (local && (locaisNoHorario[p.a] || 0) >= LIMITE_DE_VOOS_LOCAIS) { fc.locais++; continue; }
+          // No máximo 6 voos locais saindo no mesmo horário (o confirmado, no minuto dele, passa)
+          if (local && p.a !== confirmadoEm && (locaisNoHorario[p.a] || 0) >= LIMITE_DE_VOOS_LOCAIS) { fc.locais++; continue; }
           if (!free(stuBusy, stuId, p.a, p.b)) { fc.stu_busy++; continue; }
 
           const livres = fleetPool.filter(r => state.av[r] && free(used, r, p.a, p.b));
@@ -845,7 +855,7 @@ export function runAllocationEngine(state, opcoes = {}) {
           if (!eqs.length) { fc.revisao++; continue; }
 
           // Na primeira tentativa, só com o tanque cheio
-          const { servem: habilitados, barrou } = instrutoresQueServem(passada.pool, x => problemasDoInstrutor(x, { mis: d.mis, tipo: d.eq, a: p.a, b: p.b, alunos: [stu], stuKg: stu.kg, curso: stu.curso },
+          const { servem: habilitados, barrou } = instrutoresQueServem(passada.pool, x => problemasDoInstrutor(x, { mis: d.mis, tipo: d.eq, a: p.a, b: p.b, alunos: [stu], stuKg: stu.kg, curso: stu.curso, exige: d.exige },
             { compromissos: compromissos[x.id] || [], historico: historico(x.id), limites, peso: { reducaoMaxima: comMenosCombustivel ? Infinity : 0 } }));
           if (barrou) { fc[barrou]++; continue; }
           // O par instrutor e avião: só quem voa em algum dos aviões livres (o avião com habilitação própria exige a dele)
@@ -914,7 +924,7 @@ export function runAllocationEngine(state, opcoes = {}) {
       if (passadaUsada.semPar) anotarSemPar(fcDoPar);
 
       eu[r] = (eu[r] || 0) + hh;
-      if (local) locaisNoHorario[p.a] = (locaisNoHorario[p.a] || 0) + 1;
+      if (local && p.a !== confirmadoEm) locaisNoHorario[p.a] = (locaisNoHorario[p.a] || 0) + 1;
       load[x.id] = (load[x.id] || 0) + hh;
       if (categoria) voosNaCategoria[`${categoria}:${x.id}`] = voosHoje(x) + 1;
 
@@ -934,7 +944,7 @@ export function runAllocationEngine(state, opcoes = {}) {
         [codigo, why] = ['sem-aviao', `nenhum ${d.eq} homologado IFR disponível (o voo é IFR; os disponíveis são “Só VFR”)`];
       } else if (!fleetPool.some(r => state.av[r])) {
         [codigo, why] = ['sem-aviao', `nenhum ${d.eq} disponível (todos em manutenção)`];
-      } else if (!state.ins.some(x => x.on && podeFazer(x, d.mis, d.eq, { curso: stu.curso }))) {
+      } else if (!state.ins.some(x => x.on && podeFazer(x, d.mis, d.eq, { curso: stu.curso, exige: d.exige }))) {
         [codigo, why] = ['sem-instrutor-habilitado', `nenhum instrutor ativo tem a habilitação de ${d.mis} no ${d.eq} (${exige})`];
       } else if (!inicios.length && permitidas) {
         [codigo, why] = ['disponibilidade-do-aluno', `nenhum horário aberto na disponibilidade do aluno (${rotuloDaDisponibilidade(d.jan)}) comporta ${fmtH(H)}`];
@@ -992,6 +1002,26 @@ export function runAllocationEngine(state, opcoes = {}) {
     const d = o.fixo ? null : pedidoDoVoo(o);
     if (!d || !d.insId || noCadastro.has(d.insId)) continue;
     al.push({ t: 'warn', s: o.mid ? `${o.s} (${o.mis})` : o.s, m: `O instrutor escolhido saiu do cadastro: o voo ficou com ${o.ins}. Escolha outro na Demanda ou deixe no Automático.`, codigo: 'escolhido-saiu', stuId: o.stuId, insId: o.insId });
+  }
+  // O 7º voo local confirmado (Q8): cada voo confirmado num horário com mais de 6 voos locais no todo (sem os cancelados)
+  // avisa, com o texto do agendado e o lugar dele, depois dos não confirmados do horário, na ordem dos alunos (o que ainda
+  // cabe nos 6, porque um cancelado não sai, não avisa)
+  const locaisPorHorario = new Map();
+  for (const o of out) {
+    if (o.trecho || o.isGround || !MISSOES_LOCAIS.includes(o.mis) || o.status === 'Cancelado') continue;
+    locaisPorHorario.set(o.a, [...(locaisPorHorario.get(o.a) || []), o]);
+  }
+  for (const [a, voos] of locaisPorHorario) {
+    if (voos.length <= LIMITE_DE_VOOS_LOCAIS) continue;
+    const confirmados = voos.filter(o => { const d = pedidoDoVoo(o); return Boolean(d) && minutoConfirmado(d) === a; }).sort((p, q) => p.o - q.o || p.mid - q.mid);
+    confirmados.forEach((o, k) => {
+      const lugar = voos.length - confirmados.length + k + 1;
+      if (lugar <= LIMITE_DE_VOOS_LOCAIS) return;
+      al.push({
+        t: 'warn', s: o.mid ? `${o.s} (${o.mis})` : o.s, fKey: o.fKey, stuId: o.stuId, codigo: 'limite-de-locais',
+        m: `Agendado às ${hm(a)} como o ${lugar}º voo local do horário: no máximo ${LIMITE_DE_VOOS_LOCAIS} voos locais saem no mesmo horário.`
+      });
+    });
   }
   al.push(...avisosDeLimite(out, state, limites, historico));
   // O repouso antes da volta do noturno (a lei pede 12 h; o noturno termina às 21:30 e a volta decola às 07:30): um aviso

@@ -2,7 +2,7 @@
 // acpm4_cursos). O Administrador inclui, muda, reordena e tira missões; os outros perfis só consultam. Cada alteração
 // grava o curso inteiro (não o cadastro nem o dia) e não entra no histórico da data. Cada aluno tem o curso dele, em
 // Alunos.
-import { test, comProgresso, expect, abrir, irPara, confirmar, abrirEscala, prepararContexto, vigiarErros, preencherLogin, AMANHA, URL_APP, entrar as entrarNoApp, abrirHistorico, appPronto, caixaVoa, diaSeguinte, rotuloDaData, alvosPequenos, larguraDaPagina, semNome } from './fixtures.js';
+import { test, comProgresso, expect, abrir, irPara, irParaVista, confirmar, abrirEscala, prepararContexto, vigiarErros, preencherLogin, AMANHA, URL_APP, entrar as entrarNoApp, abrirHistorico, appPronto, caixaVoa, diaSeguinte, rotuloDaData, alvosPequenos, larguraDaPagina, semNome } from './fixtures.js';
 import { criarSupabaseFalso, documentosAtuais, documentosFase3, CONTAS } from './supabase-falso.js';
 import { aluno, cenario, instrutor, missaoExtra } from '../helpers/montar.js';
 import { IDS } from '../helpers/casos-do-programa.js';
@@ -78,6 +78,108 @@ test.describe('Cursos', () => {
     await expect(linhas(page, 'PP')).toHaveCount(1);
     await expect(linhas(page, 'PP').nth(0).locator('[data-cf="mis"]')).toHaveValue('Navegação');
     await expect(linhas(page, 'PP').nth(0).locator('[data-cf="nb"]')).toHaveValue('2');
+  });
+
+  // F1d, "missão do curso" (regra a): a missão exige do INVA as habilitações marcadas em "Habilitações que o INVA precisa"
+  // (os grupos do painel "Editar habilitações"). Marcar uma que nenhum INVA ativo tem não é impedido: o aviso diz o que
+  // acontece com os voos, e a linha da missão continua dizendo até um INVA ter
+  test('a missão exige do INVA as habilitações marcadas; sem nenhum INVA ativo com ela, o aviso fica na linha', async ({ page }) => {
+    await abrir(page, { estado: dia({ cursos: PROGRAMA }) });
+    await irPara(page, 'cur');
+    const pp01 = () => linhas(page, 'PP').nth(0);
+    const caixa = () => pp01().locator('details.exige');
+    await expect(caixa().locator('summary')).toHaveText('Habilitações que o INVA precisa: nenhuma além da missão e do recurso');
+    await expect(pp01().locator('[data-aviso-exige]')).toHaveCount(0);
+    await caixa().locator('summary').click();
+    await expect(caixa().locator('legend')).toHaveText(['Ground e simulador', 'Voo', 'Aviões', 'Checador: curso', 'Checador: motor', 'Checador: regras']);
+    await expect(caixa().locator('input[data-cf="exige"]:checked')).toHaveCount(0);
+    await caixa().getByRole('checkbox', { name: 'PP-01 exige Endosso Solo' }).check();
+    await expect(page.locator('#toast-box')).toContainText('Nenhum INVA ativo tem Endosso Solo: os voos de PP-01 ficam fora da escala até um INVA ter (marque em Instrutores › Editar habilitações).');
+    await expect(pp01().locator('[data-aviso-exige]')).toHaveText('Nenhum INVA ativo tem Endosso Solo: os voos ficam fora da escala.');
+    await expect(caixa().locator('summary')).toHaveText('Habilitações que o INVA precisa: Endosso Solo');
+    await expect(caixa()).toHaveAttribute('open', '');
+    await expect(caixa().getByRole('checkbox', { name: 'PP-01 exige Endosso Solo' })).toBeChecked();
+    await caixa().getByRole('checkbox', { name: 'PP-01 exige Voo de Navegação ≥ 150 NM' }).check();
+    await expect(pp01().locator('[data-aviso-exige]')).toHaveText('Nenhum INVA ativo tem Voo de Navegação ≥ 150 NM e Endosso Solo: os voos ficam fora da escala.');
+    const exigidas = async () => (await programaGuardado(page)).cursos.find(c => c.sigla === 'PP').missoes.map(m => [m.codigo, m.exige]);
+    await expect.poll(exigidas).toEqual([['PP-01', ['navegacao_150', 'endosso_solo']], ['PP-02', []]]);
+    await expect.poll(async () => (await programaGuardado(page)).alteracoes.map(a => a.descricao).slice(-2)).toEqual([
+      'PP: PP-01 exige do INVA Endosso Solo', 'PP: PP-01 exige do INVA Voo de Navegação ≥ 150 NM e Endosso Solo'
+    ]);
+    // O INVA que passa a ter as duas tira o aviso da linha (inativo, ele não conta: os dois testes do INVA inativo e ativo)
+    await irParaVista(page, 'ins', 'cadastro');
+    await page.locator('#inst .cd[data-id="1"] [data-act="editar-habs"]').click();
+    await page.locator('#painel-instrutor [data-f="hab"][data-h="endosso_solo"]').check();
+    await page.locator('#painel-instrutor [data-f="hab"][data-h="navegacao_150"]').check();
+    await page.locator('#btn-fechar-painel-instrutor').click();
+    await irPara(page, 'cur');
+    await expect(pp01().locator('[data-aviso-exige]')).toHaveCount(0);
+    // Desmarcar as duas volta ao de antes
+    await caixa().getByRole('checkbox', { name: 'PP-01 exige Endosso Solo' }).uncheck();
+    await caixa().getByRole('checkbox', { name: 'PP-01 exige Voo de Navegação ≥ 150 NM' }).uncheck();
+    await expect.poll(exigidas).toEqual([['PP-01', []], ['PP-02', []]]);
+    await expect.poll(async () => (await programaGuardado(page)).alteracoes.at(-1).descricao).toBe('PP: PP-01 não exige mais habilitação do INVA além da missão e do recurso');
+    await expect(caixa().locator('summary')).toHaveText('Habilitações que o INVA precisa: nenhuma além da missão e do recurso');
+  });
+
+  // O servidor guarda até 10 habilitações por missão: a 11ª marcada é recusada com o motivo, e as 10 ficam
+  test('a missão exige do INVA até 10 habilitações: a 11ª marcada é recusada com o motivo', async ({ page }) => {
+    await abrir(page, { estado: dia({ cursos: PROGRAMA }) });
+    await irPara(page, 'cur');
+    const caixa = () => linhas(page, 'PP').nth(0).locator('details.exige');
+    await caixa().locator('summary').click();
+    const dez = ['grounds', 'ground_pa34', 'sim_mono', 'sim_multi', 'tgl', 'local', 'navegacao', 'navegacao_150', 'solo', 'endosso_solo'];
+    for (const h of dez) await caixa().locator(`input[data-cf="exige"][value="${h}"]`).check();
+    const exigidas = async () => (await programaGuardado(page)).cursos.find(c => c.sigla === 'PP').missoes[0].exige.length;
+    await expect.poll(exigidas).toBe(10);
+    await caixa().locator('input[data-cf="exige"][value="parafuso"]').click();
+    await expect(page.locator('#toast-box')).toContainText('A missão PP-01 exige do INVA no máximo 10 habilitações além da missão e do recurso: desmarque uma antes de marcar outra.');
+    await expect(caixa().locator('input[data-cf="exige"][value="parafuso"]')).not.toBeChecked();
+    await expect(caixa().locator('input[data-cf="exige"]:checked')).toHaveCount(10);
+    expect(await exigidas()).toBe(10);
+  });
+
+  // "Nenhum INVA ativo": o INVA inativo no cadastro que tem a habilitação não conta (regra a)
+  for (const [nome, inativo] of [['o INVA inativo com a habilitação não tira o aviso da linha', true], ['o INVA ativo com a habilitação tira o aviso da linha', false]]) {
+    test(nome, async ({ page }) => {
+      const { cursos } = gravarCurso({ cursos: cursosIniciais() }, {
+        sigla: 'PP', versaoLida: 1, descricao: 'PP: programa', conteudo: {
+          nome: 'Piloto Privado', ativo: true, fases: [{ id: IDS.f1, nome: 'Fase 1' }],
+          missoes: [{ id: IDS.m1, fase: IDS.f1, codigo: 'SOLO-01', nome: 'Solo', mis: 'Voo Solo', eq: 'C152', nb: 1, exige: ['endosso_solo'] }]
+        }
+      });
+      const comEndosso = { ...instrutor(2, 9), hab: [...instrutor(2, 9).hab, 'endosso_solo'], ...(inativo ? { inativo: true } : {}) };
+      const { documentos: { cadastro }, dias } = documentosAtuais({ ...dia(), ins: [instrutor(1, 9), comEndosso] }, AMANHA);
+      await page.addInitScript(json => {
+        if (localStorage.getItem('acpm4_cadastro')) return;
+        for (const [chave, valor] of Object.entries(JSON.parse(json))) localStorage.setItem(chave, JSON.stringify(valor));
+      }, JSON.stringify({ acpm4_cadastro: cadastro, [`acpm4_dia_${AMANHA}`]: dias[AMANHA], acpm4_cursos: { cursos, alteracoes: [] } }));
+      await page.goto('./');
+      await appPronto(page);
+      await irPara(page, 'cur');
+      const aviso = linhas(page, 'PP').nth(0).locator('[data-aviso-exige]');
+      await expect(linhas(page, 'PP')).toHaveCount(1);
+      if (inativo) await expect(aviso).toHaveText('Nenhum INVA ativo tem Endosso Solo: os voos ficam fora da escala.');
+      else await expect(aviso).toHaveCount(0);
+    });
+  }
+
+  test('para quem só consulta, o que a missão exige do INVA é uma etiqueta, com o aviso', async ({ page }) => {
+    const { cursos } = gravarCurso({ cursos: cursosIniciais() }, {
+      sigla: 'PP', versaoLida: 1, descricao: 'PP: programa', conteudo: {
+        nome: 'Piloto Privado', ativo: true, fases: [{ id: IDS.f1, nome: 'Fase 1' }],
+        missoes: [{ id: IDS.m1, fase: IDS.f1, codigo: 'SOLO-01', nome: 'Solo', mis: 'Voo Solo', eq: 'C152', nb: 1, exige: ['endosso_solo'] }]
+      }
+    });
+    const { documentos: { cadastro }, dias } = documentosAtuais(dia(), AMANHA);
+    await page.addInitScript(json => {
+      if (localStorage.getItem('acpm4_cadastro')) return;
+      for (const [chave, valor] of Object.entries(JSON.parse(json))) localStorage.setItem(chave, JSON.stringify(valor));
+    }, JSON.stringify({ acpm4_cadastro: cadastro, [`acpm4_dia_${AMANHA}`]: dias[AMANHA], acpm4_cursos: { cursos, alteracoes: [] } }));
+    await page.goto('./?role=gestor');
+    await appPronto(page);
+    await irPara(page, 'cur');
+    await expect(linhas(page, 'PP').nth(0).locator('td.c-marcas')).toHaveText('INVA: Endosso SoloNenhum INVA ativo tem Endosso Solo: os voos ficam fora da escala.');
   });
 
   // O programa do cadastro (o de antes do formato dos cursos) vai para os cursos na primeira abertura, uma vez só, e o
@@ -1785,7 +1887,8 @@ test.describe('Celular', () => {
     await irPara(page, 'cur');
     await expect(page.locator('#cursos .curso[data-curso="PP"] tr[data-i]')).toHaveCount(3);
     for (const resumo of await page.locator('#cursos .curso[data-curso="PP"] summary').all()) await resumo.click();
-    await expect(page.locator('#cursos .curso[data-curso="PP"] details[open]')).toHaveCount(5);
+    // Com "Habilitações que o INVA precisa" de cada uma das 3 missões (F1d)
+    await expect(page.locator('#cursos .curso[data-curso="PP"] details[open]')).toHaveCount(8);
     expect(await larguraDaPagina(page)).toBeLessThanOrEqual(390);
     expect(await alvosPequenos(page)).toEqual([]);
     // Os cursos pela sigla e as fases do índice pelo nome curto; as fases recolhidas, também para quem só consulta, e

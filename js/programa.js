@@ -10,10 +10,18 @@ import { CURSOS, siglaValida, codigoValido, novaMissaoDoCurso } from './cursos.j
 import { MIS, GROUND_DURATION_H, DURACAO_MAXIMA_H, NOTURNO } from './config.js';
 import { duracaoValida } from './rules.js';
 import { FORMATO_DOS_CURSOS } from './migracoes.js';
+import { normalizarHabilitacoes, PREFIXO_DA_HABILITACAO_DO_AVIAO } from './habilitacoes.js';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const REGRAS = ['ordem', 'livre', 'depois'];
 const LIMITE_DE_FASES = 50, LIMITE_DE_MISSOES = 200, LIMITE_DO_NOME = 80, LIMITE_DA_DESCRICAO = 500, ALTERACOES_POR_CURSO = 20;
+// O que a missão do curso exige do INVA (missoes_do_curso.exige, migração 20261127110000): até 10 ids do registro das
+// habilitações (js/habilitacoes.js), como o banco confere o formato
+export const LIMITE_DO_EXIGE = 10;
+export const ID_DA_HABILITACAO = /^[a-z0-9_]{1,40}$/;
+const exigeValido = v => Array.isArray(v) && v.length <= LIMITE_DO_EXIGE && v.every(h => typeof h === 'string' && ID_DA_HABILITACAO.test(h));
+// O que a missão lida exige: a lista no formato (sem repetir), ou nada
+const exigeLido = v => (exigeValido(v) ? [...new Set(v)] : []);
 
 // Um id novo para uma fase ou uma missão: quem cria os ids é o app (a fase nova já pode ser exigida por outra antes de
 // ir para o servidor)
@@ -74,6 +82,36 @@ export function indiceDoPrograma(programa) {
     });
   }
   return indices.get(programa);
+}
+
+// O que a missão do curso de um pedido (etapa, no curso cursoDaEtapa; sem ele, no do aluno) exige do INVA: a lista dela
+// (missoes_do_curso.exige), também a de uma missão tirada do programa depois do pedido. Sem a missão, nada
+export function exigeDaMissaoDoPedido(programa, pedido, aluno) {
+  if (!Array.isArray(programa) || !pedido || typeof pedido.etapa !== 'string') return [];
+  const sigla = pedido.cursoDaEtapa || (aluno && aluno.curso);
+  const m = sigla ? indiceDoPrograma(programa).missaoPorCodigo(sigla, pedido.etapa) : null;
+  return m && Array.isArray(m.exige) ? m.exige : [];
+}
+
+// O estado da escala com o que a missão do curso de cada pedido exige do INVA (exige, no pedido do aluno e nos extras:
+// derivado aqui, nunca guardado), para o motor e o que confere o instrutor de um voo (podeFazer). Só o pedido cuja missão
+// exige algo ganha o campo. Sem os programas lidos (programa null), nada é exigido: a Escala diz que as habilitações das
+// missões do curso não foram conferidas
+export function comExigenciasDasMissoes(estado, programa) {
+  if (!Array.isArray(programa) || !programa.length) return estado;
+  const comExige = (pedido, aluno) => {
+    const exige = exigeDaMissaoDoPedido(programa, pedido, aluno);
+    return exige.length ? { ...pedido, exige: [...exige] } : pedido;
+  };
+  let mudou = false;
+  const stu = estado.stu.map(aluno => {
+    const novo = comExige(aluno, aluno);
+    const extra = Array.isArray(aluno.extra) ? aluno.extra.map(ex => comExige(ex, aluno)) : aluno.extra;
+    if (novo === aluno && (!Array.isArray(extra) || extra.every((ex, i) => ex === aluno.extra[i]))) return aluno;
+    mudou = true;
+    return { ...novo, ...(Array.isArray(extra) ? { extra } : {}) };
+  });
+  return mudou ? { ...estado, stu } : estado;
 }
 
 // O nome curto da fase: o que vem antes do travessão ("Fase 6 – Treinamento de Voo Noturno" é a "Fase 6"; também com o
@@ -227,7 +265,7 @@ function normalizarCurso(c) {
         id: m.id, fase: m.fase, codigo: m.codigo, nome: nomeCurto(m.nome) || m.codigo, mis: m.mis,
         eq: tipo.eq.includes(m.eq) ? m.eq : tipo.defEq, nb: tipo.isGround ? GROUND_DURATION_H : duracaoValida(m.nb),
         ordem: inteiro(m.ordem), regra: regraConhecida(m.regra), requer: comoLista(m.requer), dispensada: m.dispensada === true,
-        avaliacao: m.avaliacao === true, removida: m.removida === true, comResultados: m.comResultados === true,
+        avaliacao: m.avaliacao === true, exige: exigeLido(m.exige), removida: m.removida === true, comResultados: m.comResultados === true,
         ...(temTrecho(m) ? { trecho: m.trecho } : {})
       };
     })
@@ -364,6 +402,10 @@ function conferirPrograma(conteudo, contexto) {
   if (!missoes.every(regraValida)) return recusa('22023', 'regra', 'a regra da missão é "ordem", "livre" ou "depois"');
   if (!missoes.every(m => simOuNao(m.dispensada))) return recusa('22023', 'dispensada', '"dispensada" é sim ou não');
   if (!missoes.every(m => simOuNao(m.avaliacao))) return recusa('22023', 'avaliacao', '"avaliação" é sim ou não');
+  // O que a missão exige do INVA pode faltar (fica o que ela exigia; nova, nada)
+  if (!missoes.every(m => m.exige === undefined || m.exige === null || exigeValido(m.exige))) {
+    return recusa('22023', 'exige', 'a missão exige do INVA até 10 habilitações do registro (letras minúsculas, números e _)');
+  }
   const erroDoTrecho = conferirTrechos(missoes);
   if (erroDoTrecho) return erroDoTrecho;
 
@@ -401,10 +443,12 @@ function conferirPrograma(conteudo, contexto) {
 // O programa como fica gravado (o que public.gravar_programa grava): as fases e as missões do conteúdo, na ordem das
 // listas (a ordem é a posição: das fases, no programa; das missões, na fase), com os requisitos na ordem do curso. O que
 // estava guardado e não veio fica, fora do programa (removida) e sem requisitos, com o resto como estava; na conversão
-// (substituir), o guardado sai inteiro
+// (substituir), o guardado sai inteiro. A missão que vem sem o que exige do INVA fica com o que exigia (nova, nada)
 function programaGravado(guardado, conteudo, substituir) {
   const { fases, missoes } = noPrograma(conteudo);
   const { daFase, daMissao, ordemNaFase } = posicoes(fases, missoes);
+  const exigiaAntes = new Map((guardado ? guardado.missoes : []).map(m => [m.id, m.exige || []]));
+  const exigeGravado = m => [...(Array.isArray(m.exige) ? m.exige : exigiaAntes.get(m.id) || [])];
   const naOrdemDoCurso = (requer, posicao) => [...(requer || [])].sort((a, b) => posicao.get(a) - posicao.get(b));
   const novas = {
     fases: fases.map((f, i) => ({
@@ -413,7 +457,7 @@ function programaGravado(guardado, conteudo, substituir) {
     missoes: missoes.map(m => ({
       id: m.id, fase: m.fase, codigo: m.codigo, nome: m.nome, mis: m.mis, eq: m.eq, nb: horasDoBanco(m.nb), ordem: ordemNaFase.get(m.id),
       regra: m.regra ?? 'ordem', requer: naOrdemDoCurso(m.requer, daMissao), dispensada: m.dispensada ?? false, avaliacao: m.avaliacao ?? false,
-      removida: false, ...(m.trecho ? { trecho: m.trecho } : {})
+      exige: exigeGravado(m), removida: false, ...(m.trecho ? { trecho: m.trecho } : {})
     }))
   };
   if (substituir || !guardado) return novas;
@@ -559,8 +603,8 @@ export function conteudoDoCurso(curso) {
     nome: curso.nome,
     ativo: curso.ativo,
     fases: fases.map(({ id, nome, modulo, regra, requer }) => ({ id, nome, modulo, regra, requer: [...requer] })),
-    missoes: missoes.map(({ id, fase, codigo, nome, mis, eq, nb, regra, requer, dispensada, avaliacao, trecho }) => ({
-      id, fase, codigo, nome, mis, eq, nb, regra, requer: [...requer], dispensada, avaliacao, ...(trecho ? { trecho } : {})
+    missoes: missoes.map(({ id, fase, codigo, nome, mis, eq, nb, regra, requer, dispensada, avaliacao, exige, trecho }) => ({
+      id, fase, codigo, nome, mis, eq, nb, regra, requer: [...requer], dispensada, avaliacao, exige: [...(exige || [])], ...(trecho ? { trecho } : {})
     }))
   };
 }
@@ -596,7 +640,7 @@ export function incluirMissao(curso, faseId = null, gerarId = novoId, reservados
   const { mis, eq, nb } = anterior || novaMissaoDoCurso(curso.sigla, []);
   const missao = {
     id: gerarId(), fase: fase.id, codigo, nome: codigo, mis, eq, nb, ordem: 0, regra: 'ordem', requer: [], dispensada: false,
-    avaliacao: false, removida: false, comResultados: false
+    avaliacao: false, exige: [], removida: false, comResultados: false
   };
   const novo = comPrograma(curso, fases, fases.flatMap(f => (f.id === fase.id ? [...daFase(f), missao] : daFase(f))));
   return { curso: novo, missao: novo.missoes.find(m => m.id === missao.id) };
@@ -702,6 +746,19 @@ export function marcarMissao(curso, id, campo, valor) {
   const m = programaDoCurso(curso).missoes.find(x => x.id === id);
   if (!m || m[campo] === valor) return null;
   return { ...curso, missoes: curso.missoes.map(x => (x === m ? { ...m, [campo]: valor } : x)) };
+}
+
+// O que a missão do programa exige do INVA, além do tipo de missão e do recurso: a lista inteira (ids do registro das
+// habilitações, js/habilitacoes.js, sem a habilitação própria de um recurso), sem repetir, na ordem do registro, até 10.
+// null quando nada muda ou a lista não vale
+export function exigirNaMissao(curso, id, lista) {
+  const m = programaDoCurso(curso).missoes.find(x => x.id === id);
+  if (!m || !Array.isArray(lista)) return null;
+  const exige = normalizarHabilitacoes(lista).filter(h => !h.startsWith(PREFIXO_DA_HABILITACAO_DO_AVIAO));
+  if (exige.length !== new Set(lista).size || exige.length > LIMITE_DO_EXIGE) return null;
+  const antes = m.exige || [];
+  if (exige.length === antes.length && exige.every((h, i) => h === antes[i])) return null;
+  return { ...curso, missoes: curso.missoes.map(x => (x === m ? { ...m, exige } : x)) };
 }
 
 // O nome ou o módulo de uma fase do programa, sem os espaços a mais, até 80 caracteres. Sem nome, a fase fica com o de
@@ -876,6 +933,8 @@ export function aplicarModelo(curso, modelo, gerarId = novoId) {
     return {
       id: idDaMissao.get(m.codigo), fase: idDaFase.get(m.chaveDaFase), codigo: m.codigo, nome: m.nome, mis: m.mis, eq: m.eq, nb: m.nb, ordem,
       regra: m.regra ?? 'ordem', requer: (m.requer || []).map(c => idDaMissao.get(c)), dispensada: m.dispensada === true, avaliacao: m.avaliacao === true,
+      // O modelo não exige nada do INVA; a missão do curso que fica (o mesmo código) guarda o que exigia
+      exige: [...((antiga && antiga.exige) || m.exige || [])],
       removida: false, comResultados: Boolean(antiga && antiga.comResultados), ...(m.trecho ? { trecho: m.trecho } : {})
     };
   });

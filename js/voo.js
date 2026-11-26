@@ -34,3 +34,10 @@ export const pedidosDosVoos = alunos => {
     return aluno && pedidoDoAluno(aluno, voo.mid);
   };
 };
+
+// O que a missão do curso dos pedidos de uma unidade (o voo; a turma de Ground: todos os alunos dela) exige do INVA (exige:
+// derivado no estado da escala, js/programa.js), sem repetir; nada quando o pedido não exige
+export const exigeDosVoos = alunos => {
+  const pedido = pedidosDosVoos(alunos);
+  return voos => [...new Set(voos.flatMap(v => { const d = pedido(v); return (d && Array.isArray(d.exige)) ? d.exige : []; }))];
+};

@@ -2,7 +2,7 @@
 // O motor (com a divisão das horas e a troca de matrículas), a compactação e as sugestões de reparo usam as mesmas
 // regras.
 import { T, NI, MINUTOS_DO_DIA, REVISAO_H, AIRCRAFT_EQ_TYPES, DEFAULT_LIM } from './config.js';
-import { podeFazer } from './habilitacoes.js';
+import { podeFazer, faltaDaMissaoDoCurso, PREFIXO_DA_MISSAO_DO_CURSO } from './habilitacoes.js';
 import { instrutorVoaNoAviao, habilitacaoQueFalta } from './frota.js';
 import { dentroDosLimites } from './limites.js';
 import { reducaoNecessaria } from './combustivel.js';
@@ -30,12 +30,13 @@ export const folgaAte = (ocupados, a, b) => ocupados.reduce((menor, [x, y]) => M
 // true, para os conflitos da escala aprovada).
 // O compromisso: a missão, o tipo (a sala de Ground na aula), o horário, o intervalo efetivo (o atrasado ocupa o horário novo:
 // vale para a lei), os alunos (o "Não escalar com" de cada um), o peso do aluno, o curso do aluno (o Noturno do PC exige
-// IFR) e o recurso, quando já se sabe qual (o avião com habilitação própria exige a dele).
+// IFR), o recurso, quando já se sabe qual (o avião com habilitação própria exige a dele), e o que a missão do curso do
+// pedido exige do INVA (exige).
 // compromissos: os que o instrutor já tem no dia ({ a, b, voo }, e ocupaDe/ocupaAte quando ocupa mais que o voo, como a
 // volta do noturno: a lei conta o voo, e o instrutor está ocupado no intervalo maior). jaOcupa: ele já está neste compromisso (o aluno que
 // entra na turma dele), então a ocupação e a lei não mudam. peso: null não confere; reducaoMaxima é o combustível a
 // menos aceito (0: só o tanque cheio) e exigirPesoDoInstrutor recusa o instrutor sem peso quando o peso importa.
-export function problemasDoInstrutor(x, { mis, tipo, a, b, efetivo = { a, b }, alunos = [], stuKg = 0, curso, recurso },
+export function problemasDoInstrutor(x, { mis, tipo, a, b, efetivo = { a, b }, alunos = [], stuKg = 0, curso, recurso, exige },
   { compromissos = [], historico = null, limites, jaOcupa = false, peso = {}, todos = false }) {
   if (!x) return [{ codigo: 'instrutor-saiu' }];
   const { reducaoMaxima = Infinity, exigirPesoDoInstrutor = false } = peso || {};
@@ -52,9 +53,11 @@ export function problemasDoInstrutor(x, { mis, tipo, a, b, efetivo = { a, b }, a
   };
   const regras = [
     ['instrutor-indisponivel', () => x.on && cobre(x.aw, a, b)],
-    // A habilitação da missão e do tipo; com o contexto, a do curso do aluno e a própria do avião (o motivo diz qual faltou)
-    ['habilitacao', () => (!podeFazer(x, mis, tipo) ? false : podeFazer(x, mis, tipo, { curso, recurso }) ||
-      { motivo: recurso && !instrutorVoaNoAviao(x, recurso) ? habilitacaoQueFalta(x, recurso) : 'curso' })],
+    // A habilitação da missão e do tipo; com o contexto, a do curso do aluno, a própria do avião e a que a missão do curso
+    // exige (o motivo diz qual faltou: a do avião, a do curso, a da missão do curso)
+    ['habilitacao', () => (!podeFazer(x, mis, tipo) ? false : podeFazer(x, mis, tipo, { curso, recurso, exige }) ||
+      { motivo: recurso && !instrutorVoaNoAviao(x, recurso) ? habilitacaoQueFalta(x, recurso)
+        : !podeFazer(x, mis, tipo, { curso }) || !faltaDaMissaoDoCurso(x, exige) ? 'curso' : `${PREFIXO_DA_MISSAO_DO_CURSO}${faltaDaMissaoDoCurso(x, exige)}` })],
     ['instrutor-ocupado', () => jaOcupa || livre(compromissos.map(c => [c.ocupaDe ?? c.a, c.ocupaAte ?? c.b]), a, b)],
     ['bloqueio', () => !alunos.some(s => s && (s.bl || []).includes(x.id))],
     ['limite-da-lei', dentroDaLei],

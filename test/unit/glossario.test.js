@@ -53,7 +53,7 @@ describe('Glossário', () => {
   // fim
   it('os termos da aba Cursos, na ordem do bloco dela', () => {
     const daAba = Object.entries(INTEIRO).filter(([, t]) => t.aba === 'Cursos').map(([id]) => id);
-    assert.deepEqual(daAba, ['fase-do-curso', 'alunos-na-fase', 'quando-voar', 'dispensada', 'trecho-do-noturno']);
+    assert.deepEqual(daAba, ['fase-do-curso', 'alunos-na-fase', 'quando-voar', 'dispensada', 'trecho-do-noturno', 'habilitacoes-da-missao']);
   });
 
   it('com o hangar e o progresso desligados, os termos deles saem, e os outros não falam deles', () => {

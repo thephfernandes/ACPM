@@ -15,7 +15,7 @@ import { aluno, cenario, instrutor } from '../helpers/montar.js';
 const ATAQUE = 'x"><img/src/onerror=window.__xss=1>';
 
 // O pedido de antes de um agendamento, com todos os campos do pedido (CAMPOS_DO_PEDIDO)
-const PEDIDO_DE_ANTES = { fly: true, mis: 'Navegação', eq: 'C172', p1: 500, p2: -1, nb: 2, ss: 1, pr: 3, jan: 'manha', etapa: 'PP-07', solicitacao: 7, insId: 2, cursoDaEtapa: 'PP' };
+const PEDIDO_DE_ANTES = { fly: true, mis: 'Navegação', eq: 'C172', p1: 500, p2: -1, nb: 2, ss: 1, pr: 3, jan: 'manha', etapa: 'PP-07', solicitacao: 7, insId: 2, cursoDaEtapa: 'PP', limiteConfirmado: true };
 // Uma reversão válida de cada tipo, com todos os campos que o app grava. Do voo agendado na Escala, duas: o criado numa
 // missão extra (sem o pedido de antes) e o que mudou de lugar (o pedido, o voo fixo e a disponibilidade do instrutor de
 // antes, e o pedido como o agendamento o deixou)
@@ -155,9 +155,9 @@ describe('Desfazer um voo agendado na Escala', () => {
     const principal = { ...NOVO, mid: 0, pedido: { fly: false, mis: 'Voo Local', eq: 'C152', p1: 500, p2: 610, nb: 1, ss: 1, pr: 3 } };
     assert.deepEqual(validarReversao(principal, FROTA_INICIAL), principal);
     assert.deepEqual(validarReversao(MOVIDO, FROTA_INICIAL), MOVIDO);
-    // Todos os campos do pedido: a disponibilidade do aluno, a missão do curso (e o curso dela), o pedido da agenda e o
-    // instrutor escolhido
-    const completo = { ...MOVIDO, pedido: { ...ANTES, jan: 'h500', solicitacao: 12, cursoDaEtapa: 'PP' } };
+    // Todos os campos do pedido: a disponibilidade do aluno, a missão do curso (e o curso dela), o pedido da agenda, o
+    // instrutor escolhido e a confirmação do 7º voo local (F1d)
+    const completo = { ...MOVIDO, pedido: { ...ANTES, jan: 'h500', solicitacao: 12, cursoDaEtapa: 'PP', limiteConfirmado: true } };
     assert.deepEqual(Object.keys(completo.pedido).sort(), [...CAMPOS_DO_PEDIDO].sort());
     assert.deepEqual(validarReversao(completo, FROTA_INICIAL), completo);
     assert.equal(validarReversao({ ...NOVO, label: 'x'.repeat(40) }, FROTA_INICIAL).label, 'x'.repeat(40));

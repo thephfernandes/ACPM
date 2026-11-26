@@ -48,8 +48,9 @@ export const MATRICULA = /^[A-Z0-9][A-Z0-9-]{1,14}$/;
  *     checador com as três marcas do cheque (o curso, o motor e as regras)
  */
 // Cada missão: o equipamento padrão (defEq) e os permitidos (eq); regras: 'IFR' quando o voo é IFR (sem o campo, VFR);
-// porCurso: o que muda com o curso do aluno (as regras e as habilitações a mais do instrutor); duracaoPadrao: as horas
-// com que o pedido começa (sem o campo, 1 h). As exigências do voo saem daqui (js/frota.js e js/habilitacoes.js)
+// porCurso: as regras que mudam com o curso do aluno (as habilitações a mais do instrutor ficam no registro,
+// js/habilitacoes.js); duracaoPadrao: as horas com que o pedido começa (sem o campo, 1 h). As regras do voo saem daqui
+// (js/frota.js)
 export const MIS = {
   'Ground C152':      { defEq: GROUND_EQ_TYPE, eq: [GROUND_EQ_TYPE], isGround: true, gatesEq: 'C152' },
   'Ground C172':      { defEq: GROUND_EQ_TYPE, eq: [GROUND_EQ_TYPE], isGround: true, gatesEq: 'C172' },
@@ -65,7 +66,7 @@ export const MIS = {
   'IFR':              { defEq: 'C172',         eq: ['C172', 'PA-34'], regras: 'IFR' },
   // O noturno do PP é VFR; o do PC é IFR: o avião homologado IFR e o instrutor com a habilitação IFR. A missão tem dois
   // dias (NOTURNO, abaixo): 4 h no dia (o translado e o noturno em BH) e a volta no dia seguinte
-  'Noturno':          { defEq: 'C172',         eq: ['C172'], porCurso: { PC: { regras: 'IFR', habilitacoes: ['ifr'] } }, duracaoFixaH: 4 },
+  'Noturno':          { defEq: 'C172',         eq: ['C172'], porCurso: { PC: { regras: 'IFR' } }, duracaoFixaH: 4 },
   'Multimotor':       { defEq: 'PA-34',        eq: ['PA-34'] },
   'Cheque PP':          { defEq: 'C152',  eq: ['C152', 'C172'] },
   'Cheque PC MNTE VFR': { defEq: 'C152',  eq: ['C152', 'C172'] },

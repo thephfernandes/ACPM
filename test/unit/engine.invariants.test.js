@@ -34,6 +34,12 @@ const recursoDo = (estado, o) => (o.isGround ? null : recursoDaFrota(frotaDe(est
 const comAsEscolhas = execucoes.filter(e => String(e.seed).endsWith('com escolhas'));
 
 const sobrepoe = (x, y) => x.a < y.b && y.a < x.b;
+// O voo do pedido com o 7º voo local confirmado (limiteConfirmado), no minuto exato do pedido (Q8)
+const confirmadoNoMinuto = (estado, o) => {
+  const stu = estado.stu.find(s => s.id === o.stuId);
+  const d = stu && (o.mid ? (stu.extra || []).find(ex => ex.mid === o.mid) : stu);
+  return Boolean(d && d.limiteConfirmado === true && d.jan === `h${o.a}`);
+};
 const pedidoDe = (estado, o) => {
   const stu = estado.stu.find(s => s.id === o.stuId);
   return { stu, d: o.mid ? stu.extra.find(ex => ex.mid === o.mid) : stu };
@@ -49,9 +55,11 @@ function emTodos(verificar) {
 }
 
 describe('Invariantes do motor de alocação', () => {
-  it('no máximo 6 voos locais saindo no mesmo horário', () => emTodos(({ out }) => {
+  // Sem os confirmados (o 7º voo local confirmado na Agenda, no minuto dele: Q8) e sem os agendados na Escala
+  it('no máximo 6 voos locais saindo no mesmo horário, sem os confirmados nem os agendados', () => emTodos(({ out, estado }) => {
     const porHorario = new Map();
-    out.filter(o => ['Voo Local', 'Voo Solo', 'TGL (TMA)'].includes(o.mis) && o.status !== 'Cancelado').forEach(o => porHorario.set(o.a, (porHorario.get(o.a) || 0) + 1));
+    out.filter(o => ['Voo Local', 'Voo Solo', 'TGL (TMA)'].includes(o.mis) && o.status !== 'Cancelado' && !o.agendado && !confirmadoNoMinuto(estado, o))
+      .forEach(o => porHorario.set(o.a, (porHorario.get(o.a) || 0) + 1));
     for (const [a, n] of porHorario) assert.ok(n <= 6, `${n} voos locais às ${a}`);
   }));
 
@@ -524,4 +532,73 @@ describe('Voos agendados num dia aprovado, em 150 cenários', () => {
     assert.deepEqual(runAllocationEngine(estado), depois, 'saída diferente');
     assert.deepEqual(normalizarEscalaGravada(depois), depois, 'a escala gravada não aceita');
   }));
+});
+
+// Q8 (F1d): sete, oito ou nove voos locais pedidos no mesmo horário exato, um ou dois deles confirmados (o 7º voo local
+// confirmado na Agenda), em 150 cenários, com prioridades, instrutores escolhidos e “Priorizar com” sorteados: os não
+// confirmados ficam em no máximo 6 por horário, o confirmado não toma o lugar de nenhum deles (com 6 não confirmados no
+// horário, todos voam ali) e cada confirmado num horário com mais de 6 locais avisa, uma vez
+describe('O 7º voo local confirmado, em 150 cenários', () => {
+  const LOCAIS = ['Voo Local', 'Voo Solo', 'TGL (TMA)'];
+  const dias = SEEDS.slice(0, 150).map(seed => {
+    const r = mulberry32(seed * 7919 + 3);
+    const base = gerarCenario(seed);
+    const minuto = [500, 610, 820][Math.floor(r() * 3)];
+    const confirmados = 1 + Math.floor(r() * 2);
+    const ativos = base.ins.filter(x => x.on);
+    const novos = Array.from({ length: 6 + confirmados }, (_, i) => {
+      const extra = {};
+      if (r() < 0.2 && ativos.length) extra.insId = ativos[Math.floor(r() * ativos.length)].id;
+      return {
+        id: 8000 + i, nm: `Local ${i}`, kg: 60, bl: [], extra: [], ...(r() < 0.2 && ativos.length ? { voaCom: [ativos[Math.floor(r() * ativos.length)].id] } : {}),
+        fly: true, mis: 'Voo Local', eq: 'C152', p1: minuto, p2: -1, jan: `h${minuto}`, nb: 1, ss: 1, pr: 1 + Math.floor(r() * 5),
+        ...(i >= 6 ? { limiteConfirmado: true } : {}), ...extra
+      };
+    });
+    // Os confirmados em qualquer lugar da fila
+    novos.sort(() => r() - 0.5);
+    const estado = { ...base, stu: [...base.stu, ...novos] };
+    return { seed, estado, minuto, ...runAllocationEngine(estado) };
+  });
+
+  it('os não confirmados ficam em no máximo 6 por horário, e cada confirmado num horário cheio avisa uma vez', () => {
+    const falhas = [];
+    for (const { seed, estado, out, al } of dias) {
+      try {
+        const locais = out.filter(o => !o.trecho && LOCAIS.includes(o.mis) && o.status !== 'Cancelado');
+        const porHorario = new Map();
+        for (const o of locais.filter(o => !confirmadoNoMinuto(estado, o))) porHorario.set(o.a, (porHorario.get(o.a) || 0) + 1);
+        for (const [a, n] of porHorario) assert.ok(n <= 6, `${n} locais não confirmados às ${a}`);
+        // Os confirmados que passam dos 6 no horário (sem os cancelados) avisam, um aviso cada; o que ainda cabe, não
+        for (const a of new Set(locais.map(o => o.a))) {
+          const noHorario = locais.filter(o => o.a === a), confirmados = noHorario.filter(o => confirmadoNoMinuto(estado, o));
+          const avisados = confirmados.filter(o => al.some(x => x.codigo === 'limite-de-locais' && x.fKey === o.fKey));
+          assert.equal(avisados.length, Math.max(0, Math.min(confirmados.length, noHorario.length - 6)), `às ${a}`);
+          for (const o of avisados) assert.equal(al.filter(x => x.codigo === 'limite-de-locais' && x.fKey === o.fKey).length, 1);
+        }
+        // Nenhum aviso de limite para quem não é confirmado (não há agendados aqui)
+        assert.ok(al.filter(x => x.codigo === 'limite-de-locais' && x.t === 'warn').every(x => locais.some(o => o.fKey === x.fKey && confirmadoNoMinuto(estado, o))));
+      } catch (e) { falhas.push(`seed ${seed}: ${e.message}`); }
+    }
+    assert.deepEqual(falhas.slice(0, 5), [], `${falhas.length} cenário(s) violam a propriedade`);
+  });
+
+  it('o confirmado não toma o lugar de um não confirmado: este só fica fora pelo limite com seis não confirmados no horário', () => {
+    const falhas = [];
+    let cheios = 0;
+    // Sem a compactação: a contagem é a da fila (a compactação depois só tira voos do horário, nunca traz)
+    for (const { seed, estado, minuto } of dias) {
+      const { out, al } = runAllocationEngine(estado, { compactar: false });
+      // A fila conta o voo cancelado que ela mesma pôs (só o fixo cancelado não ocupa o horário)
+      const naoConfirmados = out.filter(o => o.a === minuto && !o.trecho && LOCAIS.includes(o.mis) && !(o.fixo && o.status === 'Cancelado') && !confirmadoNoMinuto(estado, o)).length;
+      const todosNoMinuto = out.filter(o => o.a === minuto && !o.trecho && LOCAIS.includes(o.mis) && o.status !== 'Cancelado').length;
+      if (todosNoMinuto > 6) cheios++;
+      for (const s of estado.stu.filter(x => x.id >= 8000 && !x.limiteConfirmado && !out.some(o => o.stuId === x.id))) {
+        const recusa = al.find(a => a.t === 'err' && a.s === s.nm);
+        if (recusa && recusa.codigo === 'limite-de-locais' && naoConfirmados !== 6) falhas.push(`seed ${seed}: ${s.nm} fora pelo limite com ${naoConfirmados} não confirmados às ${minuto}`);
+      }
+    }
+    assert.deepEqual(falhas.slice(0, 5), [], `${falhas.length} cenário(s)`);
+    assert.ok(cheios > 30, `${cheios} dias com mais de 6 locais no horário (os confirmados a mais)`);
+  });
 });
