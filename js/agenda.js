@@ -1,5 +1,5 @@
-// Agenda de solicitações da secretaria: a regra do prazo (a mesma do servidor, no horário de São Paulo), o limite de voos
-// locais e o pedido da demanda que cada solicitação vira ao ser importada (a importação: js/processamento.js).
+// Agenda de solicitações da secretaria: a regra do prazo (a mesma do servidor, no horário de São Paulo), as datas em que um
+// pedido pode ser registrado, o limite de voos locais e o pedido da demanda que cada solicitação vira ao ser importada (a importação: js/processamento.js).
 import { MIS, MISSOES_LOCAIS, LIMITE_DE_VOOS_LOCAIS } from './config.js';
 import { disponibilidadeAtual, disponibilidadeDoAluno, normalizeMissionFields, duracaoPadraoDaMissao } from './rules.js';
 import { horariosDaMissao, preferenciasPadrao, paraMinuto } from './horarios.js';
@@ -37,29 +37,23 @@ export function prazoDaAgendaPermite(data, agora = new Date()) {
   return hoje < prazo.dia || (hoje === prazo.dia && hora < prazo.hora);
 }
 
-// As datas do campo "Data do pedido": os dias de operação de hoje até daqui a 14 dias e a data aberta, quando depois
-// disso. Quem não usa a Exceção da Coordenação (a Secretaria) só vê as que ainda aceitam pedidos; quem usa vê também as
-// encerradas, marcadas. Cada uma: { data, rotulo: "sex 20/11 (amanhã)", encerrado }
-const SEMANA_CURTA = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
-export function datasParaRegistrar({ aberta, excecao = false, agora = new Date() }) {
-  const hoje = emSaoPaulo(agora).data;
-  const dias = [];
-  for (let i = 0; i <= 14; i++) dias.push(somarDias(hoje, i));
-  if (aberta && aberta > dias.at(-1)) dias.push(aberta);
-  return dias.filter(d => !ehDomingo(d)).map(data => {
-    const encerrado = !prazoDaAgendaPermite(data, agora);
-    const relativo = data === hoje ? ' (hoje)' : data === somarDias(hoje, 1) ? ' (amanhã)' : '';
-    const rotulo = `${SEMANA_CURTA[new Date(data + 'T12:00:00Z').getUTCDay()]} ${data.slice(8, 10)}/${data.slice(5, 7)}${relativo}${encerrado ? ' · prazo encerrado' : ''}`;
-    return { data, rotulo, encerrado };
-  }).filter(d => excecao || !d.encerrado);
-}
-
 export const primeiraDataAberta = (agora = new Date()) => {
   const { data: hoje } = emSaoPaulo(agora);
   let data = somarDias(hoje, 1);
   while (!prazoDaAgendaPermite(data, agora)) data = somarDias(data, 1);
   return data;
 };
+
+// As datas em que um pedido pode ser registrado ("Data do pedido"): os dias de operação (sem domingo) de hoje (São Paulo) a
+// 14 dias, e a data aberta, quando é mais adiante. Com a exceção da Coordenação, também as que já fecharam (fechada); sem
+// ela, só as abertas. padrao: a data aberta, se ela está na lista e aceita pedidos; senão, a primeira que aceita
+export function datasParaRegistrar(hoje, dataAberta, { excecao = false, agora = new Date() } = {}) {
+  const datas = Array.from({ length: 15 }, (_, i) => somarDias(hoje, i));
+  if (dataAberta && dataAberta > datas.at(-1)) datas.push(dataAberta);
+  const opcoes = datas.filter(data => !ehDomingo(data)).map(data => ({ data, fechada: !prazoDaAgendaPermite(data, agora) })).filter(o => excecao || !o.fechada);
+  const aberta = opcoes.find(o => o.data === dataAberta);
+  return { opcoes, padrao: aberta && !aberta.fechada ? aberta.data : primeiraDataAberta(agora) };
+}
 
 export function disponibilidadeDaSolicitacao({ janela, horario }) {
   if (janela !== 'horario') return disponibilidadeAtual(janela);

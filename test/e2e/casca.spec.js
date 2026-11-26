@@ -1,7 +1,7 @@
 // A casca (F1a): a linha das etapas no lugar das abas, as telas com nome e endereço (#/<tela>[/<item>]), quem vê cada uma,
 // Aprovar, Voltar e Avançar, a rolagem de cada entrada e o estado da linha (aberta, recolhida ou a faixa do celular). Os
 // padrões do produto, de propósito: nenhum teste guarda uma preferência antes
-import { test, expect, abrir, abrirComExemplo, entrar, irPara, abrirEscala, aprovar, botaoAprovar, botaoReabrir, botaoDaAba, rotulosDasAbas, mudarData, AMANHA } from './fixtures.js';
+import { test, expect, abrir, abrirComExemplo, entrar, irPara, abrirEscala, aprovar, botaoAprovar, botaoReabrir, botaoDaAba, rotulosDasAbas, mudarData, AMANHA, REGIOES, botaoDaData, larguraDaPagina, percorrerTelas, semNome, trilho } from './fixtures.js';
 import { instalarSupabaseFalso, documentosAtuais, CONTAS } from './supabase-falso.js';
 import { estadoSintetico } from '../helpers/estado.js';
 import { comExemplo } from '../helpers/exemplo.js';
@@ -246,5 +246,80 @@ test.describe('O desenho da linha', () => {
       });
       expect(bi, `${largura} px`).toBe(true);
     }
+  });
+});
+
+test.describe('A moldura', () => {
+  // A distância da linha até a tela é a mesma com o trilho ao lado e sem ele: um trilho alto não abre um vão
+  test('com o trilho ao lado ou não, a tela fica à mesma distância da linha', async ({ page }) => {
+    await abrir(page);
+    const vao = () => page.evaluate(() => document.querySelector('main#conteudo').getBoundingClientRect().top - document.querySelector('#linha').getBoundingClientRect().bottom);
+    await expect(page.locator('body')).toHaveAttribute('data-trilho', 'fixo');
+    const aoLado = await vao();
+    const topos = await page.evaluate(() => [document.querySelector('main#conteudo'), document.querySelector('aside.trilho')].map(el => el.getBoundingClientRect().top));
+    expect(topos[0]).toBe(topos[1]);
+    await page.locator('#btn-fixar-trilho').click();
+    await expect(page.locator('body')).toHaveAttribute('data-trilho', 'fechado');
+    expect(await vao()).toBe(aoLado);
+  });
+
+  test('a 1280 px com o trilho ao lado, nenhuma tela rola a página de lado, e todo controle tem nome', async ({ page }) => {
+    test.slow();
+    await abrirComExemplo(page);
+    await expect(page.locator('body')).toHaveAttribute('data-trilho', 'fixo');
+    await percorrerTelas(page, async tela => {
+      expect(await larguraDaPagina(page), tela).toBeLessThanOrEqual(1280);
+      expect(await semNome(page, `${REGIOES.casca}, ${REGIOES.tela}`), tela).toEqual([]);
+    });
+  });
+
+  test('a 1920 px, o Painel mostra uma lista, com o trilho ao lado e sem ele', async ({ page }) => {
+    await page.setViewportSize({ width: 1920, height: 1080 });
+    await abrirComExemplo(page);
+    await abrirEscala(page, { vista: 'painel' });
+    const listas = page.locator('#out .fids .fids-tabela');
+    await expect(listas).toHaveCount(1);
+    await page.locator('#btn-fixar-trilho').click();
+    await expect(page.locator('body')).toHaveAttribute('data-trilho', 'fechado');
+    await page.waitForTimeout(200);
+    await expect(listas).toHaveCount(1);
+  });
+
+  // A moldura das telas de lista e detalhe (F2): a página tem a altura da janela; a lista, o detalhe e o trilho rolam cada
+  // um por conta própria. Com a janela baixa, a página rola. A tela é de mentira: duas regiões altas no lugar de Alunos
+  test('na tela de lista e detalhe, os painéis rolam e a página não; com a janela baixa, a página rola', async ({ page }) => {
+    await abrirComExemplo(page);
+    await page.locator('#s-alu').evaluate(secao => {
+      secao.dataset.forma = 'lista-detalhe';
+      secao.innerHTML = '<div id="bancada" style="display:grid;grid-template-columns:1fr 2fr;height:100%;min-height:0">'
+        + ['lista', 'detalhe'].map(r => `<div data-regiao="${r}" style="overflow:auto;min-height:0"><div style="height:3000px">${r}</div></div>`).join('') + '</div>';
+    });
+    await irPara(page, 'alu');
+    await expect(page.locator('body')).toHaveAttribute('data-forma', 'lista-detalhe');
+    const medidas = () => page.evaluate(() => {
+      const rola = el => el.scrollHeight > el.clientHeight + 1 && ['auto', 'scroll'].includes(getComputedStyle(el).overflowY);
+      const t = document.querySelector('aside.trilho');
+      return {
+        pagina: document.documentElement.scrollHeight > innerHeight + 1,
+        lista: rola(document.querySelector('[data-regiao="lista"]')), detalhe: rola(document.querySelector('[data-regiao="detalhe"]')),
+        noFundo: Math.round(document.querySelector('[data-regiao="lista"]').getBoundingClientRect().bottom),
+        trilho: { posicao: getComputedStyle(t).position, rola: getComputedStyle(t).overflowY, fundo: Math.round(t.getBoundingClientRect().bottom) }
+      };
+    });
+    expect(await medidas()).toEqual({ pagina: false, lista: true, detalhe: true, noFundo: 704, trilho: { posicao: 'static', rola: 'auto', fundo: expect.any(Number) } });
+    expect((await medidas()).trilho.fundo).toBeLessThanOrEqual(704);
+    // Solto, o painel do trilho entra entre a linha e a tela, com rolagem própria, e a página continua sem rolar
+    await page.locator('#btn-fixar-trilho').click();
+    await botaoDaData(page).click();
+    await expect(trilho(page)).toBeVisible();
+    const aberto = await medidas();
+    expect([aberto.pagina, aberto.lista, aberto.noFundo]).toEqual([false, true, 704]);
+    await page.setViewportSize({ width: 1280, height: 560 });
+    expect((await medidas()).pagina).toBe(true);
+    // Fora dela, a página rola como sempre
+    await page.setViewportSize({ width: 1280, height: 720 });
+    await page.locator('#btn-manual').click();
+    await expect(page.locator('body')).not.toHaveAttribute('data-forma');
+    expect((await page.evaluate(() => document.documentElement.scrollHeight > innerHeight))).toBe(true);
   });
 });

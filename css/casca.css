@@ -26,7 +26,8 @@ header.topo {
 .topo-data-botao:hover { background: rgba(255,255,255,.12); }
 .topo-data-botao[aria-expanded="true"] { background: rgba(255,255,255,.16); }
 #dt-rotulo { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-.dt-semana-curta { display: none; }
+.dt-semana-curta, .abreviada .dt-semana { display: none; }
+.abreviada .dt-semana-curta { display: inline; }
 @media (max-width: 400px) {
   .dt-semana { display: none; }
   .dt-semana-curta { display: inline; }
@@ -111,9 +112,8 @@ body[data-perfil="secretaria"] #btn-share-link { display: none !important; }
 @media (max-width: 1029px) {
   header.topo { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "marca data" "ferramentas ferramentas"; }
 }
-/* No celular não cabem a marca e a data na mesma linha: a data ocupa a segunda linha inteira (o tamanho fixo mantém as
-   setas no lugar quando a data muda), e as ferramentas, só com os ícones, ficam ao lado da marca. Aqui o Tab passa pela
-   data antes das ferramentas, que estão acima dela */
+/* No celular não cabem a marca e a data na mesma linha: a data ocupa a segunda linha inteira, e as ferramentas, só com os
+   ícones, ficam ao lado da marca. Aqui o Tab passa pela data antes das ferramentas, que estão acima dela */
 @media (max-width: 640px) {
   header.topo { grid-template-areas: "marca ferramentas" "data data"; padding: 8px 12px; }
   .hd-sel { max-width: 110px; }
@@ -146,7 +146,7 @@ header.topo .menu-itens :focus-visible { outline-color: var(--ac); }
 main#conteudo { grid-area: tela; min-width: 0; }
 @media (max-width: 1023px) { #trilho { margin-inline: -16px; } }
 @media (min-width: 1024px) {
-  body[data-trilho="fixo"] .casca { grid-template-columns: minmax(0, 1fr) var(--trilho); grid-template-areas: "avisos avisos" "linha linha" "tela trilho"; }
+  body[data-trilho="fixo"]:not([data-login]) .casca { grid-template-columns: minmax(0, 1fr) var(--trilho); grid-template-areas: "avisos avisos" "linha linha" "tela trilho"; }
   body[data-trilho="fixo"] #trilho { position: sticky; top: 12px; max-height: calc(100dvh - 24px); overflow-y: auto; }
 }
 /* As telas de lista e detalhe (F2), a partir de 800 × 600 px: a página tem a altura da janela, e os painéis e o trilho rolam

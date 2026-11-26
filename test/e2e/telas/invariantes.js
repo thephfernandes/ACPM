@@ -8,17 +8,17 @@ import { ESTADOS as DA_DEMANDA } from './demanda.js';
 import { ESTADOS as DE_RECURSOS } from './recursos.js';
 import { ESTADOS as DE_CURSOS } from './cursos.js';
 
-// As regiões da página que as conferências olham: a casca (o topo e as abas) e a tela aberta
-export const REGIOES = { casca: 'header.topo, #linha', tela: 'main#conteudo > section.on' };
+// As regiões da página que as conferências olham: a casca (o topo, a linha e o trilho à vista) e a tela aberta
+export const REGIOES = { casca: 'header.topo, #linha, #trilho:not([hidden])', tela: 'main#conteudo > section.on' };
 
 // A largura do documento: maior que a da janela, a página rola para o lado
 export const larguraDaPagina = page => page.evaluate(() => document.documentElement.scrollWidth);
 
-// Controles da aba aberta e do topo com área de toque menor que 44 px (a caixa de seleção conta com o rótulo que a
+// Controles da tela aberta e da casca com área de toque menor que 44 px (a caixa de seleção conta com o rótulo que a
 // envolve; links no meio do texto ficam de fora)
 export const alvosPequenos = page => page.evaluate(() => {
   const secao = document.querySelector('main section.on');
-  const controles = [...document.querySelectorAll('.topo button, .topo select, .topo input, .topo a[href], #linha a[href]:not(.tarefa), #linha button'),
+  const controles = [...document.querySelectorAll('.topo button, .topo select, .topo input, .topo a[href], #linha a[href]:not(.tarefa), #linha button, #trilho button, #trilho a[href]'),
     ...secao.querySelectorAll('button, select, input, summary, a[href]')];
   const pequenos = new Set();
   for (const el of controles) {

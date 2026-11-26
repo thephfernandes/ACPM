@@ -301,7 +301,7 @@ test.describe('Cursos no servidor (modo compartilhado)', () => {
     const liberarResultado = servidor.segurar('/rpc/registrar_resultado');
     await operador.page.locator('#out tbody tr:not(.win)', { hasText: 'Aluno 1000' }).locator('[data-resultado]').selectOption('aprovado');
     const liberarDias = servidor.segurarLeiturasDeDias();
-    await diaSeguinte(operador.page);
+    await diaSeguinte(operador.page, { esperar: false });
     liberarResultado();
     await expect.poll(() => servidor.historico.filter(h => h.descricao.startsWith('Resultado de')).map(h => h.data)).toEqual([AMANHA]);
     liberarDias();

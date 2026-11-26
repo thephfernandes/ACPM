@@ -15,7 +15,7 @@ const E2E = fileURLToPath(new URL('../e2e/', import.meta.url));
 const DONOS = [
   // A casca (F1): a data (o botão e o trilho), a linha, o Histórico e o menu da conta
   { seletor: '#btn-data', achar: /#btn-data(?![\w-])/, drivers: ['casca.js'] },
-  { seletor: '#trilho', achar: /#trilho(?![\w-])/, drivers: ['casca.js'] },
+  { seletor: '#trilho', achar: /#trilho(?![\w-])/, drivers: ['casca.js', 'invariantes.js'] },
   { seletor: '.cal-dia', achar: /\.cal-dia(?![\w-])/, drivers: ['casca.js'] },
   { seletor: '#dt-rotulo', achar: /#dt-rotulo(?![\w-])/, drivers: ['casca.js'] },
   { seletor: '#dt-rel', achar: /#dt-rel(?![\w-])/, drivers: ['casca.js'] },

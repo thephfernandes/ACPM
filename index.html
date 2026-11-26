@@ -85,7 +85,7 @@
     <svg class="ico" aria-hidden="true"><use href="#i-calendario"/></svg>
     <span class="sr">Data da escala: </span><span id="dt-rotulo"></span>
     <span class="topo-data-rel" id="dt-rel" hidden></span>
-    <span class="badge-cnt" id="avisos-cnt" hidden><span aria-hidden="true"></span><span class="sr"></span></span>
+    <span class="badge-cnt" id="avisos-cnt" hidden></span>
     <svg class="ico hd-seta" aria-hidden="true"><use href="#i-baixo"/></svg>
   </button>
   <div class="hd-tools">
@@ -185,7 +185,7 @@
   </div>
 </nav>
 
-<!-- O trilho: o calendário da data aberta (cada dia com os pedidos dele) e a linha da data. Ao lado da tela ou aberto
+<!-- O trilho: o calendário da data aberta (cada dia com os pedidos dele) e os avisos dela. Ao lado da tela ou aberto
      pelo botão da data (js/views/trilho.js) -->
 <aside class="trilho" id="trilho" aria-label="Data e avisos" data-regiao="trilho" hidden>
   <div class="trilho-cab">
@@ -198,7 +198,7 @@
   <table class="cal" id="cal" role="grid" aria-labelledby="cal-mes"></table>
   <div class="trilho-avisos" role="region" aria-labelledby="trilho-data">
     <h2 class="trilho-data" id="trilho-data"></h2>
-    <ol class="avisos-da-data" id="avisos-da-data"></ol>
+    <ol class="avisos-da-data" id="avisos-da-data" hidden></ol>
     <p class="h" id="avisos-vazio" hidden>Nada a resolver nesta data.</p>
   </div>
 </aside>
@@ -357,27 +357,26 @@
   <!-- AGENDA DE SOLICITAÇÕES (secretaria) -->
   <section id="s-age" class="tela">
     <h2>Agenda de Solicitações</h2>
-    <p class="h" id="agenda-prazo"></p>
-    <div class="agenda">
-      <div class="pn">
-        <h3 id="agenda-data"></h3>
-        <form id="form-agenda" autocomplete="off" novalidate>
-          <label>Data do pedido<select id="ag-data" class="agenda-campo" aria-describedby="agenda-prazo"></select></label>
-          <label>Aluno<select id="ag-aluno" class="agenda-campo" required aria-describedby="ag-erro"></select></label>
-          <label>Fase / missão<select id="ag-missao" class="agenda-campo" required aria-describedby="ag-erro"></select></label>
-          <label>Recurso<select id="ag-recurso" class="agenda-campo" required disabled aria-describedby="ag-erro"></select></label>
-          <div><label>Horário<select id="ag-horario" class="agenda-campo" required disabled aria-describedby="ag-horario-motivo ag-erro"></select></label>
-            <small id="ag-horario-motivo" aria-live="polite"></small></div>
-          <label>Duração (h)<input type="number" id="ag-horas" class="agenda-campo" min="0.1" max="5" step="0.1" inputmode="decimal" value="1" aria-describedby="ag-erro"></label>
-          <label>Registrado por<input id="ag-por" class="agenda-campo" maxlength="80" required placeholder="Quem anotou o pedido" aria-describedby="ag-erro"></label>
-          <label>Observação<input id="ag-obs" class="agenda-campo" maxlength="300" placeholder="Opcional"></label>
-          <button class="btn" type="submit">Registrar pedido</button>
-          <button class="x" type="button" id="ag-excecao" hidden data-dica="excecao">Exceção da Coordenação</button>
-          <p id="ag-erro" role="alert"></p>
-        </form>
-        <button class="btn edit-only" type="button" id="agenda-importar" data-act="importar-agenda" hidden></button>
-        <div class="tw" id="agenda-lista"></div>
-      </div>
+    <div class="pn">
+      <form id="form-agenda" autocomplete="off" novalidate>
+        <label>Data do pedido<select id="ag-data" class="agenda-campo" aria-describedby="agenda-prazo"></select></label>
+        <p class="h" id="agenda-prazo"></p>
+        <label>Aluno<select id="ag-aluno" class="agenda-campo" required aria-describedby="ag-erro"></select></label>
+        <label>Fase / missão<select id="ag-missao" class="agenda-campo" required aria-describedby="ag-erro"></select></label>
+        <label>Recurso<select id="ag-recurso" class="agenda-campo" required disabled aria-describedby="ag-erro"></select></label>
+        <div><label>Horário<select id="ag-horario" class="agenda-campo" required disabled aria-describedby="ag-horario-motivo ag-erro"></select></label>
+          <small id="ag-horario-motivo" aria-live="polite"></small></div>
+        <label>Duração (h)<input type="number" id="ag-horas" class="agenda-campo" min="0.1" max="5" step="0.1" inputmode="decimal" value="1" aria-describedby="ag-erro"></label>
+        <label>Registrado por<input id="ag-por" class="agenda-campo" maxlength="80" required placeholder="Quem anotou o pedido" aria-describedby="ag-erro"></label>
+        <label>Observação<input id="ag-obs" class="agenda-campo" maxlength="300" placeholder="Opcional"></label>
+        <button class="btn" type="submit">Registrar pedido</button>
+        <button class="x" type="button" id="ag-excecao" hidden data-dica="excecao">Exceção da Coordenação</button>
+        <p id="ag-erro" role="alert"></p>
+      </form>
+      <!-- A lista: os pedidos da data aberta -->
+      <h3 id="agenda-data"></h3>
+      <button class="btn edit-only" type="button" id="agenda-importar" data-act="importar-agenda" hidden></button>
+      <div class="tw" id="agenda-lista"></div>
     </div>
   </section>
 
@@ -532,7 +531,8 @@
       <h3>Primeiros passos: a rotina do operador</h3>
       <ol>
         <li><b>Confira a data no topo.</b> O sistema abre na Escala, na data de amanhã.
-        Para outra data, use o calendário ao lado da tela (na tela menor, ele abre pelo botão da data, no topo): cada dia mostra quantos pedidos tem, e um clique abre a data.
+        Para abrir outra data, escolha o dia no calendário: ele fica ao lado da tela quando há largura, ou abre no botão da data, no topo (o botão <i>Fixar o calendário ao lado da tela</i> muda isso, e fica guardado neste computador).
+        O número em cada dia é o de pedidos dele, e as setas do calendário mudam só o mês à vista.
         Tudo o que você vê e altera, em qualquer tela, vale para essa data.
         Uma data nova começa com os aviões,
         as janelas
@@ -580,10 +580,12 @@
       Ao lado do título da Escala aparece a hora da última atualização (por exemplo, “Atualizada às 10:42”).</p>
       <p class="manual-destaque">Uma data que você só abriu para consultar não é gravada.
       Ela passa a contar (no BI, nas horas dos aviões e no rodízio da data seguinte) quando você altera alguma coisa nela ou baixa o CSV, o PDF ou o Excel.</p>
-      <p>Embaixo do calendário ficam os avisos da data aberta (as missões que não entraram, os conflitos e os avisos da escala, os aviões perto da revisão, os pedidos que ainda não estão na demanda), cada um com o horário do voo e um link para onde ele se resolve; o número deles aparece no botão da data.</p>
       <p>A linha, no alto, avisa o que pede atenção: cada cartão tem um número e um estado (feito, pendente, precisa de atenção ou falhou, cada um com o seu símbolo).
       Aberta (o botão no fim dela), ela mostra as tarefas de cada etapa, e cada tarefa leva à tela onde ela se resolve: na Agenda, os pedidos que ainda não estão na demanda; na Escala, as missões que não entraram e os conflitos e avisos.
       O link de Recursos mostra os aviões parados ou perto da revisão de 50 horas (na <i>Disponibilidade do dia</i>, cujo botão mostra o mesmo número).</p>
+      <p>Embaixo do calendário ficam os avisos da data, primeiro os erros: as missões que não entraram, os conflitos e os outros avisos da escala, os aviões parados ou perto da revisão de 50 horas, os pedidos que ainda não estão na demanda e o que não foi lido.
+      O aviso leva à tela onde se resolve, quando você a vê; as horas, os resultados e os cursos que não foram lidos são lidos em <i>Tentar de novo</i>, no alto da página.
+      O botão da data, no topo, diz quantos avisos são.</p>
     </div>
 
     <div class="pn" id="manual-perfis">
@@ -593,7 +595,7 @@
         <li><b>Administrador:</b> faz tudo o que o Operador faz e também muda os Cursos (os programas, os cursos novos e os encerrados) e os limites da Lei do Aeronauta, e cria e exclui contas (em <i>Usuários</i>, no menu da conta).</li>
         <li><b>Gestor:</b> consulta tudo (escala, BI, histórico, PDF, CSV e Excel), sem alterar nada.</li>
         <li><b>Secretaria:</b>
-        registra os pedidos de voo na Agenda (o app abre para ela nessa tela),
+        registra os pedidos de voo na Agenda (o app abre para ela nessa tela, na primeira data que ainda aceita pedidos),
         consulta a Escala e os Cursos e,
         em Instrutores (que abre para ela no <i>Cadastro</i>)
         e Alunos,
@@ -613,16 +615,20 @@
       <p>A linha, no alto, segue as etapas do dia, cada uma num cartão: Agenda, Demanda, Escala e Aprovar.
       Ao lado dela (ou embaixo, quando não cabe) ficam os cadastros (Alunos, Instrutores, Recursos e Cursos), o Rodízio e o BI.</p>
       <h4>Agenda</h4>
-      <p>A agenda de pedidos da secretaria: a lista dos pedidos da data aberta e o formulário de um pedido novo, com a data do pedido no próprio formulário (<i>Data do pedido</i>), que começa na primeira data que ainda aceita pedidos.
-      Cada pedido tem o aluno, a missão, o horário (os horários da missão: o Multimotor, por exemplo, tem os do PA-34), a duração (fracionada, até 5 h; o Ground tem 01h30) e quem anotou.
+      <p>A agenda de pedidos da secretaria: a lista dos pedidos da data aberta e o formulário que registra um pedido.
+      Cada pedido é registrado para a <i>Data do pedido</i>, um campo do formulário: ela começa na data aberta, ou na primeira que ainda aceita pedidos, e não muda a data aberta no app.
+      Para ver os pedidos de outro dia, escolha o dia no calendário, que mostra quantos cada um tem.
+      Cada pedido tem o aluno, a missão, o recurso, o horário, a duração (fracionada, até 5 h; o Ground tem 01h30) e quem anotou.
+      A missão decide os recursos que podem ser escolhidos (quando ela só permite um, ele já vem escolhido), e o recurso decide os horários, que são os configurados para ele em Recursos: a Navegação no PA-34, por exemplo, tem os horários do PA-34, e no C152, os do C152.
+      O campo <i>Horário</i> só abre depois do aluno, da missão e do recurso; ao trocar a missão ou o recurso, o horário que a lista nova não tem sai, e o app diz.
       No máximo 6 voos locais (Voo Local, Voo Solo e TGL) saem no mesmo horário (determinação da diretoria): ao agendar o 7º, o horário fica indisponível, e o app diz o próximo horário possível.
       O Voo Solo sai sempre às 06:30.
       Se o aluno já tem voo marcado na data, o app avisa (pode ser um reagendamento feito por outra pessoa) e só registra mais um com “Registrar mesmo assim”.
-      Cada pedido vira um voo na demanda, com o horário e a duração dele.
+      Cada pedido vira um voo na demanda, com o recurso, o horário e a duração dele (o pedido de antes de a agenda guardar o recurso entra no recurso padrão da missão).
       O pedido para o dia seguinte só pode ser registrado até as 13:00 (horário de Brasília); depois disso, só para os próximos dias.
-      O aeroclube não opera aos domingos: domingo não tem escala nem pedidos (o app pula o domingo), e os voos de segunda são agendados até sábado às 10:00.
-      Operadores e Administradores podem registrar fora do prazo com a <i>Exceção da Coordenação</i>, que fica marcada no pedido.</p>
-      <p>Na data aberta no topo, a coluna <i>Situação</i> diz se o pedido já está na demanda (“Na demanda”) ou não (“Ainda não importado”), e o operador pode importar por ali mesmo.
+      O aeroclube não opera aos domingos: domingo não tem escala nem pedidos (no calendário, o domingo não abre), e os voos de segunda são agendados até sábado às 10:00.
+      Operadores e Administradores podem registrar fora do prazo com a <i>Exceção da Coordenação</i>, que fica marcada no pedido: para eles, as datas fechadas aparecem na <i>Data do pedido</i> com “prazo encerrado”.</p>
+      <p>Na lista, a coluna <i>Situação</i> diz se o pedido já está na demanda (“Na demanda”) ou não (“Ainda não importado”), e o operador pode importar por ali mesmo.
       O pedido cancelado continua na lista, esmaecido; deixe o mouse sobre “Cancelado” para ver quem cancelou e quando.</p>
 
       <h4>Demanda</h4>
@@ -737,7 +743,6 @@
       Nos detalhes de uma turma de Ground, <i>+ Aluno na turma</i> abre o mesmo diálogo, já com a turma, para pôr mais um aluno nela.
       Sem voos na data, o mapa mostra as linhas livres embaixo do aviso.</p>
 
-<<<<<<< HEAD
       <h4>Alunos</h4>
       <p>Nome, CANAC, peso e curso de cada aluno (as três primeiras colunas são as de Instrutores, na mesma ordem)<span data-funcionalidade="progresso">; embaixo do curso, as missões aprovadas do programa e a próxima (por exemplo, <i>12/40 · próxima PP-13</i>)</span>.
       A lista dos cursos é a dos cursos ativos de Cursos; o curso encerrado continua para quem já está nele, marcado “(encerrado)”.
@@ -762,103 +767,6 @@
       Só operadores, administradores e a secretaria veem esses dados: eles ficam fora da escala e não vão para o CSV, o PDF nem o Excel, e o Histórico registra só quais campos mudaram, nunca os valores (também as alterações da secretaria).
       Excluir um aluno ou instrutor apaga os dados pessoais dele.
       Se outra pessoa alterou os dados enquanto o painel estava aberto, o app avisa em vez de gravar por cima: feche e abra de novo.</p>
-=======
-      <h4>Demanda</h4>
-      <p>Uma linha por aluno.
-      Ligue <i>Voa</i> para quem voa na data e preencha:</p>
-      <ul>
-        <li><b>Missão</b> e <b>Recurso</b> (só aparecem os permitidos para a missão; deixe o mouse sobre a missão para ver as habilitações que ela exige);</li>
-        <li><b>Instrutor:</b> <i>Automático</i> (o padrão) deixa o app escolher; escolha um instrutor para o aluno voar com ele nesta data.
-        A lista traz os habilitados para a missão, sem os de <i>Não escalar com</i> do aluno (quem não vem na data aparece marcado).
-        O app procura o horário e o avião só com esse instrutor, antes dos pedidos sem escolha, e a divisão das horas e a compactação não o trocam.
-        Se ele não puder em nenhum horário, o pedido fica fora da escala com o motivo.
-        Se ele for excluído do cadastro, o pedido volta para o <i>Automático</i>: na data aberta, na hora; nas outras datas, o app escolhe outro instrutor e a escala avisa, até o operador escolher outro.
-        O voo que já está fixo fica onde está, com o instrutor novo (na turma de Ground, a turma inteira);</li>
-        <li><b>1ª e 2ª preferência:</b> os horários preferidos, entre os da categoria do avião (o PA-34 tem os seus); sem vaga neles, o sistema usa o horário livre mais perto da 1ª preferência (sem ela, da 2ª; empatados, o mais cedo).
-        Trocar a missão ou o avião leva as preferências para o horário mais próximo da lista nova;</li>
-        <li><b>Disponibilidade:</b> quando o aluno pode voar (qualquer horário, manhã, tarde, noite ou um horário só);</li>
-        <li><b>Duração:</b> as horas da missão, digitadas e fracionadas (1,2 h; 2,6 h), até 5 h, num voo só (para dividir em dois voos no dia, use <i>+ missão</i>).
-        O simulador começa com 2 h, a duração padrão dele; o Noturno tem 4 h no dia (o translado e o noturno em BH) e a volta no dia seguinte;</li>
-        <li><b>Prioridade:</b> de 1 a 5; quem tem 5 é atendido primeiro.</li>
-      </ul>
-      <p><i>Só quem voa</i> (ligado) esconde quem não voa na data.
-      O filtro dos cursos, ao lado da busca, é o mesmo de Alunos (veja Alunos), com as mesmas marcas: aparecem os pedidos dos alunos de algum dos cursos marcados, junto com a busca, a missão e <i>Só quem voa</i>.
-      Quando a busca, a missão e os cursos escondem todos os pedidos, a tabela diz <i>Nenhum aluno com esses filtros</i>, e <i>Limpar filtros</i> desfaz a busca, a missão e as marcas dos cursos (também em Alunos) e mostra todos de novo; <i>Só quem voa</i> fica como está.
-      <i>+ missão</i> (aparece com o mouse ou o foco do teclado na linha; no celular, fica à vista) acrescenta outra missão ao mesmo aluno no dia, por exemplo Ground de manhã e voo à tarde.
-      <i>Importar pedidos da agenda</i> traz os pedidos da data: só acrescenta, nunca apaga nem repete.
-      <i>Pôr um aluno na demanda</i> inclui um aluno que ainda não voa na data; o pedido dele aparece mesmo fora dos filtros da barra, até eles mudarem.
-      <i>Limpar demanda</i> fica no menu <i>Mais</i> e pede confirmação: cada pedido fica em branco, sem as missões extras, e o voo dele fica solto, sem o cadeado e sem o status (ligar o <i>Voa</i> de novo não traz nada do voo de antes); a escala aprovada é reaberta.
-      Os voos Atrasado, Em Voo e Pousou ficam como estão, com o pedido, o cadeado e o status: a limpeza não apaga o registro de um voo que aconteceu.</p>
-      <p data-funcionalidade="progresso"><b>Alunos de um curso</b> (o curso de cada aluno fica em Alunos, e o programa do curso, na aba Cursos): ao lado do nome aparece a próxima missão do programa, por exemplo <i>Próxima: PP-07 · Usar</i> (deixe o mouse em cima para ver a missão, as horas e o recurso).
-      <i>Usar</i> põe essa missão no pedido (o tipo de missão, o recurso e as horas do programa), liga <i>Voa</i>, e o código aparece no lugar do botão.
-      A lista <i>Outra missão…</i>, ao lado, põe outra missão do programa do curso: as <i>liberadas</i> entram na hora; as <i>fora da ordem</i> (a que o programa ainda não libera, a já aprovada, a dispensada ou a que o aluno já tem em outro voo do dia, cada uma com o motivo) pedem confirmação no botão que aparece, e o histórico registra o motivo.
-      No curso encerrado (veja Cursos), <i>Usar</i> e as liberadas também pedem confirmação, e o histórico registra que o curso estava encerrado.
-      Na <i>+ missão</i> do mesmo aluno, a sugestão é a missão seguinte.
-      Mudar à mão a missão, o recurso ou a duração tira o código.
-      O resultado vai para o curso da missão, mesmo que o aluno troque de curso no mesmo dia.
-      Na importação da agenda, quando a próxima missão do aluno é do tipo pedido, o pedido já entra como ela; o voo da mesma missão que já está na demanda com uma missão do curso fica com ela.</p>
-      <p data-sem-funcionalidade="progresso"><b>Alunos de um curso</b> (o curso de cada aluno fica em Alunos, e o programa do curso, na aba Cursos): o código da missão do curso que o pedido já tem (por exemplo, PP-07) aparece ao lado do nome.
-      Mudar à mão a missão, o recurso ou a duração tira o código.
-      Na importação da agenda, o voo da mesma missão que já está na demanda com uma missão do curso fica com ela.</p>
-      <p>O pedido com um voo agendado na Escala (veja Escala) mostra a marca <i>agendado 10:10 · PR-VOB</i>, com o cadeado.
-      Mudar as preferências, a disponibilidade, a prioridade ou o instrutor do pedido não tira o voo do lugar (fora da disponibilidade do aluno, ele fica em conflito; com outro instrutor, continua no mesmo horário e no mesmo avião), e desligar <i>Voa</i> só o tira da escala até ligar de novo; mudar a missão, o recurso ou as horas (à mão<span data-funcionalidade="progresso">, com <i>Usar</i> ou com <i>Outra missão…</i></span>) solta o voo, e a escala encaixa o pedido de novo.
-      <i>Limpar demanda</i> e tirar a missão extra também soltam o voo agendado; na limpeza, o voo Atrasado, Em Voo ou Pousou continua agendado, como está.</p>
-
-      <h4>Agenda</h4>
-      <p>A agenda de pedidos da secretaria, com um calendário.
-      Cada pedido tem o aluno, a missão, o recurso, o horário, a duração (fracionada, até 5 h; o Ground tem 01h30) e quem anotou.
-      A missão decide os recursos que podem ser escolhidos (quando ela só permite um, ele já vem escolhido), e o recurso decide os horários, que são os configurados para ele em Recursos: a Navegação no PA-34, por exemplo, tem os horários do PA-34, e no C152, os do C152.
-      O campo <i>Horário</i> só abre depois do aluno, da missão e do recurso; ao trocar a missão ou o recurso, o horário que a lista nova não tem sai, e o app diz.
-      No máximo 6 voos locais (Voo Local, Voo Solo e TGL) saem no mesmo horário (determinação da diretoria): ao agendar o 7º, o horário fica indisponível, e o app diz o próximo horário possível.
-      O Voo Solo sai sempre às 06:30.
-      Se o aluno já tem voo marcado na data, o app avisa (pode ser um reagendamento feito por outra pessoa) e só registra mais um com “Registrar mesmo assim”.
-      Cada pedido vira um voo na demanda, com o recurso, o horário e a duração dele (o pedido de antes de a agenda guardar o recurso entra no recurso padrão da missão).
-      O pedido para o dia seguinte só pode ser registrado até as 13:00 (horário de Brasília); depois disso, só para os próximos dias.
-      O aeroclube não opera aos domingos: domingo não tem escala nem pedidos (o app pula o domingo), e os voos de segunda são agendados até sábado às 10:00.
-      Operadores e Administradores podem registrar fora do prazo com a <i>Exceção da Coordenação</i>, que fica marcada no pedido.</p>
-      <p>Na data aberta no topo, a coluna <i>Situação</i> diz se o pedido já está na demanda (“Na demanda”) ou não (“Ainda não importado”), e o operador pode importar por ali mesmo.
-      O pedido cancelado continua na lista, esmaecido; deixe o mouse sobre “Cancelado” para ver quem cancelou e quando.</p>
-
-      <h4>Recursos</h4>
-      <p>Duas vistas, com a busca e as categorias valendo nas duas.
-      Recursos abre na <i>Disponibilidade do dia</i>, e a vista escolhida fica até a página ser recarregada:</p>
-      <ul>
-        <li><b>Disponibilidade do dia</b> (nesta data: vale para a data aberta no topo, e a data seguinte começa com ela): as janelas de operação<span data-funcionalidade="hangar">, a tabela dos aviões</span><span data-sem-funcionalidade="hangar"> e a tabela dos aviões</span> e simuladores (disponível ou em manutenção, as horas até a revisão de 50 horas e quanto cada um voa na escala do dia)<span data-funcionalidade="hangar"> e, ao lado dela (embaixo, nas telas menores), a ordem no hangar</span>.</li>
-        <li><b>Cadastro</b> (vale para todas as datas: mudar ali muda também as datas já abertas): a frota, com os atributos e o <i>Retirar</i>, e os horários de decolagem.
-        <i>+ Novo recurso</i>, na barra da aba, abre o Cadastro com o formulário.</li>
-      </ul>
-      <p><i>Buscar matrícula</i> acha o recurso sem o hífen e sem diferença de maiúsculas (“vob” acha o PR-VOB), e <i>Categoria</i> abre as caixas das categorias (C152, C172, Simulador e PA-34) e mostra os recursos de alguma das marcadas (nenhuma marcada, todas); o botão diz quais estão marcadas, por exemplo <i>Categoria: C152 ou PA-34</i>.
-      Os dois valem para a tabela, a frota e os horários de decolagem (os das categorias marcadas e, com a busca, os das categorias dos recursos achados)<span data-funcionalidade="hangar">, nunca para a ordem no hangar, que mostra sempre todos os aviões</span>.
-      Ao lado, o número diz quantos recursos aparecem (por exemplo, <i>3 de 26 recursos</i>); quando os filtros não deixam nenhum, <i>Limpar filtros</i> mostra todos de novo.
-      O recurso acrescentado agora e os horários editados agora continuam à vista mesmo fora dos filtros, até eles mudarem.</p>
-      <p><b>Janelas de operação:</b> os períodos do dia em que a escala opera.
-      Desligar uma janela tira da escala do dia os horários de decolagem que caem nela.
-      A disponibilidade dos instrutores e “manhã, tarde e noite” do aluno também valem por janela.</p>
-      <ul class="manual-lista-curta" id="manual-janelas"></ul>
-      <p><b>Horários de decolagem</b> (no Cadastro): cada categoria (C152, C172, Simulador e PA-34) tem os seus horários de saída.
-      O padrão são as janelas do dia, e o PA-34 sai de 30 em 30 minutos.
-      Cada categoria mostra um resumo: o modelo (<i>Janelas do dia</i>, <i>De 30 em 30 min</i> ou a lista resumida), quantos horários e os horários da manhã e da tarde; o horário que cai numa janela fechada nesta data aparece riscado.
-      <i>Editar</i> abre a lista na própria linha: escolha um modelo, tire um horário pelo ✕ ou digite outro (das 06:00 às 16:30) e tecle Enter.
-      Antes de salvar, o editor diz quantos pedidos mudam de preferência e quem perde o “Só às”.
-      <i>Salvar</i> muda a lista, e os pedidos da categoria vão para o horário mais próximo da lista nova; <i>Cancelar</i> ou Esc descartam.
-      O histórico desfaz a lista e os pedidos juntos.
-      O voo noturno sai sempre às 17:30, e o Ground, nas janelas do dia.</p>
-      <p><b>Aviões e simuladores:</b> desligado quer dizer indisponível (em manutenção).
-      Cada recurso tem atributos: na <b>Frota</b> (no Cadastro), um clique na matrícula abre as caixas dele, e eles valem para todas as datas: <i>Só Parafuso</i> (C152: só voa Parafuso, e o Parafuso no C152 só nele), <i>Só VFR</i> (C172 e PA-34 não homologados IFR, como o PR-CPL: nenhum voo IFR vai para ele, nem o noturno do PC) e <i>Habilitação própria</i> (o recurso exige do instrutor uma habilitação só dele, como o PR-VOM: marque-a nas habilitações de quem voa nele).
-      O histórico desfaz.
-      Para acrescentar um recurso à frota, use <i>+ Novo recurso</i> (na barra da aba, ele abre o Cadastro): a matrícula e a categoria (no C152, também “Só Parafuso”); o limite de peso e o controle das 50 horas vêm da categoria.
-      <i>Retirar</i>, na <b>Frota</b> (aparece com o mouse ou o foco do teclado no recurso; no celular, fica à vista), tira um recurso da frota, com confirmação; o Histórico desfaz.
-      A tabela da Disponibilidade do dia mostra quanto cada avião voa na escala do dia e o saldo até a revisão de 50 horas; um clique no nome da categoria recolhe ou abre as linhas dela.</p>
-      <p data-funcionalidade="hangar"><b>Ordem no hangar:</b> os aviões da frente para o fundo, como estão guardados, sempre todos (a busca e as categorias não valem aqui).
-      A escala tira primeiro os da frente e junta os voos nos que já saíram; os do fundo só saem quando os da frente não dão conta.
-      Use os botões de cada avião (aparecem com o mouse ou o foco do teclado; no celular, ficam à vista) para subir, descer ou pôr um avião na frente.
-      A data seguinte começa com a mesma ordem; ajuste quando o hangar for arrumado de outro jeito.</p>
-      <p><b>Revisão de 50 horas:</b> informe as horas disponíveis de cada avião (quanto ele ainda pode voar até a revisão); a barra ao lado fica âmbar abaixo de 10 h e vermelha abaixo de 5 h.
-      A escala não passa disso: o avião para quando não tem horas para mais um voo, e o aviso aparece na escala.
-      Depois da revisão, clique em <i>Revisão feita</i> (aparece com o mouse ou o foco do teclado na linha; no celular, fica à vista): o avião volta a ter 50 h disponíveis.
-      A data seguinte começa com as horas disponíveis desta data menos os voos dela que não foram cancelados.
-      Avião sem as horas informadas fica sem esse controle.</p>
->>>>>>> origin/main
 
       <h4>Instrutores</h4>
       <p>Duas vistas, com a busca e o filtro das habilitações valendo nas duas.
@@ -1031,7 +939,7 @@
       <h3>Para o gestor</h3>
       <p>Com o perfil Gestor você vê tudo, sem risco de alterar nada: os campos ficam travados.</p>
       <ul>
-        <li><b>Escala do dia:</b> na Escala; para outro dia, use o calendário ao lado da tela (ou o botão da data, no topo).
+        <li><b>Escala do dia:</b> na Escala; para outro dia, escolha no calendário (ao lado da tela, ou no botão da data, no topo).
         Uma data que o operador ainda não preparou começa com a demanda vazia (a demanda vem da agenda).</li>
         <li><b>PDF, CSV e Excel:</b> os mesmos botões do operador, na barra da escala.</li>
         <li><b>BI:</b> horas por recurso, instrutor e missão, no dia, na semana e no mês.</li>

@@ -4,7 +4,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { MIS, ALL_EQ_TYPES } from '../../js/config.js';
 import { HORARIOS_INICIAIS } from '../../js/horarios.js';
-import { prazoDaAgendaPermite, primeiraDataAberta, disponibilidadeDaSolicitacao, pedidoDaSolicitacao, datasParaRegistrar, recursosDaMissao, recursoValido, RECURSO_DO_PEDIDO } from '../../js/agenda.js';
+import { prazoDaAgendaPermite, primeiraDataAberta, datasParaRegistrar, disponibilidadeDaSolicitacao, pedidoDaSolicitacao, recursosDaMissao, recursoValido, RECURSO_DO_PEDIDO } from '../../js/agenda.js';
 
 const em = iso => new Date(iso);
 
@@ -132,37 +132,37 @@ describe('Agenda: o limite de voos locais no mesmo horário', async () => {
   });
 });
 
-// O campo "Data do pedido" da Agenda: a data do pedido é dele, não a data aberta no app
-describe('As datas para registrar um pedido', () => {
-  const agora = em('2026-11-10T12:00:00-03:00');
-  it('os dias de operação de hoje a hoje + 14, sem os domingos; o rótulo curto, com hoje e amanhã', () => {
-    const datas = datasParaRegistrar({ aberta: '2026-11-11', excecao: true, agora });
-    assert.equal(datas[0].data, '2026-11-10');
-    assert.equal(datas.at(-1).data, '2026-11-24');
-    assert.ok(!datas.some(d => d.data === '2026-11-15' || d.data === '2026-11-22'));
-    assert.equal(datas.length, 13);
-    assert.equal(datas[0].rotulo, 'ter 10/11 (hoje) · prazo encerrado');
-    assert.equal(datas[1].rotulo, 'qua 11/11 (amanhã)');
-    assert.equal(datas[2].rotulo, 'qui 12/11');
+describe('A data do pedido (datasParaRegistrar)', () => {
+  const HOJE = '2026-11-10';
+  const meioDia = em('2026-11-10T12:00:00-03:00'), tarde = em('2026-11-10T14:00:00-03:00');
+
+  it('os dias de operação de hoje a 14 dias, sem domingo, com as fechadas marcadas (com a exceção)', () => {
+    const { opcoes, padrao } = datasParaRegistrar(HOJE, '2026-11-11', { excecao: true, agora: meioDia });
+    assert.deepEqual([opcoes[0], opcoes[1], opcoes.at(-1)], [{ data: '2026-11-10', fechada: true }, { data: '2026-11-11', fechada: false }, { data: '2026-11-24', fechada: false }]);
+    assert.equal(opcoes.length, 13);
+    assert.equal(opcoes.some(o => ['2026-11-15', '2026-11-22'].includes(o.data)), false);
+    assert.equal(padrao, '2026-11-11');
   });
 
-  it('a data aberta, quando é depois desses dias, entra no fim', () => {
-    const datas = datasParaRegistrar({ aberta: '2026-12-15', excecao: true, agora });
-    assert.equal(datas.at(-1).data, '2026-12-15');
-    assert.equal(datasParaRegistrar({ aberta: '2026-11-29', excecao: true, agora }).at(-1).data, '2026-11-24');
+  it('a Secretaria só recebe as datas que aceitam pedidos', () => {
+    assert.equal(datasParaRegistrar(HOJE, '2026-11-11', { agora: meioDia }).opcoes[0].data, '2026-11-11');
+    assert.equal(datasParaRegistrar(HOJE, '2026-11-11', { agora: tarde }).opcoes[0].data, '2026-11-12');
+    assert.equal(datasParaRegistrar(HOJE, '2026-11-11', { agora: tarde }).opcoes.some(o => o.fechada), false);
   });
 
-  it('quem não usa a exceção (a Secretaria) só vê as datas dentro do prazo', () => {
-    const datas = datasParaRegistrar({ aberta: '2026-11-11', excecao: false, agora });
-    assert.equal(datas[0].data, '2026-11-11');
-    assert.ok(datas.every(d => !d.encerrado));
+  it('a data aberta mais adiante entra na lista, e só ela; uma passada não', () => {
+    const longe = datasParaRegistrar(HOJE, '2026-12-18', { excecao: true, agora: meioDia });
+    assert.deepEqual([longe.opcoes.at(-2).data, longe.opcoes.at(-1).data], ['2026-11-24', '2026-12-18']);
+    assert.equal(longe.padrao, '2026-12-18');
+    const passada = datasParaRegistrar(HOJE, '2026-11-03', { excecao: true, agora: meioDia });
+    assert.equal(passada.opcoes[0].data, HOJE);
+    assert.equal(passada.padrao, '2026-11-11');
   });
 
-  it('depois das 13:00, amanhã também fecha: a primeira data aberta é depois de amanhã', () => {
-    const tarde = em('2026-11-10T13:30:00-03:00');
-    const datas = datasParaRegistrar({ aberta: '2026-11-11', excecao: false, agora: tarde });
-    assert.equal(datas[0].data, '2026-11-12');
-    assert.equal(datas[0].data, primeiraDataAberta(tarde));
-    assert.equal(datasParaRegistrar({ aberta: '2026-11-11', excecao: true, agora: tarde })[1].rotulo, 'qua 11/11 (amanhã) · prazo encerrado');
+  it('a data com que o campo começa: a aberta, se aceita pedidos; senão, a primeira que aceita', () => {
+    assert.equal(datasParaRegistrar(HOJE, '2026-11-13', { agora: tarde }).padrao, '2026-11-13');
+    assert.equal(datasParaRegistrar(HOJE, '2026-11-11', { excecao: true, agora: tarde }).padrao, '2026-11-12');
+    // Sábado depois das 10:00: segunda já fechou
+    assert.equal(datasParaRegistrar('2026-11-14', '2026-11-16', { excecao: true, agora: em('2026-11-14T10:30:00-03:00') }).padrao, '2026-11-17');
   });
 });

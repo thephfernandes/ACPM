@@ -1,4 +1,4 @@
-// Os pedidos da data aberta (a linha e a Demanda leem daqui) e os dois selos que ainda não são da linha: o de Recursos no
+// Os pedidos da data aberta (a linha, o trilho, a Agenda e a Demanda leem daqui) e os dois selos que ainda não são da linha: o de Recursos no
 // botão da Disponibilidade do dia (aviões parados ou com menos de 5 h até a revisão de 50 horas) e o número de pedidos no
 // botão de importar, na Demanda
 import { $ } from '../dom.js';
@@ -12,15 +12,26 @@ const PERTO_DA_REVISAO_H = 5;
 // Pedidos da agenda para a data aberta: lidos ao abrir a data e depois de mudanças na agenda. leitura: 'lendo', 'lidos' ou
 // 'erro' (sem conexão: a linha diz que falhou)
 let pedidosDaData = { data: null, lista: null, leitura: 'lendo' };
+let leituras = 0;
+let emCurso = null;
 
-export async function lerPedidosDaData() {
-  const data = DATA;
+export function lerPedidosDaData() {
+  const leitura = { data: DATA, vez: ++leituras };
+  emCurso = leitura;
+  leitura.fim = ler(leitura);
+  return leitura.fim;
+}
+
+async function ler({ data, vez }) {
   let lista = null, leitura = 'lidos';
   try {
     lista = await ApiClient.agenda(data, data);
   } catch {
     leitura = 'erro';
   }
+  // Outra data aberta, ou uma leitura pedida depois desta (a resposta dela é a que vale)
+  if (vez !== leituras) return;
+  emCurso = null;
   if (data !== DATA) return;
   pedidosDaData = { data, lista, leitura };
   redesenhar('pedidos');
@@ -28,6 +39,13 @@ export async function lerPedidosDaData() {
 
 // Os pedidos da data aberta e o estado da leitura (de outra data: ainda lendo)
 export const pedidosDaDataAberta = () => (pedidosDaData.data === DATA ? pedidosDaData : { data: DATA, lista: null, leitura: 'lendo' });
+
+// Os mesmos, depois da leitura em curso (a data que acabou de abrir, um pedido que acabou de ser registrado)
+export async function pedidosDaDataAbertaLidos() {
+  while (emCurso && emCurso.data === DATA) await emCurso.fim;
+  if (pedidosDaDataAberta().leitura === 'lendo') await lerPedidosDaData();
+  return pedidosDaDataAberta();
+}
 
 const pedidosPendentes = () => (pedidosDaDataAberta().lista || [])
   .filter(s => !s.cancelada_em && !(S.importadas || []).includes(s.id) && !inativoNaDataAberta(stuBy(s.aluno)));

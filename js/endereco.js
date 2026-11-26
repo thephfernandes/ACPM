@@ -22,9 +22,12 @@ export function substituirTela(destino) {
   }
 }
 
-// A data em ?data=, na entrada atual: a tela e os outros parâmetros ficam. Sem data aberta (a abertura), nada
-export function escreverDataNoEndereco(data) {
+// A data em ?data=, na entrada atual: a tela e os outros parâmetros ficam. Sem data, a última que foi para o endereço (uma
+// navegação a leva para a entrada dela); antes da primeira (a abertura), nada
+let ultima = null;
+export function escreverDataNoEndereco(data = ultima) {
   if (!data) return;
+  ultima = data;
   try {
     const url = new URL(window.location.href);
     if (url.searchParams.get('data') === data) return;

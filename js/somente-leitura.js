@@ -1,7 +1,7 @@
 // A tela só de consulta do perfil Gestor. Os campos ficam desligados (disabled), e não só sem cliques pelo CSS
 // (pointer-events: none), para o leitor de tela não os tratar como editáveis e a dica aparecer. Um lugar só desliga
 // todos, inclusive os que a tela desenha depois; voltando ao Operador, os que este módulo desligou voltam. Os campos
-// de filtro, de busca, da data (no servidor), da agenda e da conta continuam.
+// de filtro, de busca, da agenda e da conta continuam.
 const CAMPOS = [
   'main input:not(.flt-ctrl):not(.agenda-campo):not(.conta-campo):not(#onlyfly):not(#bi-dt)',
   'main select:not(.flt-ctrl):not(.agenda-campo):not(.conta-campo)',

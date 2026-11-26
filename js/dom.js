@@ -169,11 +169,12 @@ export function ligarMenu(botao, menu, { fecharAoEscolher = true } = {}) {
 // link do índice (data-ir-fase); as linhas são a missão (tr[data-missao]), a fase (.fase[data-fase]) e o curso
 // (.curso[data-curso]). Os botões dos cursos, no alto, têm o id. No filtro de vários valores (js/views/filtro-multiplo.js),
 // a caixa de cada opção: o filtro (data-filtro) e o valor (data-valor). Na linha: a tarefa (data-tarefa) e o cartão
-// (data-estagio)
+// (data-estagio); no trilho, o dia (data-dia) e o aviso da data (data-aviso)
 const QUEM_E = ['id', 'data-f', 'data-a', 'data-act', 'data-w', 'data-i', 'data-h', 'data-b', 'data-cat', 'data-min',
   'data-dia', 'data-criterio', 'data-valor', 'data-logid', 'data-horas', 'data-fkey', 'data-resultado',
   'data-reparo', 'data-dados', 'data-id', 'data-mid', 'data-recolher-tempo', 'data-recolher-grupo', 'data-agendar', 'data-cc',
-  'data-cfa', 'data-cf', 'data-fase', 'data-missao', 'data-filtro', 'data-recolher-fase', 'data-ir-fase', 'data-tarefa', 'data-estagio'];
+  'data-cfa', 'data-cf', 'data-fase', 'data-missao', 'data-filtro', 'data-recolher-fase', 'data-ir-fase', 'data-tarefa', 'data-estagio',
+  'data-aviso'];
 const DA_LINHA = ['data-k', 'data-id', 'data-mid', 'data-fkey', 'data-cat', 'data-missao', 'data-fase', 'data-curso'];
 // O tipo do campo: os atributos que dizem o que ele é, sem os que dizem de quem (o voo, o aluno, o recurso) ou qual
 // (o valor da caixa do filtro)

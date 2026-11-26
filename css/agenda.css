@@ -1,12 +1,12 @@
-/* A Agenda de solicitações: o formulário e a lista da data aberta (o calendário é o do trilho) */
-/* Agenda de Solicitações */
-.agenda { display: grid; gap: 12px; grid-template-columns: minmax(0, 1fr); align-items: start; }
-.agenda > * { min-width: 0; }
+/* A Agenda de solicitações: o formulário (com a data do pedido) e a lista dos pedidos da data aberta */
 #form-agenda { display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); align-items: start; margin-bottom: 12px; }
 #form-agenda label { display: flex; flex-direction: column; gap: 2px; font-size: 13px; }
 #form-agenda .btn, #form-agenda .x { align-self: end; }
 #ag-horario-motivo { display: block; margin-top: 2px; color: var(--mu); font-size: 12.5px; }
 #form-agenda [aria-invalid="true"] { border-color: var(--er); }
+/* O prazo da data escolhida, ao lado do campo dela (embaixo, no celular) */
+#agenda-prazo { margin: 0; grid-column: 2 / -1; }
+@media (max-width: 640px) { #agenda-prazo { grid-column: 1 / -1; } }
 #ag-erro { color: var(--er); margin: 0; grid-column: 1 / -1; }
 #ag-erro:empty { display: none; }
 body:not([data-agenda="edita"]) #form-agenda,

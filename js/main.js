@@ -53,6 +53,7 @@ import { podeEditarAgenda } from './views/agenda.js';
 import { carregarDadosPessoais } from './views/dados-pessoais.js';
 import { rOut } from './views/escala.js';
 import { lerPedidosDaData } from './views/selos.js';
+import { diaAbrindo } from './views/trilho.js';
 import { ligarEndereco, mostrarTela, telaAberta, telaFoiEscolhida, destinoDoHash } from './views/telas.js';
 import { telaDeAbertura, dataDeAbertura } from './telas.js';
 
@@ -84,7 +85,7 @@ window.addEventListener('beforeunload', e => {
 
   // Amanhã, ou a segunda quando amanhã é domingo
   const amanha = ehDomingo(amanhaISO()) ? somarDias(amanhaISO(), 1) : amanhaISO();
-  abrirData(amanha);
+  abrirData(amanha, { naoEscolhida: true });
 
   // Um link com a escala inteira no endereço (share=) não vale: sai do endereço, com o aviso
   if (params.has('share')) {
@@ -117,7 +118,10 @@ window.addEventListener('beforeunload', e => {
 
     // A data da abertura: a do link (um domingo abre a segunda; uma que não existe, amanhã); sem link, a Secretaria abre na
     // primeira data que ainda aceita pedidos e os outros amanhã
-    const { data, aviso } = dataDeAbertura({ pedida, perfil: ApiClient.perfil, amanha, primeiraAberta: primeiraDataAberta() });
+    // A que a pessoa já escolheu no calendário, à vista desde o começo, vale mais que as duas
+    const escolhida = diaAbrindo();
+    const { data, aviso } = escolhida ? { data: escolhida, aviso: null }
+      : dataDeAbertura({ pedida, perfil: ApiClient.perfil, amanha, primeiraAberta: primeiraDataAberta() });
     // Os dados da data. Até eles chegarem, e se a leitura falhar, nada é gravado (js/actions.js, lerData); uma data
     // escolhida enquanto eles chegavam abre depois, no lugar deles
     abrirData(data);

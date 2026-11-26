@@ -16,9 +16,11 @@ import { lerPedidosDaData } from './views/selos.js';
 
 // Abre uma data: a única que escreve a data aberta e o ?data= do endereço (recarregar continua nela). Não lê nada e não
 // desenha: quem mostra a data (o nome no topo, o calendário, a data base do BI) se redesenha no momento 'data-aberta'
-export function abrirData(data) {
+// naoEscolhida: a data que aparece enquanto o app abre (o login, os dados chegando) ainda não é a da abertura e não vai para o
+// endereço (recarregar ali a tomaria pela do link)
+export function abrirData(data, { naoEscolhida = false } = {}) {
   setData(data);
-  escreverDataNoEndereco(data);
+  if (!naoEscolhida) escreverDataNoEndereco(data);
   document.body.dataset.data = data;
   redesenhar('data-aberta');
 }
@@ -305,13 +307,14 @@ export async function lerData(data) {
 }
 
 // Abre a escala de outra data. As abas são refeitas com os dados dela, também a do Rodízio: aberta, ela mostraria as
-// filas da data anterior, e o clique agiria sobre uma fila que a pessoa não está vendo
+// filas da data anterior, e o clique agiria sobre uma fila que a pessoa não está vendo. A data está aberta com os dados na
+// tela: os pedidos dela e o BI do período chegam depois, sem segurar quem a abriu
 export async function carregarData(data) {
   if (!await lerData(data)) return;
   $('#escala-atualizada').hidden = true;
   redesenhar('dados');
   lerPedidosDaData();
-  await carregarBI();
+  carregarBI();
 }
 
 // BI das escalas guardadas no mês da data base (e nos 7 dias até ela), com a escala da tela já incluída.

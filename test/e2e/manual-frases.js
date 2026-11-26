@@ -6,7 +6,9 @@
 const ANTIGAS = {
   geral: ['A01', 'A09', 'Gerar escala', 'Preencher exemplo', 'Link Blindado', 'Importar Solicitações da Agenda',
     'Vai voar?', 'Início pref', 'Exportar CSV', 'Emitir PDF', 'Turno rápido', 'Cada cartão', 'campo Data', 'Equipamento', 'Bloquear',
-    'Sessões', 'sessão', 'Desfazer', 'Escala de Voo', 'Por avião e sala', 'Avião / sala', 'Aviões e salas', 'o botão ao lado de Alunos', 'As abas seguem a ordem de uso', 'ao lado do nome das abas', 'Use as setas ‹ ›', 'com um calendário'],
+    'Sessões', 'sessão', 'Desfazer', 'Escala de Voo', 'Por avião e sala', 'Avião / sala', 'Aviões e salas', 'o botão ao lado de Alunos', 'As abas seguem a ordem de uso', 'ao lado do nome das abas'],
+  // A data aberta é escolhida no calendário do trilho (sem as setas e sem o calendário da Agenda), e um domingo não abre
+  casca: ['setas ‹ ›', 'use as setas', 'com um calendário', 'o app pula o domingo'],
   // O "+" do mapa fica ao lado do nome da linha
   escala: ['no fim de cada linha'],
   // O Operador não muda os Cursos nem os limites da lei
@@ -24,7 +26,9 @@ const ANTIGAS = {
 
 // Os nomes dos botões e das vistas, e as regras em vigor
 const NOVAS = {
-  casca: ['menu da conta'],
+  casca: ['menu da conta', 'Fixar o calendário ao lado da tela', 'ou no botão da data, no topo', 'os avisos da data',
+    'os aviões parados ou perto da revisão de 50 horas, os pedidos', 'leva à tela onde se resolve, quando você a vê'],
+  perfis: ['na primeira data que ainda aceita pedidos'],
   escala: ['Atualizada às', 'Ver todos', 'Compartilhar', 'Por recurso',
     // O agendamento na Escala (mover e encaixar, as turmas, as alternativas, a prévia, os avisos), o voo agendado na
     // Demanda, as alterações dos cursos fora do Histórico e o peso aceito
@@ -35,7 +39,7 @@ const NOVAS = {
     // O voo com resultado não é desfeito, também com o progresso desligado
     'o que já tem resultado nem o pedido que mudou depois na Demanda'],
   demanda: ['Pôr um aluno na demanda'],
-  pedidos: ['Ainda não importado'],
+  pedidos: ['Ainda não importado', 'Data do pedido', 'prazo encerrado'],
   // A busca sem acentos, quantos aparecem e o "Limpar filtros"; a coluna Vem (a data aberta não é sempre hoje); o filtro
   // das habilitações, com várias marcas e a regra ("todas as marcadas")
   instrutores: ['Editar habilitações', 'sem os acentos', '12 de 40 instrutores', 'Limpar filtros', 'o interruptor Vem', 'Filtro das habilitações',

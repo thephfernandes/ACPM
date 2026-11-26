@@ -16,8 +16,9 @@ export function contextoDoDia() {
   return {
     S, RES, pedidos: lista, leituraDosPedidos: leitura, perfil: ApiClient.perfil || null,
     // Quem opera a escala: o Operador e o Administrador (no modo local, o perfil Operador)
-    opera: !isGestor(), horasLidas: !dadoIndisponivel('horas'), data: DATA, hoje: hojeISO(),
-    naoLidos: (S.indisponiveis || []).filter(parte => Object.hasOwn(SEM_OS_DADOS, parte)).map(parte => ({ parte, texto: SEM_OS_DADOS[parte] }))
+    opera: !isGestor(), horasLidas: !dadoIndisponivel('horas'),
+    indisponiveis: (S.indisponiveis || []).filter(p => Object.hasOwn(SEM_OS_DADOS, p)).map(id => ({ id, texto: SEM_OS_DADOS[id] })),
+    data: DATA, hoje: hojeISO()
   };
 }
 

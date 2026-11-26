@@ -1,6 +1,8 @@
 // As telas do app, sem DOM: o nome de cada uma (o mesmo na navegação e no título), a etapa da linha ou o grupo dela, quem a
 // vê, a tela e a data da abertura, o endereço (#/<tela>[/<item>]) e as preferências do trilho e da linha
+import { ehDomingo } from './agenda.js';
 import { dataIsoValida, somarDias } from './format.js';
+
 const TODOS = ['operador', 'administrador', 'gestor', 'secretaria'];
 const SEM_SECRETARIA = ['operador', 'administrador', 'gestor'];
 
@@ -33,8 +35,6 @@ export function podeVer(tela, perfil) {
 }
 
 export const telaDeAbertura = perfil => (perfil === 'secretaria' ? 'age' : 'esc');
-
-const ehDomingo = iso => new Date(iso + 'T12:00:00Z').getUTCDay() === 0;
 
 // A data da abertura: a do link vale para todos (um domingo abre a segunda; uma data que não existe, amanhã, com o aviso);
 // sem link, a Secretaria abre na primeira data que ainda aceita pedidos e os outros amanhã

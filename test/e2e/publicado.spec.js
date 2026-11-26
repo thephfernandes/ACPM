@@ -5,7 +5,7 @@
 //     npx playwright test test/e2e/publicado.spec.js --workers=1
 // ACPM_INICIO é o endereço de entrada (o padrão, ./): com BASE_URL=http://localhost:<porta>/ (npm run serve) e
 // ACPM_INICIO='./?supabase=previa', roda contra a prévia a partir do app desta pasta (uma worktree, por exemplo)
-import { test, expect, abrirMenuDaConta, AMANHA, preencherLogin, appPronto, botaoDaAba, campoDaAgenda, dataAberta, escolherNoCalendario } from './fixtures.js';
+import { test, expect, abrirMenuDaConta, AMANHA, preencherLogin, appPronto, botaoDaAba, campoDaAgenda, dataAberta } from './fixtures.js';
 
 const INICIO = process.env.ACPM_INICIO || './';
 
@@ -87,10 +87,13 @@ test.describe('Site publicado (login real)', () => {
     await appPronto(page);
     await expect(dataAberta(page)).toHaveAttribute('data-data', AMANHA);
     const instrutores = await page.locator('#inst .cd').count();
-    await botaoDaAba(page, 'esc').click();
-    await escolherNoCalendario(page, '2099-01-01');
-    // A data base do BI só muda quando a nova data termina de carregar
+    // A data pelo endereço (no calendário, ela ficaria a centenas de meses)
+    const url = new URL(page.url());
+    url.searchParams.set('data', '2099-01-01');
+    await page.goto(url.href);
+    await appPronto(page);
     await expect(page.locator('#bi-dt')).toHaveValue('2099-01-01');
+    await botaoDaAba(page, 'esc').click();
     // A data nova começa com a demanda vazia: a disponibilidade vem do dia anterior
     await expect(page.locator('#out')).toContainText(/Nenhum voo nesta data|missões pedidas/);
     await expect(page.locator('#inst .cd')).toHaveCount(instrutores);

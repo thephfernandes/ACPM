@@ -1,6 +1,7 @@
 // As telas do app (js/telas.js): quem vê cada uma, a tela da abertura e o endereço (#/<tela>[/<item>])
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import {
   TELAS, ESTAGIOS, podeVer, telaDeAbertura, dataDeAbertura, destinoDoEndereco, enderecoDoDestino, linhaAbertaPorPadrao,
   classeDaLargura, trilhoFixo, lerPreferencias
@@ -110,5 +111,20 @@ describe('O trilho ao lado', () => {
   it('lerPreferencias: o JSON guardado, ou nada', () => {
     assert.deepEqual(lerPreferencias('{"media":"fixo","larga":"solto"}'), { media: 'fixo', larga: 'solto' });
     for (const texto of [null, '', 'xyz', '[1,2]', '"fixo"', '{"media":"meio"}']) assert.deepEqual(lerPreferencias(texto), {}, String(texto));
+  });
+});
+
+describe('O trilho em index.html', () => {
+  const html = readFileSync(new URL('../../index.html', import.meta.url), 'utf8');
+
+  it('a região do trilho, entre a linha e a tela, com o botão da data que a abre', () => {
+    assert.match(html, /<aside class="trilho" id="trilho" aria-label="Data e avisos" data-regiao="trilho" hidden>/);
+    assert.ok(html.indexOf('id="linha"') < html.indexOf('id="trilho"') && html.indexOf('id="trilho"') < html.indexOf('<main id="conteudo"'));
+    assert.match(html, /id="btn-data" aria-controls="trilho"/);
+  });
+
+  it('o ícone do trilho (i-trilho) está no sprite e no botão "Fixar ao lado"', () => {
+    assert.match(html, /<symbol id="i-trilho"/);
+    assert.match(html, /id="btn-fixar-trilho"[^>]*>.*?#i-trilho/);
   });
 });

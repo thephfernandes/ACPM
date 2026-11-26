@@ -3,7 +3,6 @@
 // Voltar e Avançar). Quem vê cada tela, a tela da abertura e a leitura do endereço ficam em js/telas.js
 import { focarNoTitulo } from '../dom.js';
 import { empilharTela, substituirTela, escreverDataNoEndereco } from '../endereco.js';
-import { DATA } from '../state.js';
 import { ApiClient } from '../storage.js';
 import { TELAS, podeVer, telaDeAbertura, destinoDoEndereco } from '../telas.js';
 
@@ -65,6 +64,8 @@ export async function mostrarTela(id, { item = null, historico = 'empilhar', foc
   const tela = TELAS[id];
   if (historico === 'empilhar') empilharTela({ tela: id, item: nativo ? null : item });
   else if (historico === 'substituir') substituirTela({ tela: id, item: nativo ? null : item });
+  // Na hora, antes do que a tela lê: a entrada de antes (Voltar) ainda tem a data que estava aberta nela
+  escreverDataNoEndereco();
 
   const secao = document.getElementById(tela.secao ?? 's-' + id);
   document.querySelectorAll('main#conteudo > section.tela').forEach(s => s.classList.toggle('on', s === secao));
@@ -97,7 +98,6 @@ export async function mostrarTela(id, { item = null, historico = 'empilhar', foc
   // O item vale uma vez: o endereço fica só com a tela (recarregar não repete o que ele fez)
   if (item && !nativo && item !== tela.item) substituirTela({ tela: id });
   mostrarNaFaixa(atual);
-  escreverDataNoEndereco(DATA);
 }
 
 // Os links #/<tela>, o link que pula para o conteúdo, Voltar e Avançar. js/main.js liga uma vez
@@ -130,9 +130,9 @@ export function ligarEndereco() {
     // A entrada sem tela no endereço (a da abertura, antes de os dados chegarem): a tela da abertura do perfil
     const destino = destinoDoHash(window.location.hash) || (window.location.hash ? null : { tela: telaDeAbertura(perfilAtual()), item: null });
     const rolagem = window.history.state && Number.isFinite(window.history.state.rolagem) ? window.history.state.rolagem : null;
-    if (!destino) { escreverDataNoEndereco(DATA); return; }
+    if (!destino) { escreverDataNoEndereco(); return; }
     if (destino.tela === aberta && !destino.item) {
-      escreverDataNoEndereco(DATA);
+      escreverDataNoEndereco();
       if (rolagem !== null) window.scrollTo(0, rolagem);
       return;
     }

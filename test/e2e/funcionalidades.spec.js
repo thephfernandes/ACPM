@@ -2,7 +2,7 @@
 // cursos desligados, o que continua e o que fica guardado (ligar de novo traz tudo de volta). Com elas ligadas, os testes
 // de cada tela (hangar.spec.js, cursos-no-dia.spec.js, agendamento.spec.js, cursos.spec.js e os outros com comHangar ou
 // comProgresso)
-import { test, comTodasAsFuncionalidades, expect, irPara, abrirEscala, abrirHistorico, diaSeguinte, entrar, prepararContexto, appPronto, vigiarErros, tabelaDoDia, importarDaAgenda, alternarDisponivel, escolherNoCalendario, AMANHA } from './fixtures.js';
+import { test, comTodasAsFuncionalidades, expect, irPara, abrirEscala, abrirHistorico, diaSeguinte, entrar, prepararContexto, appPronto, vigiarErros, tabelaDoDia, importarDaAgenda, alternarDisponivel, mudarData, botaoDaData, trilho, avisosDaData, contagemDosAvisos, contagemDoDia, AMANHA } from './fixtures.js';
 import { FRASES_DAS_FUNCIONALIDADES, FRASES_SEM_AS_FUNCIONALIDADES } from './manual-frases.js';
 import { instalarSupabaseFalso, documentosAtuais, CONTAS } from './supabase-falso.js';
 import { montarGlossario } from '../../js/glossario.js';
@@ -50,6 +50,11 @@ async function abrirCom(page, documentos = docs(), url = './') {
   await page.goto(url);
   await appPronto(page);
 }
+// Um pedido da agenda para amanhã, na manhã
+const solicitacao = (id, stu, nome) => ({
+  id, data: AMANHA, aluno: stu, aluno_nome: nome, missao: 'Voo Local', janela: 'manha', horario: null, horas: null, observacao: null, excecao: false,
+  registrado_em: '2026-11-10T11:00:00.000Z', registrado_por: 'Secretaria', cancelada_em: null, cancelada_por: null
+});
 const gravado = (page, data = AMANHA) => page.evaluate(d => JSON.parse(localStorage.getItem(`acpm4_dia_${d}`) || 'null'), data);
 const doBanco = (page, chave) => page.evaluate(c => JSON.parse(localStorage.getItem(c)), chave);
 const pedido = (page, id, mid = 0) => page.locator(`#dem tr[data-k="d"][data-id="${id}"][data-mid="${mid}"]`);
@@ -163,7 +168,7 @@ test('a data feita na ordem da frota não muda de aviões ao ser alterada no dia
   await page.clock.setFixedTime(new Date('2026-11-12T12:00:00-03:00'));
   await page.reload();
   await appPronto(page);
-  await escolherNoCalendario(page, AMANHA);
+  await mudarData(page, AMANHA);
   await expect(page.locator('#out')).toContainText('Maria');
   await abrirEscala(page);
   await voo(page, 'Maria').locator('select[data-f="fstatus"]').selectOption('Pousou');
@@ -387,6 +392,9 @@ test.describe('O progresso nos cursos desligado', () => {
     const semProgramas = 'Não foi possível ler os programas dos cursos: a tela Cursos fica sem eles.';
     await expect(page.locator('#aviso-dados-texto')).toHaveText(
       `Não foi possível ler os resultados das missões dos cursos: o app não confere se um código do programa ou um voo agendado já tem resultado. ${semProgramas}`);
+    // Nos avisos da data, no trilho, o mesmo texto
+    await expect(avisosDaData(page, 'Não foi possível ler os resultados')).toHaveText(/o app não confere se um código do programa ou um voo agendado já tem resultado/);
+    await expect(avisosDaData(page, /próxima missão/)).toHaveCount(0);
     await irPara(page, 'cur');
     await expect(page.locator('#cursos')).toHaveText(semProgramas);
     await page.locator('#btn-tentar-dados').click();
@@ -400,10 +408,6 @@ test.describe('O progresso nos cursos desligado', () => {
     const documentos = docs();
     const dia = documentos[`acpm4_dia_${AMANHA}`];
     Object.assign(dia.pedidos[1001], { fly: false });
-    const solicitacao = (id, stu, nome) => ({
-      id, data: AMANHA, aluno: stu, aluno_nome: nome, missao: 'Voo Local', janela: 'manha', horario: null, horas: null, obs: null, anotado_por: 'Secretaria', excecao: false,
-      criada_em: '2026-11-10T11:00:00.000Z', criada_por: 'Secretaria', cancelada_em: null, cancelada_por: null
-    });
     documentos.acpm4_agenda = [solicitacao(1, 1000, 'Maria'), solicitacao(2, 1001, 'João')];
     await abrirCom(page, documentos);
     await irPara(page, 'dem');
@@ -415,8 +419,28 @@ test.describe('O progresso nos cursos desligado', () => {
 });
 
 // A linha das etapas (js/linha-do-dia.js), com as tarefas, e os endereços das telas
-test.describe('Os dois desligados, na linha e no endereço', () => {
+test.describe('Os dois desligados, na linha, no trilho e no endereço', () => {
   test.use({ funcionalidades: '' });
+
+  // O trilho (o calendário com os pedidos de cada dia, os avisos da data e quantos são) e a Agenda da data aberta. O código
+  // da missão que o pedido já tem continua (como na Escala)
+  test('o trilho e a Agenda da data aberta não falam deles', async ({ page }) => {
+    const documentos = docs();
+    documentos.acpm4_agenda = [solicitacao(1, 1000, 'Maria'), solicitacao(2, 1002, 'Ana')];
+    await abrirCom(page, documentos);
+    const dito = alvo => alvo.evaluate(el => [el.textContent, ...[...el.querySelectorAll('[title], [aria-label]')].flatMap(n => [n.title, n.getAttribute('aria-label')])].join(' '));
+    await botaoDaData(page).click();
+    await expect(trilho(page)).toBeVisible();
+    await expect(contagemDoDia(page, AMANHA)).toHaveText('2');
+    await expect(avisosDaData(page, '2 pedidos da agenda ainda não estão na demanda')).toHaveCount(1);
+    await expect(contagemDosAvisos(page)).toBeVisible();
+    for (const [nome, alvo] of [['trilho', trilho(page)], ['botão da data', botaoDaData(page)]]) {
+      expect(await dito(alvo), nome).not.toMatch(/hangar|progresso|próxima|aprovado\b|reprovado/i);
+    }
+    await irPara(page, 'age');
+    await expect(page.locator('#agenda-lista tbody tr')).toHaveCount(2);
+    expect(await dito(page.locator('#s-age'))).not.toMatch(/hangar|progresso|próxima|aprovado\b|reprovado|IN-0/i);
+  });
 
   test('a linha não fala deles, aberta ou recolhida, e um endereço não chega a eles', async ({ page }) => {
     await abrirCom(page);
