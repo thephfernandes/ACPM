@@ -1,15 +1,20 @@
 // A agenda do servidor falso (test/e2e/supabase-falso.js): a tabela solicitacoes e as funções registrar_solicitacao e
 // cancelar_solicitacao, com as regras do banco (o prazo, a exceção da coordenação, a duração e o limite de voos locais
 // no horário). O roteador lê a tabela (GET /rest/v1/solicitacoes) e manda as duas funções para cá
-import { prazoDaAgendaPermite } from '../../../js/agenda.js';
+import { prazoDaAgendaPermite, RECURSO_DO_PEDIDO } from '../../../js/agenda.js';
 
 export const FUNCOES_DA_AGENDA = ['registrar_solicitacao', 'cancelar_solicitacao'];
 
-// agora: o relógio do servidor para o prazo da agenda. atender devolve [status, corpo] (corpo undefined: sem corpo)
-export function criarAgenda({ agora }) {
+// agora: o relógio do servidor para o prazo da agenda; semRecurso: o servidor de antes da migração agenda_com_recurso (só a
+// função de 10 argumentos, e a linha sem a coluna recurso). atender devolve [status, corpo] (corpo undefined: sem corpo)
+export function criarAgenda({ agora, semRecurso = false }) {
   const solicitacoes = [];
 
   function atender(funcao, args, conta) {
+    // A função que o servidor ainda não tem: o PostgREST não a acha pelos nomes dos argumentos
+    if (semRecurso && funcao === 'registrar_solicitacao' && Object.hasOwn(args, 'p_recurso')) {
+      return [404, { code: 'PGRST202', message: 'Could not find the function public.registrar_solicitacao in the schema cache' }];
+    }
     // Agenda: secretaria e operadores registram; fora do prazo, só operadores pela exceção da coordenação
     if (!conta || !['secretaria', 'operador', 'administrador'].includes(conta.perfil)) return [403, { code: '42501', message: 'sem permissão na agenda' }];
     if (funcao === 'cancelar_solicitacao') {
@@ -34,10 +39,13 @@ export function criarAgenda({ agora }) {
     const noPrazo = prazoDaAgendaPermite(args.p_data, agora);
     if (!noPrazo && !args.p_excecao) return [403, { code: 'PT403', message: 'prazo encerrado' }];
     if (!noPrazo && !['operador', 'administrador'].includes(conta.perfil)) return [403, { code: '42501', message: 'exceção só para operadores' }];
+    // O recurso (a função de 11 argumentos; a de 10 deixa a coluna vazia)
+    const recurso = (args.p_recurso || '').trim() || null;
+    if (recurso !== null && !RECURSO_DO_PEDIDO.test(recurso)) return [400, { code: '23514', message: 'violates check constraint' }];
     const id = solicitacoes.length + 1;
     solicitacoes.push({
       id, data: args.p_data, aluno: args.p_aluno, aluno_nome: args.p_aluno_nome.trim(), missao: args.p_missao, janela: args.p_janela,
-      horario: args.p_horario, horas, observacao: (args.p_observacao || '').trim() || null, registrado_por: args.p_registrado_por.trim(),
+      horario: args.p_horario, horas, ...(semRecurso ? {} : { recurso }), observacao: (args.p_observacao || '').trim() || null, registrado_por: args.p_registrado_por.trim(),
       registrado_em: agora.toISOString(), usuario: conta.id, conta: conta.nome, excecao: !noPrazo, cancelada_em: null, cancelada_por: null
     });
     return [200, id];

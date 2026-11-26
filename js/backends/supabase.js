@@ -9,7 +9,12 @@
 //   definitiva (sem permissão, dado inválido) avisa por aoErro com definitivo: true e não tenta de novo
 // - Sessão expirada (401): a alteração espera o novo login (aoSessaoExpirada devolve quando a pessoa entrou de novo) e é
 //   gravada depois
+import { MIS } from '../config.js';
+
 const DOCUMENTO_DIA = /^dia:(\d{4}-\d{2}-\d{2})$/;
+
+// A função que o servidor não tem: o PostgREST não a acha (PGRST202), ou o Postgres (42883)
+const FUNCAO_INEXISTENTE = ['PGRST202', '42883'];
 
 // Sem resposta (status 0), servidor fora do ar (5xx), tempo esgotado (408) ou muitas requisições (429): vale tentar de novo
 const transitorio = status => !status || status === 408 || status === 429 || status >= 500;
@@ -214,12 +219,23 @@ export function criarBackendSupabase(cliente, { aoConflito = () => {}, aoErro = 
       return data;
     },
 
-    // O servidor recusa o pedido por período e a duração fora de 0,1–5 h
-    async registrarSolicitacao({ data, aluno, aluno_nome, missao, janela, horario = null, horas, observacao = null, registrado_por, excecao = false }) {
-      const { data: id, error } = await cliente.rpc('registrar_solicitacao', {
+    // O servidor recusa o pedido por período e a duração fora de 0,1–5 h. O recurso vai na função de 11 argumentos (a
+    // migração agenda_com_recurso). Só quando o servidor responde que ela não existe, o que não registra nada, o pedido no
+    // recurso padrão da missão vai pela de 10, que o app de antes chama; em outro recurso, ele é recusado (o servidor de
+    // antes o guardaria sem o recurso, e a demanda o poria no padrão). Nenhum outro erro chama a função de novo: o pedido
+    // pode ter sido registrado
+    async registrarSolicitacao({ data, aluno, aluno_nome, missao, janela, horario = null, horas, observacao = null, registrado_por, excecao = false, recurso = null }) {
+      const pedido = {
         p_data: data, p_aluno: aluno, p_aluno_nome: aluno_nome, p_missao: missao, p_janela: janela, p_horario: horario, p_horas: horas,
         p_registrado_por: registrado_por, p_observacao: observacao, p_excecao: excecao
-      });
+      };
+      let { data: id, error } = await cliente.rpc('registrar_solicitacao', { ...pedido, p_recurso: recurso });
+      if (error && FUNCAO_INEXISTENTE.includes(error.code)) {
+        if (recurso !== null && !(Object.hasOwn(MIS, missao) && recurso === MIS[missao].defEq)) {
+          throw Object.assign(new Error('o servidor ainda não guarda o recurso do pedido'), { code: 'agenda-sem-recurso' });
+        }
+        ({ data: id, error } = await cliente.rpc('registrar_solicitacao', pedido));
+      }
       if (error) throw Object.assign(new Error(error.message), { code: error.code });
       return id;
     },

@@ -165,6 +165,21 @@ novo). E o app novo não depende delas:
 - **Sem a migração**, `painel_do_dia()` responde como antes, sem o campo `painel`, e a TV mostra o padrão (Missões, com
   as colunas do padrão e as listas no Automático: duas lado a lado na TV Full HD), como hoje; a Escala segue a configuração de qualquer jeito (ela lê o cadastro).
 
+## O recurso do pedido da agenda
+
+O pedido da agenda guarda o recurso (o tipo: C152, PA-34, Sim. Mono…): a missão diz os permitidos, o recurso diz os
+horários, e a importação põe o pedido na demanda nele. A migração `20261125230000_agenda_com_recurso.sql` acrescenta a
+coluna `recurso` (vazia nos pedidos de antes, que entram no recurso padrão da missão) e a função
+`registrar_solicitacao` com o recurso, o 11º argumento. A de 10 argumentos continua, para as abas abertas do app de antes.
+
+**A ordem:** a migração na prévia (`supabase db push --remote`) com `npm run test:db`, depois na produção
+(`supabase db push --remote=<ref de produção>`), e só então o merge. Ela só acrescenta: o app no ar continua igual com
+ela. O app novo no ar **antes** da migração não perde nem repete pedidos: quando o servidor responde que a função com o
+recurso não existe (PGRST202 ou 42883), o pedido no recurso padrão da missão vai pela função de antes, e o pedido noutro
+recurso é recusado com o aviso de que o servidor precisa ser atualizado. Nenhum outro erro tenta de novo. Depois, com
+nenhuma aba de antes aberta, outra migração pode tirar a função de 10 argumentos (e a chamada dela em
+`js/backends/supabase.js`).
+
 ## A sessão da TV da recepção
 
 A TV fica ligada dias seguidos, sem ninguém por perto, e nunca mostra um quadro velho como se fosse o de agora
@@ -246,7 +261,7 @@ número): o primeiro acesso de um Operador ou Administrador regrava os dias e o 
 | `js/modelos-de-curso.js` | Os programas prontos que o Administrador põe num curso: o cronograma do Piloto Privado (P.I PPA 001A), com 9 fases e 47 missões |
 | `js/progresso.js` | A próxima missão de cada aluno pelas regras do programa (a liberada; as fora da ordem, com o motivo) e o progresso no curso |
 | `js/resultados.js` | Os resultados das missões (aprovado ou reprovado; pendente desfaz um engano): a situação de cada missão do aluno e as regras do registro, as do servidor |
-| `js/agenda.js` | Prazo da agenda de solicitações (13:00 do dia anterior), o limite de voos locais e o pedido que cada solicitação vira |
+| `js/agenda.js` | Prazo da agenda de solicitações (13:00 do dia anterior), os recursos da missão do pedido, o limite de voos locais e o pedido que cada solicitação vira |
 | `js/processamento.js` | A importação dos pedidos da agenda para a demanda da data (função pura; o botão "Importar da agenda" é `js/eventos/importacao.js`) |
 | `js/csv.js` | CSV da escala agrupado por avião, para o lançamento no portal do aeroclube |
 | `js/planilha.js`, `modelos/escala-cavok.xlsx` | A escala na planilha do modelo do aeroclube (o Excel do lançamento no CAVOK): onde cada voo cai e o arquivo preenchido. O modelo é o arquivo da operação sem os dados do dia; as células que o app preenche estão em `BLOCOS` e `GROUND` (um modelo novo precisa delas nos mesmos lugares, e `test/unit/planilha.test.js` confere) |

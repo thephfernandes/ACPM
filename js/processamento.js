@@ -1,7 +1,7 @@
 // O processamento dos pedidos da agenda: a importação para a demanda da data (o botão "Importar da agenda", na Demanda e
 // na Agenda; js/eventos/importacao.js). Puro: recebe o estado da data e os pedidos e muda só o estado
 import { migrateLegacyMissionName, alvoDoNovoPedido } from './rules.js';
-import { pedidoDaSolicitacao } from './agenda.js';
+import { pedidoDaSolicitacao, recursoValido } from './agenda.js';
 import { indiceDoPrograma } from './programa.js';
 import { proximasMissoes, missoesDoDia } from './progresso.js';
 import { situacaoPorMissao, resultadoDoVoo } from './resultados.js';
@@ -28,7 +28,8 @@ function vooQueDaLugar(estado, aluno, mis) {
 // aluno, quando ele não voa e o dia não guarda nada dele, ou para uma missão extra nova (alvoDoNovoPedido). As
 // solicitações vistas ficam anotadas no dia (estado.importadas) para não repetir.
 // Aluno de um curso: o pedido entra como a primeira missão liberada do programa que é do tipo pedido (o código e o curso
-// dela, o recurso e as horas do programa); nenhuma, ele entra como veio. As missões dos outros voos do aluno no dia
+// dela, o recurso e as horas do programa); nenhuma, ele entra como veio. O pedido com recurso só entra como uma missão do
+// programa nesse recurso. As missões dos outros voos do aluno no dia
 // contam como feitas, como na Demanda; a do voo que dá lugar ao pedido, não (ela continua no dia, agora com o pedido). A
 // missão do curso que o operador pôs nesse voo (Usar, "Outra missão do curso") continua a dele, com o recurso e as horas
 // que ele tem (as registradas na agenda valem mais, como na missão do programa): a escolha do operador vale mais que a
@@ -50,8 +51,9 @@ export function importarSolicitacoes(estado, solicitacoes, { situacao = [], prog
     const escolhida = copiada && copiada.etapa ? copiada : null;
     const curso = !escolhida && aluno.curso ? indice.curso(aluno.curso) : null;
     const jaNoDia = curso && missoesDoDia(curso, aluno, { fStatus: estado.fStatus, mid: copiada ? copiada.mid || 0 : null });
+    const recurso = recursoValido(solicitacao);
     const missao = curso && proximasMissoes(curso, mapa, aluno.id, { planejadas: jaNoDia, exceto: jaNoDia }).candidatas
-      .find(m => m.mis === solicitacao.missao);
+      .find(m => m.mis === solicitacao.missao && (!recurso || m.eq === recurso));
     // A missão do curso: o recurso do programa, com os horários e as preferências dele, e as horas dele
     const doCurso = escolhida || missao;
     const pedido = pedidoDaSolicitacao(solicitacao, estado.horarios, doCurso ? { eq: doCurso.eq, nb: doCurso.nb } : {});

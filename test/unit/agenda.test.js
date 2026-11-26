@@ -2,7 +2,9 @@
 // importação para a demanda: test/unit/processamento.test.js).
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { prazoDaAgendaPermite, primeiraDataAberta, disponibilidadeDaSolicitacao, pedidoDaSolicitacao, datasParaRegistrar } from '../../js/agenda.js';
+import { MIS, ALL_EQ_TYPES } from '../../js/config.js';
+import { HORARIOS_INICIAIS } from '../../js/horarios.js';
+import { prazoDaAgendaPermite, primeiraDataAberta, disponibilidadeDaSolicitacao, pedidoDaSolicitacao, datasParaRegistrar, recursosDaMissao, recursoValido, RECURSO_DO_PEDIDO } from '../../js/agenda.js';
 
 const em = iso => new Date(iso);
 
@@ -75,6 +77,30 @@ describe('Agenda de solicitações', () => {
     assert.deepEqual([horas('Voo Local', 2.6, 2), horas('Voo Local', null, 2), horas('Voo Local', undefined), horas('Simulador', null)], [2.6, 2, 1, 2]);
     assert.deepEqual([horas('Noturno', 3, 3), horas('Noturno', null, 3), horas('Ground C152', 2, 1), horas('Voo Local', 'x')], [4, 4, 1.5, 1]);
   });
+
+  // O pedido guarda o recurso escolhido; os de antes, e o que a missão não permite, valem como sem recurso
+  it('os recursos da missão, e o recurso do pedido só quando a missão o permite', () => {
+    for (const [missao, { eq }] of Object.entries(MIS)) assert.deepEqual(recursosDaMissao(missao), eq, missao);
+    assert.deepEqual([recursosDaMissao(''), recursosDaMissao('Outra'), recursosDaMissao('constructor')], [[], [], []]);
+    const valido = (missao, recurso) => recursoValido({ missao, recurso });
+    assert.deepEqual([valido('Navegação', 'PA-34'), valido('Noturno', 'C172'), valido('Ground C152', 'Sala Ground')], ['PA-34', 'C172', 'Sala Ground']);
+    assert.deepEqual([valido('Noturno', 'C152'), valido('Navegação', null), valido('Navegação', undefined), valido('Navegação', 'c152'), valido('Outra', 'C152')], [null, null, null, null, null]);
+    for (const tipo of ALL_EQ_TYPES) assert.match(tipo, RECURSO_DO_PEDIDO);
+    for (const ruim of ['', ' C152', 'C152 ', '<b>', 'C'.repeat(31), 'C152\n']) assert.doesNotMatch(ruim, RECURSO_DO_PEDIDO);
+  });
+
+  it('o recurso do pedido decide o avião, os horários e as preferências; sem ele, ou com um que a missão não permite, o padrão', () => {
+    const p = (extra, opcoes) => pedidoDaSolicitacao({ missao: 'Navegação', janela: 'horario', horario: '07:30', horas: 2, ...extra }, HORARIOS_INICIAIS, opcoes);
+    assert.deepEqual(p({ recurso: 'PA-34' }), { fly: true, mis: 'Navegação', eq: 'PA-34', p1: 450, p2: 450, nb: 2, ss: 1, pr: 3, jan: 'h450' });
+    for (const recurso of [null, undefined, 'Sim. Mono', 'x']) assert.deepEqual(p({ recurso }), p({}), String(recurso));
+    assert.equal(p({}).eq, 'C152');
+    // O recurso da missão do curso já escolhida pelo operador (eq) vale mais
+    assert.equal(p({ recurso: 'PA-34' }, { eq: 'C172' }).eq, 'C172');
+    // O horário que o cadastro não tem mais: as preferências padrão da lista do recurso, com o horário pedido na disponibilidade
+    const semAs0730 = { ...HORARIOS_INICIAIS, 'PA-34': [480, 540, 600, 660] };
+    const velho = pedidoDaSolicitacao({ missao: 'Navegação', janela: 'horario', horario: '07:30', recurso: 'PA-34' }, semAs0730);
+    assert.deepEqual([velho.eq, velho.p1, velho.p2, velho.jan], ['PA-34', 540, 660, 'h450']);
+  });
 });
 
 // No máximo 6 voos locais (Voo Local, Voo Solo e TGL) no mesmo horário; ao agendar o 7º,
@@ -92,6 +118,12 @@ describe('Agenda: o limite de voos locais no mesmo horário', async () => {
   it('com 6 locais no horário, não há vaga: o próximo horário possível', () => {
     const pedidos = [...seisAs('08:20'), ...seisAs('10:10').map(p => ({ ...p, id: p.id + 20 }))];
     assert.deepEqual(vagaDeVooLocal(pedidos, { data: '2026-11-11', horario: '08:20', missao: 'TGL (TMA)' }), { ok: false, proximo: '11:30' });
+  });
+
+  it('o próximo horário possível é um dos horários do recurso do pedido', () => {
+    const local = extra => vagaDeVooLocal(seisAs('08:30'), { data: '2026-11-11', horario: '08:30', missao: 'Voo Local', ...extra });
+    assert.deepEqual([local({ recurso: 'PA-34' }), local({}), local({ recurso: 'Sim. Mono' })],
+      [{ ok: false, proximo: '09:00' }, { ok: false, proximo: '10:10' }, { ok: false, proximo: '10:10' }]);
   });
 
   it('outra missão não tem o limite; o Solo (só às 06:30) não tem próximo horário', () => {

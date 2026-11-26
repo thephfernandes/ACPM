@@ -1,6 +1,6 @@
 // Recursos: a disponibilidade do dia (janelas, aviões e simuladores, hangar), o cadastro da frota, os horários de
 // decolagem por categoria e os filtros.
-import { test, comHangar, expect, abrir, abrirSintetico, abrirComExemplo, irPara, irParaVista, abrirEscala, lerEscala, filtrarCategorias, abrirHistorico, alternarDisponivel, caixaDisponivel, janelasDeOperacao, tabelaDoDia } from './fixtures.js';
+import { test, comHangar, expect, abrir, abrirSintetico, abrirComExemplo, irPara, irParaVista, abrirEscala, lerEscala, filtrarCategorias, abrirHistorico, campoDaAgenda, alternarDisponivel, caixaDisponivel, janelasDeOperacao, tabelaDoDia } from './fixtures.js';
 import { aluno, apenas, cenario, instrutor } from '../helpers/montar.js';
 import { GLOSSARIO } from '../../js/glossario.js';
 
@@ -306,6 +306,32 @@ test.describe('Recursos: horários de decolagem por categoria', () => {
     await expect(pa34.locator('.horarios-modelo')).toHaveText('De 30 em 30 min, 06:30–16:30');
     await abrirEscala(page);
     expect((await lerEscala(page)).linhas.find(l => l.includes('Aluno 1000'))).toMatch(/^07:30/);
+  });
+
+  // O Histórico abre por cima da Agenda: a lista do cadastro muda com ela aberta
+  test('o "↶ Reverter" dos horários, com a Agenda aberta, muda os horários do pedido que está sendo feito', async ({ page }) => {
+    await abrir(page, { estado: cenario({ ins: [instrutor(1, 9)], stu: [aluno(1000)] }) });
+    await irParaVista(page, 'rec', 'cadastro');
+    await page.locator('#horarios [data-cat="PA-34"] [data-act="editar-horarios"]').click();
+    await editor(page).locator('[data-act="rascunho-tirar"][data-min="450"]').click();
+    await editor(page).locator('.hr-novo').fill('07:45');
+    await editor(page).locator('.hr-novo').press('Enter');
+    await editor(page).locator('[data-act="salvar-horarios"]').click();
+    await expect(editor(page)).toHaveCount(0);
+    await irPara(page, 'age');
+    const [horario, motivo] = ['horario', 'horario-motivo'].map(c => campoDaAgenda(page, c));
+    await campoDaAgenda(page, 'aluno').selectOption({ label: 'Aluno 1000' });
+    await campoDaAgenda(page, 'missao').selectOption('Navegação');
+    await campoDaAgenda(page, 'recurso').selectOption('PA-34');
+    await horario.selectOption('07:45');
+    await campoDaAgenda(page, 'obs').fill('Prefere o PT-JOB');
+    await abrirHistorico(page);
+    await page.locator('#audit-log-list .audit-item', { hasText: 'Horários de decolagem do PA-34' }).locator('[data-act="rev-log"]').click();
+    await expect(horario.locator('option', { hasText: '07:30' })).toHaveCount(1);
+    await expect(horario.locator('option', { hasText: '07:45' })).toHaveCount(0);
+    await expect(horario).toHaveValue('');
+    await expect(motivo).toHaveText('O horário 07:45 não é um dos de Navegação (PA-34). Escolha outro.');
+    await expect(campoDaAgenda(page, 'obs')).toHaveValue('Prefere o PT-JOB');
   });
 
   test('os modelos; Cancelar descarta; não tira o último horário; o Gestor não edita', async ({ page }) => {

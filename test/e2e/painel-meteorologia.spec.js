@@ -72,8 +72,10 @@ test.describe('Meteorologia no painel', () => {
       const [cab, metar, taf] = [...el.children].map(x => x.getBoundingClientRect());
       return { nome: px('.meteo-nome', 'fontSize') / base, letra: letra / base, peso: px('.meteo-nome', 'fontWeight'), vaos: [metar.top - cab.bottom, taf.top - metar.bottom].map(v => v / letra) };
     });
-    expect(medidas.nome).toBeCloseTo(2.3, 2);
-    expect(medidas.letra).toBeCloseTo(1.15, 2);
+    expect(medidas.nome).toBeCloseTo(2.1, 2);
+    expect(medidas.letra).toBeCloseTo(1.2, 2);
+    // 4 px em volta das caixas
+    expect(await faixa(page).evaluate(el => getComputedStyle(el).padding)).toBe('4px');
     expect(medidas.peso).toBe(700);
     for (const vao of medidas.vaos) expect(vao).toBeCloseTo(1, 1);
     await expect(caixa(page, 'SBBH').locator('.meteo-metar')).toHaveText(METEOROLOGIA_DE_TESTE.estacoes[0].metar);

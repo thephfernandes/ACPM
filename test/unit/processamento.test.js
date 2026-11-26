@@ -89,6 +89,38 @@ describe('Importar as solicitações da agenda para a demanda', () => {
     assert.deepEqual([e.stu[0].etapa, e.stu[0].eq, e.stu[0].p1, e.stu[0].p2], ['PC-01', 'PA-34', 390, 420]);
   });
 
+  // O recurso que a secretaria escolheu na agenda vale: o avião, os horários e as preferências são os dele
+  it('o pedido com recurso entra com ele; sem ele, ou com um que a missão não permite, com o padrão da missão', () => {
+    const e = { ...estado(), stu: [aluno(1000, { fly: false }), aluno(1001, { fly: false }), aluno(1002, { fly: false })] };
+    const nav = (id, quem, recurso) => pedido(id, quem, { missao: 'Navegação', janela: 'horario', horario: '07:30', horas: 2, ...(recurso === undefined ? {} : { recurso }) });
+    importarSolicitacoes(e, [nav(50, 1000, 'PA-34'), nav(51, 1001), nav(52, 1002, 'Sim. Multi')]);
+    assert.deepEqual(e.stu.map(s => [s.eq, s.p1, s.jan, s.nb]), [['PA-34', 450, 'h450', 2], ['C152', 500, 'h450', 2], ['C152', 500, 'h450', 2]]);
+    for (const s of e.stu) assert.equal(Object.hasOwn(s, 'recurso'), false, 'o pedido da demanda não ganha o campo');
+  });
+
+  it('com o recurso, a missão do curso só é inferida entre as desse recurso; sem ele, a primeira do tipo, como antes', () => {
+    const programa = doCadastro({
+      PP: [{ id: 'NAV-01', nome: 'A', mis: 'Navegação', eq: 'C152', nb: 1.5 }, { id: 'NAV-02', nome: 'B', mis: 'Navegação', eq: 'C172', nb: 2 }], PC: [], INVA: []
+    }).map(c => ({ ...c, missoes: c.missoes.map(m => ({ ...m, regra: 'livre' })) }));
+    const importar = recurso => {
+      const e = { ...estado(), stu: [aluno(1000, { fly: false }, { curso: 'PP' })] };
+      importarSolicitacoes(e, [pedido(53, 1000, { missao: 'Navegação', janela: 'manha', ...(recurso === undefined ? {} : { recurso }) })], { programa });
+      return [e.stu[0].etapa, e.stu[0].eq, e.stu[0].nb];
+    };
+    assert.deepEqual(importar(undefined), ['NAV-01', 'C152', 1.5]);
+    assert.deepEqual(importar(null), ['NAV-01', 'C152', 1.5]);
+    assert.deepEqual(importar('C152'), ['NAV-01', 'C152', 1.5]);
+    assert.deepEqual(importar('C172'), ['NAV-02', 'C172', 2]);
+    assert.deepEqual(importar('PA-34'), [undefined, 'PA-34', 1], 'nenhuma missão do curso no PA-34: entra como veio');
+    assert.deepEqual(importar('Sim. Mono'), ['NAV-01', 'C152', 1.5], 'o recurso que a missão não permite não conta');
+  });
+
+  it('a missão do curso que o operador pôs no voo continua com o recurso dela, qualquer que seja o do pedido', () => {
+    const e = { ...estado(), stu: [aluno(1000, { mis: 'Navegação', eq: 'C172', nb: 2, etapa: 'NAV-02', cursoDaEtapa: 'PP' }, { curso: 'PP' })] };
+    importarSolicitacoes(e, [pedido(54, 1000, { missao: 'Navegação', janela: 'manha', recurso: 'PA-34' })]);
+    assert.deepEqual([e.stu[0].etapa, e.stu[0].eq, e.stu[0].nb], ['NAV-02', 'C172', 2]);
+  });
+
   // No programa em fases, várias missões podem estar liberadas: o pedido entra como a primeira do tipo pedido (o Noturno
   // em trechos, pela noite: o bloco de 4 h às 17:30, o translado e o noturno em BH); nenhuma liberada do tipo (fora da
   // ordem, ou fora do programa), ele entra como veio, com a duração da missão: o simulador, as 2 h de padrão

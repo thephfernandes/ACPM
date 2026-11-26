@@ -2,14 +2,19 @@
 /* Agenda de Solicitações */
 .agenda { display: grid; gap: 12px; grid-template-columns: minmax(0, 1fr); align-items: start; }
 .agenda > * { min-width: 0; }
-#form-agenda { display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); align-items: end; margin-bottom: 12px; }
+#form-agenda { display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); align-items: start; margin-bottom: 12px; }
 #form-agenda label { display: flex; flex-direction: column; gap: 2px; font-size: 13px; }
+#form-agenda .btn, #form-agenda .x { align-self: end; }
+#ag-horario-motivo { display: block; margin-top: 2px; color: var(--mu); font-size: 12.5px; }
+#form-agenda [aria-invalid="true"] { border-color: var(--er); }
 #ag-erro { color: var(--er); margin: 0; grid-column: 1 / -1; }
 #ag-erro:empty { display: none; }
 body:not([data-agenda="edita"]) #form-agenda,
 body:not([data-agenda="edita"]) .agenda-acao { display: none !important; }
 /* Lista do dia: uma linha por pedido; o cancelado esmaecido; a situação na demanda com etiqueta */
 #agenda-lista td { white-space: nowrap; }
+/* A confirmação diz a missão e o recurso: em mais de uma linha, para caber na tabela */
+#agenda-lista .agenda-acao.arm { white-space: normal; text-align: left; }
 #agenda-lista .obs { display: block; max-width: 240px; white-space: normal; color: var(--mu); font-size: 12.5px; }
 #agenda-lista tr.cancel td { color: var(--mu); }
 #agenda-lista tr.cancel td b { font-weight: 500; text-decoration: line-through; }

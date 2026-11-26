@@ -24,6 +24,7 @@ test.describe('Noturno de dois dias', () => {
     await page.locator('#dem tr[data-k="d"][data-id="1000"] [data-f="mis"]').selectOption('Noturno');
     await irPara(page, 'age');
     await campoDaAgenda(page, 'missao').selectOption('Noturno');
+    await expect(campoDaAgenda(page, 'recurso')).toHaveValue('C172');
     await expect(campoDaAgenda(page, 'horas')).toHaveValue('4');
     await expect(campoDaAgenda(page, 'horas')).toBeDisabled();
   });

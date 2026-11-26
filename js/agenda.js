@@ -67,15 +67,21 @@ export function disponibilidadeDaSolicitacao({ janela, horario }) {
   return minuto === null ? undefined : disponibilidadeAtual(`h${minuto}`);
 }
 
-// Pedido da demanda: a missão com o equipamento padrão; como preferências, os dois primeiros horários dela que a
+// O recurso do pedido (o tipo: C152, PA-34, Sim. Mono…): os que a missão permite, e o formato em que o servidor o guarda
+// (a migração agenda_com_recurso). O pedido de antes não tem recurso, e o que a missão não permite não vale: null nos dois
+export const RECURSO_DO_PEDIDO = /^[A-Za-z0-9]([A-Za-z0-9 .-]{0,28}[A-Za-z0-9])?$/;
+export const recursosDaMissao = missao => (Object.hasOwn(MIS, missao) ? MIS[missao].eq : []);
+export const recursoValido = ({ missao, recurso }) => (recursosDaMissao(missao).includes(recurso) ? recurso : null);
+
+// Pedido da demanda: a missão com o recurso do pedido (sem ele, o padrão da missão); como preferências, os dois primeiros horários dela que a
 // disponibilidade permite (sem disponibilidade, os primeiros a partir das 08:20 e das 10:10); prioridade 3. Os horários
 // são os da categoria do equipamento (o PA-34 tem os seus). As horas: as fixas da missão (o Ground, 01h30; o Noturno,
 // 4 h); senão, as registradas na agenda; senão, as do programa do curso; senão, as padrão da missão (1 h; o simulador,
-// 2 h). eq e nb: o recurso e as horas da missão do programa do curso
+// 2 h). eq e nb: o recurso e as horas da missão do programa do curso (o recurso dela vale mais que o do pedido)
 export function pedidoDaSolicitacao(solicitacao, horarios, { eq, nb } = {}) {
   const jan = disponibilidadeDaSolicitacao(solicitacao);
   const regra = Object.hasOwn(MIS, solicitacao.missao) ? MIS[solicitacao.missao] : MIS['Voo Local'];
-  const equipamento = eq && regra.eq.includes(eq) ? eq : regra.defEq;
+  const equipamento = eq && regra.eq.includes(eq) ? eq : recursoValido(solicitacao) || regra.defEq;
   const lista = horariosDaMissao(horarios, solicitacao.missao, equipamento);
   const permitida = disponibilidadeDoAluno(jan);
   const naDisponibilidade = permitida ? lista.filter(permitida) : [];
@@ -93,12 +99,13 @@ export function pedidoDaSolicitacao(solicitacao, horarios, { eq, nb } = {}) {
 
 // No máximo 6 voos locais (Voo Local, Voo Solo e TGL) saindo no mesmo horário (determinação da diretoria). Ao agendar
 // mais um local num horário que já tem 6 (pedidos não cancelados da data), não há vaga: o próximo horário possível é o
-// primeiro mais tarde, entre os horários da missão, que ainda tem vaga (null: nenhum)
-export function vagaDeVooLocal(pedidos, { data, horario, missao }, horarios) {
+// primeiro mais tarde, entre os horários da missão no recurso do pedido (sem ele, no padrão dela), que ainda tem vaga (null:
+// nenhum)
+export function vagaDeVooLocal(pedidos, { data, horario, missao, recurso }, horarios) {
   if (!MISSOES_LOCAIS.includes(missao)) return { ok: true };
   const noHorario = h => pedidos.filter(p => p.data === data && !p.cancelada_em && p.janela === 'horario' && p.horario === h && MISSOES_LOCAIS.includes(p.missao)).length;
   if (noHorario(horario) < LIMITE_DE_VOOS_LOCAIS) return { ok: true };
   const regra = Object.hasOwn(MIS, missao) ? MIS[missao] : MIS['Voo Local'];
-  const depois = horariosDaMissao(horarios, missao, regra.defEq).map(hm).filter(h => h > horario);
+  const depois = horariosDaMissao(horarios, missao, recursoValido({ missao, recurso }) || regra.defEq).map(hm).filter(h => h > horario);
   return { ok: false, proximo: depois.find(h => noHorario(h) < LIMITE_DE_VOOS_LOCAIS) || null };
 }

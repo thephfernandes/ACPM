@@ -90,16 +90,16 @@ table.fids-tabela { width: 100%; min-width: 860px; border-collapse: collapse; fo
    No painel que rola para o lado (a página estreita), a faixa fica parada, à vista. Na tela toda, ela fica no pé da tela,
    com as letras crescendo com a tela; as linhas da página do quadro contam com a altura dela */
 .fids-meteo {
-  --meteo-fs: 13px; position: sticky; left: 0; padding: 8px 12px 10px; background: #0A1733; border-top: 2px solid #23499B;
+  --meteo-fs: 13px; position: sticky; left: 0; padding: 4px; background: #0A1733; border-top: 2px solid #23499B;
   font: 500 var(--meteo-fs)/1.35 'Barlow Semi Condensed', sans-serif; color: var(--fids-claro);
 }
-.meteo-estacoes { margin-top: 6px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.meteo-estacoes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .meteo-estacao { min-width: 0; padding: 6px 10px 8px; border: 1px solid #23499B; border-radius: 6px; background: #0B1A3D; }
 .meteo-cab { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; }
-.fids .meteo-nome { margin: 0; font: 700 2.3em 'Barlow Semi Condensed', sans-serif; color: var(--fids-amarelo); letter-spacing: .02em; }
+.fids .meteo-nome { margin: 0; font: 700 2.1em 'Barlow Semi Condensed', sans-serif; color: var(--fids-amarelo); letter-spacing: .02em; }
 .meteo-hora { font-variant-numeric: tabular-nums; }
 .meteo-msg {
-  margin: 1em 0; color: var(--fids-branco); font: 500 1.15em/1.35 ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
+  margin: 1em 0; color: var(--fids-branco); font: 500 1.2em/1.25 ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
   white-space: normal; overflow-wrap: anywhere;
 }
 .meteo-junto { white-space: nowrap; }

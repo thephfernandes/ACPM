@@ -1,6 +1,6 @@
 // Agenda de Solicitações no modo compartilhado: a Secretaria registra pedidos (a escala ela só consulta), o
 // Operador usa a exceção da coordenação e o Gestor só consulta. O servidor falso aplica o mesmo prazo do banco.
-import { test, expect, entrar, preencherLogin, irPara, abrirMenuDaConta, AMANHA, URL_APP, botaoDaAba, campoDaAgenda, dataAberta, diaSeguinte, importarDaAgenda, rotuloDaData, rotulosDasAbas, escolherNoCalendario, mudarData } from './fixtures.js';
+import { test, expect, entrar, preencherLogin, irPara, abrirMenuDaConta, AMANHA, URL_APP, vigiarErros, prepararContexto, botaoDaAba, campoDaAgenda, dataAberta, diaSeguinte, importarDaAgenda, registrarPedido, rotuloDaData, rotulosDasAbas, escolherNoCalendario, mudarData } from './fixtures.js';
 import { instalarSupabaseFalso, documentosAtuais, CONTAS } from './supabase-falso.js';
 import { estadoSintetico } from '../helpers/estado.js';
 import { aluno } from '../helpers/montar.js';
@@ -67,6 +67,8 @@ test.describe('Agenda de Solicitações (modo compartilhado)', () => {
     await expect(campoDaAgenda(page, 'aluno').locator('option', { hasText: 'Aluno 1001' })).toHaveCount(1);
 
     await campoDaAgenda(page, 'aluno').selectOption({ label: 'Aluno 1001' });
+    await campoDaAgenda(page, 'missao').selectOption('Voo Local');
+    await campoDaAgenda(page, 'recurso').selectOption('C152');
     await campoDaAgenda(page, 'horario').selectOption('12:40');
     await campoDaAgenda(page, 'horas').fill('2.5');
     await campoDaAgenda(page, 'por').fill('Maria');
@@ -77,7 +79,7 @@ test.describe('Agenda de Solicitações (modo compartilhado)', () => {
     await expect(pedido.locator('.por')).toHaveAttribute('title', 'Conta: Secretaria de Teste');
     await expect(pedido.locator('.situacao')).toHaveText('Ainda não importado');
     await expect(page.locator('#agenda-importar')).toBeHidden();
-    expect(servidor.solicitacoes.map(s => [s.data, s.aluno, s.janela, s.horario, s.horas, s.registrado_por, s.usuario])).toEqual([[AMANHA, 1001, 'horario', '12:40', 2.5, 'Maria', CONTAS.secretaria.id]]);
+    expect(servidor.solicitacoes.map(s => [s.data, s.aluno, s.janela, s.horario, s.horas, s.recurso, s.registrado_por, s.usuario])).toEqual([[AMANHA, 1001, 'horario', '12:40', 2.5, 'C152', 'Maria', CONTAS.secretaria.id]]);
 
     // A Secretaria só vê as datas que ainda aceitam pedidos (hoje já fechou), e não há a Exceção da Coordenação para ela
     await expect(campoDaAgenda(page, 'data').locator('option[value="2026-11-10"]')).toHaveCount(0);
@@ -99,10 +101,13 @@ test.describe('Agenda de Solicitações (modo compartilhado)', () => {
     await mudarData(page, '2026-11-10');
     await campoDaAgenda(page, 'data').selectOption('2026-11-10');
     await campoDaAgenda(page, 'aluno').selectOption({ label: 'Aluno 1000' });
+    await campoDaAgenda(page, 'missao').selectOption('Navegação');
+    await campoDaAgenda(page, 'recurso').selectOption('PA-34');
+    await campoDaAgenda(page, 'horario').selectOption('07:30');
     await campoDaAgenda(page, 'por').fill('Coordenação');
     await campoDaAgenda(page, 'excecao').click();
     await expect(page.locator('#agenda-lista tbody tr').first()).toContainText('Exceção da coordenação');
-    expect(servidor.solicitacoes.map(s => [s.data, s.excecao])).toEqual([['2026-11-10', true]]);
+    expect(servidor.solicitacoes.map(s => [s.data, s.excecao, s.recurso])).toEqual([['2026-11-10', true, 'PA-34']]);
   });
 
   test('o Gestor vê a agenda, sem registrar nem cancelar', async ({ page, context }) => {
@@ -112,8 +117,81 @@ test.describe('Agenda de Solicitações (modo compartilhado)', () => {
     await entrar(page, CONTAS.gestor);
     await botaoDaAba(page, 'age').click();
     await expect(page.locator('#agenda-lista tbody tr')).toHaveCount(1);
+    // O pedido de antes, sem o recurso: só a missão
+    await expect(page.locator('#agenda-lista tbody td').nth(2)).toHaveText('Voo Local');
     await expect(page.locator('#form-agenda')).toBeHidden();
     await expect(page.locator('#agenda-lista [data-act="cancelar-pedido"]')).toBeHidden();
+  });
+
+  // O app novo no ar antes da migração agenda_com_recurso: o recurso padrão da missão ainda é registrado (pela função de
+  // antes), o outro não, e nada é registrado duas vezes
+  test('o servidor de antes do recurso: só o recurso padrão da missão é registrado, uma vez; o outro diz por quê', async ({ browser }) => {
+    const contexto = await browser.newContext({ baseURL: test.info().project.use.baseURL, locale: 'pt-BR', timezoneId: 'America/Sao_Paulo' });
+    await prepararContexto(contexto);
+    const servidor = await instalarSupabaseFalso(contexto, { ...comAlunos(), agendaSemRecurso: true });
+    const page = await contexto.newPage();
+    const erros = vigiarErros(page, { statusEsperados: [404] });
+    await entrar(page, CONTAS.secretaria);
+    await registrarPedido(page, { aluno: 'Aluno 1000', missao: 'Navegação', recurso: 'PA-34', horario: '07:30' });
+    await expect(campoDaAgenda(page, 'erro')).toHaveText('O servidor precisa ser atualizado para guardar o recurso do pedido: até lá, Navegação só pode ser pedida no C152. Nada foi registrado. Avise a administração do app.');
+    await expect(campoDaAgenda(page, 'recurso')).toHaveAttribute('aria-invalid', 'true');
+    expect(servidor.solicitacoes).toEqual([]);
+    await expect(campoDaAgenda(page, 'aluno')).not.toHaveValue('');
+    await registrarPedido(page, { aluno: 'Aluno 1000', missao: 'Navegação', recurso: 'C152', horario: '08:20' });
+    await expect(page.locator('#agenda-lista tbody tr')).toHaveCount(1);
+    expect(servidor.solicitacoes.map(s => [s.missao, s.horario, Object.hasOwn(s, 'recurso')])).toEqual([['Navegação', '08:20', false]]);
+    // A recusa com o botão armado ("Registrar mesmo assim"): escolhido o recurso padrão, ela sai, e o campo não fica marcado
+    await registrarPedido(page, { aluno: 'Aluno 1000', missao: 'Navegação', recurso: 'PA-34', horario: '10:00' });
+    await expect(campoDaAgenda(page, 'erro')).toContainText('já tem voo marcado');
+    await page.locator('#form-agenda [type="submit"]').click();
+    await expect(campoDaAgenda(page, 'erro')).toContainText('O servidor precisa ser atualizado');
+    await campoDaAgenda(page, 'recurso').selectOption('C152');
+    await expect(campoDaAgenda(page, 'recurso')).toHaveAttribute('aria-invalid', 'false');
+    await expect(campoDaAgenda(page, 'erro')).toContainText('Aluno 1000 já tem voo marcado');
+    expect(servidor.solicitacoes).toHaveLength(1);
+    expect(erros).toEqual([]);
+    await contexto.close();
+  });
+
+  // Um clique a mais enquanto o servidor não respondeu não é outro pedido (nem outro voo na demanda)
+  test('o segundo clique em "Registrar pedido" antes da resposta não registra de novo', async ({ page, context }) => {
+    const servidor = await instalarSupabaseFalso(context, comAlunos());
+    await entrar(page, CONTAS.secretaria);
+    let chamadas = 0;
+    page.on('request', r => { if (r.method() === 'POST' && r.url().endsWith('/rpc/registrar_solicitacao')) chamadas++; });
+    const liberar = servidor.segurar('/rpc/registrar_solicitacao');
+    await registrarPedido(page, { aluno: 'Aluno 1000', missao: 'Navegação', recurso: 'PA-34', horario: '07:30' });
+    await page.locator('#form-agenda [type="submit"]').click();
+    await campoDaAgenda(page, 'por').press('Enter');
+    liberar();
+    await expect(page.locator('#agenda-lista tbody tr')).toHaveCount(1);
+    await expect(campoDaAgenda(page, 'aluno')).toHaveValue('');
+    expect(chamadas).toBe(1);
+    // O pedido seguinte é registrado normalmente
+    await registrarPedido(page, { aluno: 'Aluno 1001', missao: 'Navegação', recurso: 'PA-34', horario: '08:00' });
+    await expect(page.locator('#agenda-lista tbody tr')).toHaveCount(2);
+    expect(servidor.solicitacoes.map(s => [s.aluno, s.horario])).toEqual([[1000, '07:30'], [1001, '08:00']]);
+  });
+
+  // A rede que cai no meio do registro: não se sabe se ele chegou, e o app não tenta de novo sozinho
+  test('o registro sem resposta não é repetido pela função de antes', async ({ browser }) => {
+    const contexto = await browser.newContext({ baseURL: test.info().project.use.baseURL, locale: 'pt-BR', timezoneId: 'America/Sao_Paulo' });
+    await prepararContexto(contexto);
+    const servidor = await instalarSupabaseFalso(contexto, comAlunos());
+    const page = await contexto.newPage();
+    const erros = vigiarErros(page, { statusEsperados: [503], ignorar: [/ERR_FAILED/] });
+    let chamadas = 0;
+    await page.route('**/rpc/registrar_solicitacao', async route => {
+      chamadas++;
+      await route.abort();
+    });
+    await entrar(page, CONTAS.secretaria);
+    await registrarPedido(page, { aluno: 'Aluno 1000', missao: 'Navegação', recurso: 'C152', horario: '08:20' });
+    await expect(campoDaAgenda(page, 'erro')).toHaveText('Não foi possível registrar o pedido. Verifique a conexão e tente de novo.');
+    expect(chamadas).toBe(1);
+    expect(servidor.solicitacoes).toEqual([]);
+    expect(erros).toEqual([]);
+    await contexto.close();
   });
 
   // A importação que termina depois de trocar de data não grava nada na data nova

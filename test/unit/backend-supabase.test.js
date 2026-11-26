@@ -28,6 +28,7 @@ function clienteFalso(documentos = {}, { atraso = 0, dias = {} } = {}) {
   const chamadas = [];
   let falhasDeRede = 0;
   let recusas = [];
+  let recusaDaAgenda = null;
 
   const linhasDe = tabela => {
     if (tabela === 'documentos') return [...banco].map(([chave, d]) => ({ chave, ...d }));
@@ -57,6 +58,8 @@ function clienteFalso(documentos = {}, { atraso = 0, dias = {} } = {}) {
 
   return {
     banco,
+    // O erro da função registrar_solicitacao com o recurso (11 argumentos); a de 10 responde como sempre
+    recusarAgendaComRecurso(erro) { recusaDaAgenda = erro; },
     dias: tabelaDias,
     historico,
     cursos,
@@ -180,10 +183,12 @@ function clienteFalso(documentos = {}, { atraso = 0, dias = {} } = {}) {
         return { data: null, error: null };
       }
       if (nome === 'registrar_solicitacao') {
+        // O servidor de antes da migração agenda_com_recurso só tem a função de 10 argumentos
+        if (recusaDaAgenda && Object.hasOwn(args, 'p_recurso')) return { data: null, error: recusaDaAgenda };
         if (args.p_data < '2026-11-11') return { data: null, error: { code: 'PT403', message: 'prazo encerrado' } };
         const id = solicitacoes.length + 1;
         solicitacoes.push({ id, data: args.p_data, aluno: args.p_aluno, aluno_nome: args.p_aluno_nome, missao: args.p_missao, janela: args.p_janela,
-          horario: args.p_horario, observacao: args.p_observacao, registrado_por: args.p_registrado_por, registrado_em: new Date(Date.UTC(2026, 10, 10, 12, 0, id)).toISOString(),
+          horario: args.p_horario, ...(Object.hasOwn(args, 'p_recurso') ? { recurso: args.p_recurso } : {}), observacao: args.p_observacao, registrado_por: args.p_registrado_por, registrado_em: new Date(Date.UTC(2026, 10, 10, 12, 0, id)).toISOString(),
           excecao: Boolean(args.p_excecao), cancelada_em: null, cancelada_por: null });
         return { data: id, error: null };
       }
@@ -474,7 +479,7 @@ describe('Backend Supabase: escala por data e histórico', () => {
     const id = await backend.registrarSolicitacao({ data: '2026-11-12', aluno: 1000, aluno_nome: 'Aluno 1000', missao: 'IFR', janela: 'horario', horario: '14:30', horas: 2.6, registrado_por: 'Maria' });
     assert.deepEqual(cliente.chamadas.at(-1), ['registrar_solicitacao', {
       p_data: '2026-11-12', p_aluno: 1000, p_aluno_nome: 'Aluno 1000', p_missao: 'IFR', p_janela: 'horario', p_horario: '14:30', p_horas: 2.6,
-      p_registrado_por: 'Maria', p_observacao: null, p_excecao: false
+      p_registrado_por: 'Maria', p_observacao: null, p_excecao: false, p_recurso: null
     }]);
     await backend.registrarSolicitacao({ data: '2026-11-11', aluno: 1001, aluno_nome: 'Aluno 1001', missao: 'Voo Local', janela: 'manha', registrado_por: 'Maria' });
     assert.deepEqual((await backend.listarSolicitacoes('2026-11-01', '2026-11-30')).map(s => [s.data, s.aluno]), [['2026-11-11', 1001], ['2026-11-12', 1000]]);
@@ -482,6 +487,64 @@ describe('Backend Supabase: escala por data e histórico', () => {
     await backend.cancelarSolicitacao(id, 'Maria');
     assert.equal(cliente.chamadas.at(-1)[0], 'cancelar_solicitacao');
     await assert.rejects(backend.cancelarSolicitacao(id, 'Maria'), e => e.code === 'P0002');
+  });
+
+  const pedidoDaAgenda = (extra = {}) => ({ data: '2026-11-12', aluno: 1000, aluno_nome: 'Aluno 1000', missao: 'Navegação', janela: 'horario', horario: '07:30', horas: 1, registrado_por: 'Maria', ...extra });
+  const semAFuncao = [
+    { code: 'PGRST202', message: 'Could not find the function public.registrar_solicitacao(...) in the schema cache' },
+    { code: '42883', message: 'function public.registrar_solicitacao(...) does not exist' }
+  ];
+  const chamadasDaAgenda = cliente => cliente.chamadas.filter(([nome]) => nome === 'registrar_solicitacao').map(([, args]) => Object.keys(args).length);
+
+  it('agenda: o recurso vai na função de 11 argumentos e volta na leitura; a linha de antes, sem ele, também é lida', async () => {
+    const cliente = clienteFalso();
+    const backend = criarBackendSupabase(cliente);
+    await backend.registrarSolicitacao(pedidoDaAgenda({ recurso: 'PA-34' }));
+    assert.equal(cliente.chamadas.at(-1)[1].p_recurso, 'PA-34');
+    assert.deepEqual(chamadasDaAgenda(cliente), [11]);
+    assert.deepEqual((await backend.listarSolicitacoes('2026-11-12', '2026-11-12')).map(s => s.recurso), ['PA-34']);
+  });
+
+  // O app no ar antes da migração: só a função que não existe leva à de 10 argumentos, e só com o recurso padrão da missão
+  for (const erro of semAFuncao) {
+    it(`agenda: sem a função no servidor (${erro.code}), o recurso padrão da missão é registrado pela função de antes, uma vez`, async () => {
+      const cliente = clienteFalso();
+      cliente.recusarAgendaComRecurso(erro);
+      const backend = criarBackendSupabase(cliente);
+      assert.equal(await backend.registrarSolicitacao(pedidoDaAgenda({ recurso: 'C152' })), 1);
+      assert.deepEqual(chamadasDaAgenda(cliente), [11, 10]);
+      assert.equal(Object.hasOwn(cliente.chamadas.at(-1)[1], 'p_recurso'), false);
+      const [guardado, ...outros] = await backend.listarSolicitacoes('2026-11-12', '2026-11-12');
+      assert.deepEqual([guardado.missao, Object.hasOwn(guardado, 'recurso'), outros.length], ['Navegação', false, 0]);
+    });
+
+    it(`agenda: sem a função no servidor (${erro.code}), outro recurso é recusado, sem registrar nada`, async () => {
+      const cliente = clienteFalso();
+      cliente.recusarAgendaComRecurso(erro);
+      const backend = criarBackendSupabase(cliente);
+      await assert.rejects(backend.registrarSolicitacao(pedidoDaAgenda({ recurso: 'PA-34' })), { code: 'agenda-sem-recurso' });
+      assert.deepEqual(chamadasDaAgenda(cliente), [11]);
+      assert.deepEqual(await backend.listarSolicitacoes('2026-11-12', '2026-11-12'), []);
+    });
+  }
+
+  it('agenda: qualquer outro erro (a regra, o dado, a rede sem resposta, o servidor fora do ar) não chama a função de antes', async () => {
+    for (const erro of [{ code: 'PT403', message: 'prazo' }, { code: 'PT422', message: 'locais' }, { code: '42501', message: 'permissão' }, { code: '23514', message: 'dado' },
+      { code: '', message: 'TypeError: Failed to fetch' }, { message: 'Service Unavailable' }, { code: 'PGRST203', message: 'ambígua' }, { code: '57014', message: 'timeout' }, { code: 'PGRST301', message: 'JWT expired' }]) {
+      const cliente = clienteFalso();
+      cliente.recusarAgendaComRecurso(erro);
+      const backend = criarBackendSupabase(cliente);
+      await assert.rejects(backend.registrarSolicitacao(pedidoDaAgenda({ recurso: 'C152' })), e => e.code === erro.code && e.message === erro.message);
+      assert.deepEqual(chamadasDaAgenda(cliente), [11], erro.message);
+    }
+  });
+
+  it('agenda: o erro da função de antes também é repassado com o código', async () => {
+    const cliente = clienteFalso();
+    cliente.recusarAgendaComRecurso(semAFuncao[0]);
+    const backend = criarBackendSupabase(cliente);
+    await assert.rejects(backend.registrarSolicitacao(pedidoDaAgenda({ data: '2026-11-10', recurso: 'C152' })), e => e.code === 'PT403');
+    assert.deepEqual(chamadasDaAgenda(cliente), [11, 10]);
   });
 
   it('resultados das missões: registra pela função, lê a situação e os registros do dia; repassa o código do erro', async () => {

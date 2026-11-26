@@ -1,7 +1,7 @@
 // Backend local: os documentos da escala ficam no localStorage deste navegador (modo sem login).
 // cadastro e dia:AAAA-MM-DD são o formato por data; estado, escala, historico e bi são os documentos antigos, que
 // migrarDocumentosAntigos (storage.js) converte para o formato por data.
-import { prazoDaAgendaPermite } from '../agenda.js';
+import { prazoDaAgendaPermite, RECURSO_DO_PEDIDO } from '../agenda.js';
 import { gravarDadosPessoais, semQuemSaiu } from '../dados-pessoais.js';
 import { acumularHoras } from '../limites.js';
 import { hojeISO } from '../format.js';
@@ -158,7 +158,7 @@ export const backendLocal = {
   },
 
   // O pedido é num horário específico, com a duração de 0,1 a 5 h (o Ground, 01h30): como no servidor
-  async registrarSolicitacao({ data, aluno, aluno_nome, missao, janela, horario = null, horas, observacao = null, registrado_por, excecao = false }, agora = new Date()) {
+  async registrarSolicitacao({ data, aluno, aluno_nome, missao, janela, horario = null, horas, observacao = null, registrado_por, excecao = false, recurso = null }, agora = new Date()) {
     if (janela !== 'horario' || !/^[0-2][0-9]:[0-5][0-9]$/.test(horario || '')) throw erroDaAgenda('22023', 'o pedido é num horário específico');
     const h = String(missao).startsWith('Ground') ? GROUND_DURATION_H : duracaoDigitada(horas);
     if (h === null) throw erroDaAgenda('22023', `a duração vai de 0,1 h a ${DURACAO_MAXIMA_H} h`);
@@ -167,6 +167,8 @@ export const backendLocal = {
     if (!textoObrigatorio(registrado_por, 80) || !textoObrigatorio(aluno_nome, 80) || !textoObrigatorio(missao, 60)) {
       throw erroDaAgenda('23514', 'pedido incompleto: confira aluno, missão, horário e quem anotou');
     }
+    const tipo = (recurso || '').trim() || null;
+    if (tipo !== null && !RECURSO_DO_PEDIDO.test(tipo)) throw erroDaAgenda('23514', 'recurso inválido');
     const lista = lerJson(CHAVE_AGENDA) || [];
     // No máximo LIMITE_DE_VOOS_LOCAIS voos locais no mesmo horário, como no servidor
     const local = m => MISSOES_LOCAIS.includes(m);
@@ -175,7 +177,7 @@ export const backendLocal = {
     }
     const id = proximoId(lista);
     lista.push({
-      id, data, aluno, aluno_nome: aluno_nome.trim(), missao, janela, horario, horas: h,
+      id, data, aluno, aluno_nome: aluno_nome.trim(), missao, janela, horario, horas: h, recurso: tipo,
       observacao: (observacao || '').trim().slice(0, 300) || null, registrado_por: registrado_por.trim(),
       registrado_em: agora.toISOString(), conta: null, excecao: !noPrazo, cancelada_em: null, cancelada_por: null
     });

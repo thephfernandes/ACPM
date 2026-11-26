@@ -8,6 +8,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { MIS, GROUND_EQ_TYPE, GROUND_DURATION_H, DURACAO_MAXIMA_H, NOTURNO } from '../../js/config.js';
+import { RECURSO_DO_PEDIDO } from '../../js/agenda.js';
 import { ESQUEMA, FORMATO_DOS_CURSOS, migrarCadastro, antesDosCursosProprios } from '../../js/migracoes.js';
 import { CASOS_DO_PROGRAMA, PROGRAMA, NOTURNO_EM_TRECHOS } from '../helpers/casos-do-programa.js';
 
@@ -137,5 +138,33 @@ describe('O banco espelha o app', () => {
     const foraDaRegra = ['42501', '23514'];
     assert.deepEqual([...doBanco].filter(k => !foraDaRegra.includes(k) && !dosCasos.has(k)).sort(), [], 'erros sem caso');
     assert.deepEqual([...dosCasos].filter(k => !doBanco.has(k)), [], 'casos com um erro que a migração não dá');
+  });
+});
+
+// O pedido com o recurso (a função de 11 argumentos) é a de 10, a que continua para as abas abertas, com o recurso a mais:
+// as mesmas regras (quem pode, o horário, a duração, os 6 locais, o prazo e a exceção), na mesma ordem
+describe('O banco espelha o app: o recurso do pedido da agenda', () => {
+  const COM_RECURSO = ler('supabase/migrations/20261125230000_agenda_com_recurso.sql');
+  const DE_ANTES = ler('supabase/migrations/20261114230012_agenda_limite_de_locais.sql');
+  const funcao = texto => texto.slice(texto.indexOf('function public.registrar_solicitacao('), texto.indexOf('$$;'));
+  const ASSINATURA = 'date, integer, text, text, text, text, numeric, text, text, boolean';
+
+  it('o formato do recurso é o do app', () => {
+    const [, formato] = /recurso ~ '([^']+)'/.exec(COM_RECURSO);
+    assert.equal(formato, RECURSO_DO_PEDIDO.source);
+  });
+
+  it('a função nova é a de antes, só com o recurso a mais, e a de antes fica', () => {
+    const nova = funcao(COM_RECURSO)
+      .replace('p_excecao boolean,\n  p_recurso text\n', 'p_excecao boolean\n')
+      .replace('horas, recurso, observacao', 'horas, observacao')
+      .replace("v_horas, nullif(trim(p_recurso), ''), nullif(", 'v_horas, nullif(');
+    assert.equal(nova, funcao(DE_ANTES));
+    assert.doesNotMatch(COM_RECURSO, /drop function|create or replace/);
+  });
+
+  it('só quem está conectado chama a função nova', () => {
+    assert.ok(COM_RECURSO.includes(`revoke execute on function public.registrar_solicitacao(${ASSINATURA}, text) from public, anon;`));
+    assert.ok(COM_RECURSO.includes(`grant execute on function public.registrar_solicitacao(${ASSINATURA}, text) to authenticated;`));
   });
 });

@@ -110,6 +110,14 @@ describe('Backend local: agenda de solicitações', () => {
     assert.equal((await backendLocal.listarSolicitacoes('2026-11-11', '2026-11-11'))[0].horas, 1.5);
   });
 
+  it('guarda o recurso do pedido (sem ele, null); um texto que não é um recurso é recusado, como no servidor', async () => {
+    for (const recurso of ['PA-34', ' Sim. Mono ', '', null, undefined]) await backendLocal.registrarSolicitacao(pedido({ missao: 'Navegação', ...(recurso === undefined ? {} : { recurso }) }), antesDas13);
+    assert.deepEqual((await backendLocal.listarSolicitacoes('2026-11-11', '2026-11-11')).map(s => s.recurso), ['PA-34', 'Sim. Mono', null, null, null]);
+    await assert.rejects(backendLocal.registrarSolicitacao(pedido({ recurso: '<b>' }), antesDas13), e => e.code === '23514');
+    await assert.rejects(backendLocal.registrarSolicitacao(pedido({ recurso: 'C'.repeat(31) }), antesDas13), e => e.code === '23514');
+    assert.equal((await backendLocal.listarSolicitacoes('2026-11-11', '2026-11-11')).length, 5);
+  });
+
   // No máximo 6 voos locais no mesmo horário, como no servidor
   it('o 7º voo local no mesmo horário é recusado (PT422); outra missão passa', async () => {
     for (let i = 0; i < 6; i++) await backendLocal.registrarSolicitacao(pedido({ aluno: 2000 + i, missao: ['Voo Local', 'Voo Solo', 'TGL (TMA)'][i % 3], horario: '08:20' }), antesDas13);
