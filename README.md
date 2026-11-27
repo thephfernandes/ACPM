@@ -278,9 +278,9 @@ No formato 28 (o J da linha de produção), as nove janelas de operação deixam
 fechados da data, `fechamentos`: uma lista de `{ de, ate, categorias? }` em minutos, `[de, ate)`, com
 `0 ≤ de < ate ≤ 1440`, `categorias` as ids de `js/categorias.js` (ausente: todos os recursos; nunca uma matrícula),
 ordenada, juntada e com no máximo 12 (`normalizarFechamentos`, `js/fechamentos.js`). O passo dá a cada dia com `win` os
-fechamentos que fecham os mesmos minutos que o motor lia (cada sequência de janelas fechadas vira um intervalo; a primeira
-desde a meia-noite, a última até 24:00; o que não é `true` fecha, como no motor; nenhum no dia todo aberto, mas a lista
-vazia entra), conferido nos 512 padrões; o `win` fica, sem ser lido onde há `fechamentos`, e o dia que já os tem fica com
+fechamentos que fecham os mesmos minutos que a data aberta fechava (cada sequência de janelas fechadas vira um intervalo;
+a primeira desde a meia-noite, a última até 24:00; o `win` lido como o app o lia ao abrir a data: só `false` fecha, e um
+`win` sem as nove posições não fecha nada; nenhum no dia todo aberto, mas a lista vazia entra), conferido nos 512 padrões; o `win` fica, sem ser lido onde há `fechamentos`, e o dia que já os tem fica com
 os dele. Os pedidos do dia ficam sem período: o `jan` `manha`, `tarde` ou `noite` sai, e com ele o `limiteConfirmado`
 (que só vale no horário exato); o `hN` e as preferências `p1`, `p2` com o número de uma das nove janelas (0 a 8) viram o
 horário dela; um `jan` que o passo não conhece fica como está. O cadastro não muda, mas pode guardar a lista da Sala

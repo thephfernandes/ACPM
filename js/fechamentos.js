@@ -3,7 +3,8 @@
 // (js/categorias.js); ausente, o fechamento vale para todos os recursos. Nunca por matrícula (S3).
 // Um horário de decolagem está aberto quando nenhum fechamento da data o cobre para a categoria do recurso.
 // Os dias antes do 28 (e os estados dos goldens) guardam win, as nove janelas: fechamentosDoWin dá os mesmos minutos
-// fechados que win[periodoDoMinuto(m)] lia, com a leitura do motor (!win[i]: o que não é true fecha).
+// fechados que win[periodoDoMinuto(m)] lia, com a leitura do motor (!win[i]: o que não é true fecha). O passo do formato
+// 28 (js/migracoes.js) lê antes o win gravado como a data aberta o lia (só false fecha; sem as nove posições, nada).
 import { CATEGORIAS } from './categorias.js';
 import { hm } from './format.js';
 import { MINUTOS_DO_DIA } from './config.js';

@@ -253,8 +253,9 @@ const PASSOS = {
     dia: dia => dia
   },
   // Versão 28 (J): os horários fechados da data, fechamentos ({ de, ate, categorias? } em minutos; js/fechamentos.js), no
-  // lugar das nove janelas. O dia com win ganha os fechamentos que fecham os mesmos minutos que o motor lia (!win[i]:
-  // o que não é true fecha), mesmo vazios, para nenhum dia migrado depender da leitura do win; o win fica, sem ser lido
+  // lugar das nove janelas. O dia com win ganha os fechamentos que fecham os mesmos minutos que a data aberta fechava (o
+  // win como normalizeAndMigrateState o lia antes do motor, winComoOAppLia), mesmo vazios, para nenhum dia migrado
+  // depender da leitura do win; o win fica, sem ser lido
   // onde há fechamentos. O dia sem win fica sem eles, e o que já os tem fica com os dele (rodar duas vezes dá o mesmo).
   // Os pedidos (no mapa ou na lista em que estiverem, e as missões extras) ficam sem período do dia (pedidoSemPeriodo).
   // O cadastro não muda: a lista da Sala Ground (horarios.ground) ausente fica ausente, e o av não ganha a chave da sala
@@ -263,7 +264,7 @@ const PASSOS = {
     cadastro: cadastro => cadastro,
     dia: dia => {
       const novo = { ...dia };
-      if (!Array.isArray(dia.fechamentos) && Array.isArray(dia.win)) novo.fechamentos = fechamentosDoWin(dia.win);
+      if (!Array.isArray(dia.fechamentos) && Array.isArray(dia.win)) novo.fechamentos = fechamentosDoWin(winComoOAppLia(dia.win));
       if (Array.isArray(dia.pedidos)) novo.pedidos = dia.pedidos.map(pedidoSemPeriodo);
       else if (dia.pedidos && typeof dia.pedidos === 'object') {
         novo.pedidos = Object.fromEntries(Object.entries(dia.pedidos).map(([id, pedido]) => [id, pedidoSemPeriodo(pedido)]));
@@ -272,6 +273,10 @@ const PASSOS = {
     }
   }
 };
+
+// O win gravado como a data aberta o lia antes do 28 (js/storage.js, normalizeAndMigrateState, antes de o motor ver o
+// estado): com outro tamanho, o dia todo aberto; nas nove posições, só false fecha a janela (null, 0 e o resto abrem)
+const winComoOAppLia = win => (win.length === INICIOS_DOS_TEMPOS.length ? win.map(v => v !== false) : INICIOS_DOS_TEMPOS.map(() => true));
 
 const versaoDe = doc => (typeof doc.esquema === 'number' ? doc.esquema : 4);
 

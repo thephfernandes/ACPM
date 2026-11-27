@@ -255,9 +255,9 @@ describe('Formato 26', () => {
     assert.deepEqual(migrarCadastro({ esquema: 25, nid: 1000, ins: [], stu: [] }), { esquema: ESQUEMA, nid: 1000, ins: [], stu: [] });
   });
 
-  it('o dia não muda (o 28, depois, dá os fechamentos do win)', () => {
+  it('o dia não muda (o 28, depois, dá os fechamentos do win; o de uma posição a data abria inteiro)', () => {
     const dia = { esquema: 25, win: [true], av: { 'PR-VOM': true } };
-    assert.deepEqual(migrarDia(dia), { ...dia, fechamentos: [{ de: T[1], ate: 1440 }], esquema: ESQUEMA });
+    assert.deepEqual(migrarDia(dia), { ...dia, fechamentos: [], esquema: ESQUEMA });
   });
 });
 
@@ -279,7 +279,8 @@ describe('Formato 27', () => {
   });
 
   it('o dia não muda (o 28, depois, dá os fechamentos do win; o pedido sem período fica com o limiteConfirmado)', () => {
-    const dia = { esquema: 26, win: [true], pedidos: [{ id: 1000, fly: true, mis: 'Voo Local', limiteConfirmado: true }] };
+    const win = [true, false, false, false, false, false, false, false, false];
+    const dia = { esquema: 26, win, pedidos: [{ id: 1000, fly: true, mis: 'Voo Local', limiteConfirmado: true }] };
     assert.deepEqual(migrarDia(structuredClone(dia)), { ...dia, fechamentos: [{ de: T[1], ate: 1440 }], esquema: ESQUEMA });
   });
 });
@@ -292,7 +293,7 @@ describe('Formato 28', () => {
   const no27 = (dia = {}) => ({ esquema: 27, ...dia });
   const winDoPadrao = p => Array.from({ length: 9 }, (_, i) => Boolean(p & (1 << i)));
 
-  it('cada um dos 512 padrões das janelas vira fechamentos que fecham os mesmos minutos que o motor lia; o win fica', () => {
+  it('cada um dos 512 padrões das janelas vira fechamentos que fecham os mesmos minutos que a data e o motor liam; o win fica', () => {
     let diferencas = 0;
     for (let p = 0; p < 512; p++) {
       const win = winDoPadrao(p);
@@ -314,11 +315,27 @@ describe('Formato 28', () => {
     assert.deepEqual(migrarDia(no27({ win: Array(9).fill(false) })).fechamentos, [{ de: 0, ate: 1440 }]);
   });
 
-  it('o win fora do padrão, como o motor o lê (o que não é true fecha): 8 posições, null na 4, 0 na 2', () => {
+  // O motor nunca leu o win gravado: ao abrir a data, normalizeAndMigrateState (js/storage.js) o lia antes, e o que ele fechava
+  // é o que fica fechado (revisão do J). O win com outro tamanho abria o dia todo; só false fechava a janela
+  it('o win fora do padrão, como o app o lia ao abrir a data (só false fecha; outro tamanho, nada fechado): 8 posições, null na 4, 0 na 2', () => {
     const aberto = Array(9).fill(true);
-    assert.deepEqual(migrarDia(no27({ win: aberto.slice(0, 8) })).fechamentos, [{ de: T[8], ate: 1440 }]);
-    assert.deepEqual(migrarDia(no27({ win: aberto.map((v, i) => (i === 4 ? null : v)) })).fechamentos, [{ de: T[4], ate: T[5] }]);
-    assert.deepEqual(migrarDia(no27({ win: aberto.map((v, i) => (i === 2 ? 0 : v)) })).fechamentos, [{ de: T[2], ate: T[3] }]);
+    assert.deepEqual(migrarDia(no27({ win: aberto.slice(0, 8) })).fechamentos, []);
+    assert.deepEqual(migrarDia(no27({ win: [...aberto.slice(0, 8), false, false] })).fechamentos, []);
+    assert.deepEqual(migrarDia(no27({ win: aberto.map((v, i) => (i === 4 ? null : v)) })).fechamentos, []);
+    assert.deepEqual(migrarDia(no27({ win: aberto.map((v, i) => (i === 2 ? 0 : v)) })).fechamentos, []);
+    assert.deepEqual(migrarDia(no27({ win: aberto.map((v, i) => (i === 2 ? false : i === 4 ? null : v)) })).fechamentos, [{ de: T[2], ate: T[3] }]);
+  });
+
+  it('os mesmos minutos fechados que a data aberta antes do 28: o win gravado, lido por normalizeAndMigrateState', async () => {
+    const { ApiClient } = await import('../../js/storage.js');
+    const estranhos = [Array(9).fill(true).slice(0, 8), [true, true, null, false, true, true, true, true, false], [0, 1, '', false, true, true, true, true, true], Array(10).fill(false)];
+    for (const win of estranhos) {
+      const lido = ApiClient.normalizeAndMigrateState({ nid: 1000, ins: [], stu: [], win: structuredClone(win) }).win;
+      const novo = migrarDia(no27({ win }));
+      for (const { id } of CATEGORIAS) {
+        for (let m = 0; m < 1440; m += 10) assert.equal(horarioAberto(novo.fechamentos, m, id), lido[periodoDoMinuto(m)], `${JSON.stringify(win)} ${id} ${m}`);
+      }
+    }
   });
 
   it('o dia sem win fica sem fechamentos; o que já tem fechamentos fica com eles; o win que não é lista não vira nada', () => {
