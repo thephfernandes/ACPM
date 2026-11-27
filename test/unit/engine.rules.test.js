@@ -555,7 +555,7 @@ describe('Ground School', () => {
 
   it('sem nenhum período do dia aberto, não há horário para a aula', () => {
     const { al } = alocar({ ins: [instrutor(1, 1)], stu: [aluno(1000, GROUND_C152)], janelasOff: [0, 1, 2, 3, 4, 5, 6, 7] });
-    assert.deepEqual(al, [{ t: 'err', s: 'Aluno 1000', m: 'Rejeitado: nenhum período aberto comporta 01h30 de Ground.', codigo: 'sem-horario' }]);
+    assert.deepEqual(al, [{ t: 'err', s: 'Aluno 1000', m: 'Rejeitado: nenhum horário aberto comporta 01h30 de Ground.', codigo: 'sem-horario' }]);
   });
 });
 

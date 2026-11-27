@@ -251,7 +251,7 @@ export function cancelamentoAproveitavel(estado, voo, { data, hoje }) {
 // A busca de um lugar para o voo (o cancelado, ou o do conflito, nos dois últimos grupos): os aviões e os instrutores que
 // servem em cada horário e tipo, contra os outros voos do dia (o atrasado na nova decolagem); sem o que saiu pelo motivo
 // (o instrutor, o avião, o horário); nunca passa por cima das habilitações, do peso, da lei, do "Não escalar com" nem dos
-// períodos fechados
+// horários fechados nesta data
 function buscaDoVoo(estado, resultado, voo, grupo, { depoisDe = null, semInstrutor = null, semAviao = null, semHorario = false } = {}) {
   // O voo atrasado ocupa o horário novo (o aviso dos locais também conta assim)
   const ocupacao = ocupacaoDaEscala(resultado.out, { fStatus: estado.fStatus, fObs: estado.fObs, efetivo: true, exceto: grupo.map(o => o.fKey) });
@@ -321,7 +321,7 @@ function buscaDoVoo(estado, resultado, voo, grupo, { depoisDe = null, semInstrut
   return {
     tipoDoVoo,
     naDisponibilidade,
-    // O mesmo horário, com as regras dos outros (o período aberto também)
+    // O mesmo horário, com as regras dos outros (aberto nesta data também)
     mesmoHorarioDisponivel: !semHorario && horarioAberto(voo.a),
     fechamentoDoInicio: fechamentoDoMinuto(fechamentos, voo.a, categoriaDe(tipoDoVoo)),
     // 1. O mesmo horário e o mesmo avião, com outro instrutor (até dois; o de antes seria o próprio voo cancelado)

@@ -129,7 +129,7 @@ describe('Voos fixos conferidos de novo', () => {
       { conflito: ['o aluno não voa com este instrutor'], codigos: ['bloqueio'] });
   });
 
-  it('o período fechado nesta data e fora da disponibilidade do aluno', () => {
+  it('o horário fechado nesta data e fora da disponibilidade do aluno', () => {
     const fechado = fixado();
     fechado.win = fechado.win.map((v, w) => (w === 0 ? false : v));
     assert.deepEqual(conflitoDe(fechado), { conflito: ['o horário está fechado nesta data'], codigos: ['horario-fechado'] });
@@ -708,7 +708,7 @@ describe('Voos agendados no motor', () => {
     }
   });
 
-  it('fora dos horários de decolagem: o do avião, o Noturno às 17:30, o Voo Solo às 06:30 e o Ground nas janelas do dia', () => {
+  it('fora dos horários de decolagem: o do avião, o Noturno às 17:30, o Voo Solo às 06:30 e o Ground fora dos horários da Sala Ground', () => {
     const casos = [
       [{}, agendado(420, 480, 'PR-VOB', 1), 'Agendado às 07:00, fora dos horários de decolagem do C152.'],
       [{ mis: 'Noturno', eq: 'C172', nb: 4, p1: 1050 }, agendado(1020, 1260, 'PR-HAR', 1), 'Agendado às 17:00: o Noturno sai às 17:30.'],

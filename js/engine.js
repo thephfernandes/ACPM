@@ -456,8 +456,8 @@ export function runAllocationEngine(state, opcoes = {}) {
         const naPassada = x => passada.pool.includes(x);
 
         // 1ª Tentativa: Unir-se a uma turma já aberta da mesma temática de Ground (mesmo horário e mesmo instrutor)
-        // A turma da 1ª preferência, depois a da 2ª, depois as outras (pelo horário: a turma fixa fora das janelas do dia
-        // não tem janela, e não vale como a preferência que o aluno não tem)
+        // A turma da 1ª preferência, depois a da 2ª, depois as outras (pelo horário: a turma fixa fora dos horários da
+        // Sala Ground não vale como a preferência que o aluno não tem)
         const ordemDaPreferencia = c => { const i = preferidos.indexOf(c.a); return i < 0 ? 2 : i; };
         const orderedExisting = [...existingClasses].filter(c => c.b <= prazoFixo && c.b <= endMax).sort((c1, c2) => {
           const inPref1 = ordemDaPreferencia(c1);
@@ -585,7 +585,7 @@ export function runAllocationEngine(state, opcoes = {}) {
         } else if (!starts.length) {
           [codigo, why] = permitidas
             ? ['disponibilidade-do-aluno', `nenhum horário aberto na disponibilidade do aluno (${rotuloDaDisponibilidade(d.jan)}) comporta 01h30 de Ground`]
-            : ['sem-horario', `nenhum período aberto comporta 01h30 de Ground${endMax < MINUTOS_DO_DIA ? ` até as ${hm(endMax)}` : ''}`];
+            : ['sem-horario', `nenhum horário aberto comporta 01h30 de Ground${endMax < MINUTOS_DO_DIA ? ` até as ${hm(endMax)}` : ''}`];
         } else {
           const key = Object.keys(fcGnd).sort((a, b) => fcGnd[b] - fcGnd[a])[0];
           [codigo, why] = {
@@ -644,7 +644,7 @@ export function runAllocationEngine(state, opcoes = {}) {
     }
     const minStartAfterGround = gatingGrounds.reduce((maxEnd, g) => Math.max(maxEnd, g.allocatedEnd || 0), 0);
 
-    // Os horários de decolagem da categoria (o noturno, às 17:30), com o período aberto e na disponibilidade do aluno
+    // Os horários de decolagem da categoria (o noturno, às 17:30), abertos nesta data e na disponibilidade do aluno
     const categoriaDoPedido = categoriaDoTipo(d.eq);
     const starts = horariosDaMissao(horarios, d.mis, d.eq).filter(m => horarioAberto(fechamentos, m, categoriaDoPedido) && naDisponibilidade(m));
     const endMax = fimDoAluno(stuId, d.mis, d.eq);

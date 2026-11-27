@@ -10,7 +10,7 @@ import {
 import { hm } from '../../js/format.js';
 
 describe('Horários de decolagem por categoria', () => {
-  it('padrão: as 8 janelas do dia; o PA-34, de 30 em 30 minutos, das 06:30 às 16:30', () => {
+  it('padrão: os 8 horários padrão; o PA-34, de 30 em 30 minutos, das 06:30 às 16:30', () => {
     assert.deepEqual(HORARIOS_PADRAO.map(hm), ['06:30', '08:20', '10:10', '11:30', '12:40', '13:40', '14:30', '16:20']);
     // J (N11): a Sala Ground é uma categoria como as outras, com os oito horários que o Ground usava
     assert.deepEqual(Object.keys(HORARIOS_INICIAIS), ['C152', 'C172', 'sim', 'PA-34', 'ground']);

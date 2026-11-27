@@ -59,7 +59,7 @@ const doDia = ({ ins = [instrutor(1, 9), instrutor(2, 9)], s1000 = {}, s1001 = {
 });
 
 describe('Agendamento: os horários e o encaixe', () => {
-  it('os horários de cada missão, só nas janelas abertas; o Ground só nas janelas do dia', () => {
+  it('os horários de cada missão, só os abertos nesta data; o Ground só nos horários da Sala Ground', () => {
     const estado = cenario();
     assert.deepEqual(horariosDoAgendamento(estado, { mis: 'Voo Local', tipo: 'C152' }), HORARIOS_PADRAO);
     assert.deepEqual(horariosDoAgendamento(estado, { mis: 'Voo Local', tipo: 'PA-34' }), DE_30_EM_30);
@@ -959,7 +959,7 @@ describe('Agendamento: os voos de hoje do aluno (mover e encaixar)', () => {
     assert.deepEqual([codigos(tardeOk.avisos), tardeOk.notas.find(n => n.codigo === 'condicional').texto], [[], 'IN-02 depende do resultado de IN-01 (amanhã 08:20).']);
   });
 
-  it('mover o Noturno: as 4 h fixas às 17:30, com a volta amanhã; o Ground, 1h30 nas janelas do dia', () => {
+  it('mover o Noturno: as 4 h fixas às 17:30, com a volta amanhã; o Ground, 1h30 nos horários da Sala Ground', () => {
     const estado = doDia({ s1000: { mis: 'Noturno', eq: 'C172', p1: 1050, p2: -1, nb: 4 } });
     const voo = runAllocationEngine(estado).out.find(o => o.stuId === 1000);
     assert.deepEqual([voo.a, voo.b], [1050, 1290]);
@@ -970,7 +970,7 @@ describe('Agendamento: os voos de hoje do aluno (mover e encaixar)', () => {
     const real = structuredClone(estado);
     aplicarAgendamento(real, null, f.proposta);
     assert.deepEqual([real.stu[0].mis, real.stu[0].nb, real.stu[0].p1, real.fixos['1000_0_1'].b], ['Noturno', 4, 1050, 1290]);
-    // O Ground muda de turma só nas janelas do dia, com 1h30
+    // O Ground muda de turma só nos horários da Sala Ground, com 1h30
     const ground = doDia({ s1000: { ...GROUND_C152, p1: 500, p2: -1 } });
     const g = agendar(ground, { escolhas: { aluno: 1000, missao: 'pedido:0', horario: 760 }, tocados: ['missao', 'horario'] }).formulario;
     assert.deepEqual([g.acao, g.horas, g.horarios.opcoes.map(o => o.valor), g.proposta.b - g.proposta.a], ['mover', { valor: '1.5', fixa: true }, HORARIOS_PADRAO, 90]);

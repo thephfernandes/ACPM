@@ -122,7 +122,7 @@ describe('O que pode voar no lugar do cancelado', () => {
     assert.equal(r.opcoes.at(-1), tipo);
   });
 
-  it('os períodos fechados valem também no mesmo horário: fechado o período do voo, nada nele, e o porquê diz isso', () => {
+  it('os horários fechados valem também no mesmo horário: fechado o horário do voo, nada nele, e o porquê diz isso', () => {
     // Cancelado pelo instrutor às 10:10, com outro instrutor livre; depois, o período das 10:10 fechado no dia
     const { estado, voo } = cancelado(cenario({ ins: [instrutor(1, 9), instrutor(2, 9)], stu: [aluno(1000, { p1: 610, p2: -1 })] }), 1000, 'Instrutor indisponível');
     assert.equal(hm(voo.a), '10:10');
@@ -131,7 +131,7 @@ describe('O que pode voar no lugar do cancelado', () => {
     const r = sugerirParaCancelado(estado, resultado, voo.fKey);
     assert.ok(r.opcoes.length > 0, 'os outros horários continuam');
     assert.ok(r.opcoes.every(o => o.mudancas.a !== voo.a), r.opcoes.map(o => o.texto).join(' | '));
-    // Sem nenhum outro período aberto: impossível, com o período fechado no mesmo horário
+    // Sem nenhum outro horário aberto: impossível, com o horário fechado no mesmo horário
     estado.win = estado.win.map(() => false);
     const nada = sugerirParaCancelado(estado, runAllocationEngine(estado), voo.fKey);
     assert.deepEqual(nada.opcoes, []);
@@ -171,10 +171,10 @@ describe('O que pode voar no lugar do cancelado', () => {
   });
 });
 
-// "Impossível nesta data": o porquê de cada grupo é o que de fato impediu cada horário (o período fechado, o horário que
-// já passou, o aluno ocupado, nenhum avião ou instrutor), com os horários
+// "Impossível nesta data": o porquê de cada grupo é o que de fato impediu cada horário (o horário fechado nesta data, o
+// horário que já passou, o aluno ocupado, nenhum avião ou instrutor), com os horários
 describe('O porquê do impossível', () => {
-  it('todos os períodos fechados, com o avião e os instrutores livres: os outros horários e o outro tipo dizem o período', () => {
+  it('o dia todo fechado, com o avião e os instrutores livres: os outros horários e o outro tipo dizem que estão fechados', () => {
     const { estado, voo } = cancelado(cenario({ ins: [instrutor(1, 9), instrutor(2, 9)], stu: [aluno(1000, { p1: 610, p2: -1 })] }), 1000, 'Meteorologia');
     estado.win = estado.win.map(() => false);
     const r = sugerirParaCancelado(estado, runAllocationEngine(estado), voo.fKey);

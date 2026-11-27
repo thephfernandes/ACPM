@@ -1,4 +1,4 @@
-// Partes do manual geradas das regras do código (missões, janelas, pesos, combustível, rodízio e glossário): quando
+// Partes do manual geradas das regras do código (missões, pesos, combustível, rodízio e glossário): quando
 // uma regra muda, o manual muda junto. O texto explicativo fica em index.html (seção Manual).
 import { MIS, DEFAULT_LIM, GROUND_DURATION_MIN, COMBUSTIVEL } from './config.js';
 import { HORARIO_DO_NOTURNO } from './horarios.js';
@@ -30,7 +30,7 @@ export function quemPodeDar(mis, equipamentos) {
 function observacao(missao, regra) {
   if (regra.isGround) return `Aula de ${duracaoHm(GROUND_DURATION_MIN)}, em turma; antes do primeiro voo de ${regra.gatesEq || regra.gatesMis} do aluno no dia`;
   if (missao === 'Parafuso') return 'No C152, sempre num avião marcado “Só Parafuso” em Recursos (que só voa Parafuso)';
-  if (missao === 'Noturno') return `Só na janela das ${hm(HORARIO_DO_NOTURNO)}`;
+  if (missao === 'Noturno') return `Só às ${hm(HORARIO_DO_NOTURNO)}`;
   return '';
 }
 

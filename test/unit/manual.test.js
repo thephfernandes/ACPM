@@ -26,7 +26,7 @@ describe('Manual', () => {
     assert.equal(linha('Ground C152').obs, 'Aula de 1h30, em turma; antes do primeiro voo de C152 do aluno no dia');
     assert.equal(linha('Ground Navegação').obs, 'Aula de 1h30, em turma; antes do primeiro voo de Navegação do aluno no dia');
     assert.equal(linha('Parafuso').obs, 'No C152, sempre num avião marcado “Só Parafuso” em Recursos (que só voa Parafuso)');
-    assert.equal(linha('Noturno').obs, 'Só na janela das 17:30');
+    assert.equal(linha('Noturno').obs, 'Só às 17:30');
   });
 
   it('tanque e autonomia de cada avião', () => {

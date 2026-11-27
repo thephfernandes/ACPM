@@ -100,7 +100,7 @@ export function compactar(out, state, { saldo = () => Infinity, posicao = () => 
     };
   });
 
-  // Os horários de cada voo: os da categoria, no período aberto, até o fim da missão do aluno (a regra do motor,
+  // Os horários de cada voo: os da categoria, abertos nesta data, até o fim da missão do aluno (a regra do motor,
   // fimDasMissoesDoDia: com um Noturno na demanda do dia, as outras missões até as 17:30), na disponibilidade do aluno
   // (ou só a 1ª e a 2ª preferência) e depois do Ground que libera o voo
   const fimDoAluno = fimDasMissoesDoDia(state.stu);
