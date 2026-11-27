@@ -13,12 +13,13 @@
 
 import { S } from '../state.js';
 import { $ } from '../dom.js';
+import { doNomeDaCategoria } from '../categorias.js';
 import { hm, esc } from '../format.js';
 import { CATEGORIAS_COM_HORARIOS, HORARIOS_PADRAO, DE_30_EM_30, PRIMEIRO_HORARIO, ULTIMO_HORARIO, paraMinuto, modeloDosHorarios, descreverHorarios, porPeriodo, impactoDosHorarios, resumoDoImpacto } from '../horarios.js';
 import { fechamentosDoEstado, fechamentoDoMinuto } from '../fechamentos.js';
 import { horariosAVista, manterHorariosAVista } from './filtros-dos-recursos.js';
 
-export const NOMES_DAS_CATEGORIAS = { C152: 'C152', C172: 'C172', sim: 'Simulador', 'PA-34': 'PA-34', ground: 'Sala Ground' };
+const NOMES_DAS_CATEGORIAS = { C152: 'C152', C172: 'C172', sim: 'Simulador', 'PA-34': 'PA-34', ground: 'Sala Ground' };
 const MODELOS = [['padrao', 'Horários padrão'], ['de30', 'De 30 em 30 min'], ['personalizado', 'Personalizado']];
 const PERIODOS = [['manha', 'Manhã'], ['tarde', 'Tarde']];
 const ID_DO_ERRO = 'hr-erro', ID_DA_DICA = 'hr-dica';
@@ -57,7 +58,7 @@ function periodos(lista, celula) {
 }
 
 const botaoEditar = (cat, aberto) =>
-  `<button type="button" class="btn quiet edit-only" data-act="editar-horarios" data-cat="${cat}" aria-expanded="${aberto}" aria-label="Editar os horários do ${esc(NOMES_DAS_CATEGORIAS[cat])}"${aberto ? ' disabled' : ''}>Editar</button>`;
+  `<button type="button" class="btn quiet edit-only" data-act="editar-horarios" data-cat="${cat}" aria-expanded="${aberto}" aria-label="Editar os horários ${esc(doNomeDaCategoria(cat))}"${aberto ? ' disabled' : ''}>Editar</button>`;
 
 function resumo(cat) {
   const lista = listaDe(cat);
@@ -78,7 +79,7 @@ function editor(cat) {
       <b class="horarios-nome">${esc(nome)}</b>
       ${botaoEditar(cat, true)}
     </div>
-    <div class="horarios-editor" role="group" aria-label="Horários de decolagem do ${esc(nome)}">
+    <div class="horarios-editor" role="group" aria-label="Horários de decolagem ${esc(doNomeDaCategoria(cat))}">
       <fieldset class="horarios-modelos">
         <legend>Modelo</legend>
         ${MODELOS.map(([id, rotulo]) => `<label class="chk"><input type="radio" name="hr-modelo" value="${id}"${id === modelo ? ' checked' : ''}> ${rotulo}</label>`).join('')}

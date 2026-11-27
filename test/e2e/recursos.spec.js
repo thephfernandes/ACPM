@@ -41,6 +41,20 @@ test.describe('Recursos', () => {
     await expect(caixaDisponivel(page, 'SALA-GROUND')).toBeChecked();
   });
 
+  // A Sala Ground nos textos e nas horas (revisão do J): uma turma de Ground tem uma linha por aluno, mas ocupa a sala uma vez
+  // só, como no mapa; os horários dela dizem "da Sala Ground"
+  test('a Sala Ground: as horas na escala uma vez por turma, como no mapa; os horários "da Sala Ground"', async ({ page }) => {
+    await abrirComExemplo(page);
+    await irPara(page, 'rec');
+    // O exemplo: o Ground PA-34 de um aluno às 06:30 e a turma de Ground C152 de seis alunos às 08:20, 1,5 h cada
+    await expect(tabelaDoDia(page).locator('tr[data-r="SALA-GROUND"] td').nth(3)).toHaveText('3 h na escala');
+    await irParaVista(page, 'rec', 'cadastro');
+    const editar = page.locator('#horarios [data-cat="ground"] [data-act="editar-horarios"]');
+    await expect(editar).toHaveAccessibleName('Editar os horários da Sala Ground');
+    await editar.click();
+    await expect(page.locator('#horarios .horarios-editor')).toHaveAccessibleName('Horários de decolagem da Sala Ground');
+  });
+
   test('aeronave em manutenção fica registrada no histórico e persiste', async ({ page }) => {
     await abrirSintetico(page);
     await irPara(page, 'rec');
@@ -211,7 +225,7 @@ test.describe('Recursos: acrescentar e retirar', () => {
     await expect(cadastro).toBeHidden();
     // A barra da aba (as vistas, a busca, as categorias, a contagem e "+ Novo recurso") vale para as duas vistas
     for (const id of ['#flt-rec-mat', '#flt-rec-cat', '#rec-contagem', '#btn-novo-recurso']) await expect(secao.locator(`:scope > .bar ${id}`)).toBeVisible();
-    await expect(page.locator('#rec-contagem')).toHaveText('26 recursos');
+    await expect(page.locator('#rec-contagem')).toHaveText('27 recursos');
 
     await secao.locator('[data-vista-rec="cadastro"]').click();
     await expect(secao.locator('[data-vista-rec="cadastro"]')).toHaveAttribute('aria-pressed', 'true');
@@ -222,7 +236,7 @@ test.describe('Recursos: acrescentar e retirar', () => {
     await expect(page.locator('#frota [data-r]')).toHaveCount(26);
     await expect(page.locator('#frota .grupo h5')).toHaveText([/^C152/, /^C172/, /^PA-34/, /^Simuladores/]);
     await expect(page.locator('#revisao [data-act="retirar-recurso"]')).toHaveCount(0);
-    await expect(page.locator('#rec-contagem')).toHaveText('26 recursos');
+    await expect(page.locator('#rec-contagem')).toHaveText('27 recursos');
 
     // A vista escolhida fica ao voltar à aba, até a página recarregar
     await irPara(page, 'esc');
@@ -542,22 +556,22 @@ test.describe('Recursos: a busca pela matrícula, as categorias e os grupos reco
     await expect(painel.locator('input.flt-ctrl:not([data-f]):not([data-a])')).toHaveCount(5);
     await categorias.click();
     await expect(contagem).toHaveAttribute('role', 'status');
-    // Os 26 da frota e a Sala Ground (J, S4); o hangar continua só com os aviões
+    // Os 26 da frota e a Sala Ground (J, S4), e a contagem com ela; o hangar continua só com os aviões
     await expect(linhas).toHaveCount(27);
     await expect(hangar).toHaveCount(22);
-    await expect(contagem).toHaveText('26 recursos');
+    await expect(contagem).toHaveText('27 recursos');
 
     await filtrarCategorias(page, ['PA-34']);
     await expect(categorias).toHaveText('Categoria: PA-34');
     await expect(linhas).toHaveCount(3);
     await expect(grupos).toHaveText([/^PA-34/]);
-    await expect(contagem).toHaveText('3 de 26 recursos');
+    await expect(contagem).toHaveText('3 de 27 recursos');
     // Uma ou outra: o PA-34 e os simuladores. O cabeçalho conta a categoria inteira
     await filtrarCategorias(page, ['sim', 'PA-34']);
     await expect(categorias).toHaveText('Categoria: Simulador ou PA-34');
     await expect(linhas).toHaveCount(7);
     await expect(grupos).toHaveText([/^PA-34 3 de 3 disponíveis/, /^Simuladores 4 de 4 disponíveis/]);
-    await expect(contagem).toHaveText('7 de 26 recursos');
+    await expect(contagem).toHaveText('7 de 27 recursos');
     // O hangar continua com todos os aviões: Subir e Descer andam na lista inteira
     await expect(hangar).toHaveCount(22);
     // No Cadastro, a frota e os horários de decolagem das categorias marcadas
@@ -577,7 +591,7 @@ test.describe('Recursos: a busca pela matrícula, as categorias e os grupos reco
     await busca.fill(' PR VÓB ');
     await expect.poll(frota).toEqual(['PR-VOB']);
     await expect.poll(horarios).toEqual(['C152']);
-    await expect(contagem).toHaveText('1 de 26 recursos');
+    await expect(contagem).toHaveText('1 de 27 recursos');
     // O cabeçalho da categoria conta a categoria inteira, também os recursos que a busca esconde (na frota e na tabela)
     await expect(page.locator('#frota .grupo h5')).toHaveText([/^C152\s*13 recursos$/]);
     await irParaVista(page, 'rec', 'dia');
@@ -585,11 +599,19 @@ test.describe('Recursos: a busca pela matrícula, as categorias e os grupos reco
     await expect(linhas.first()).toHaveAttribute('data-r', 'PR-VOB');
     await expect(grupos).toHaveText([/^C152\s*13 de 13 disponíveis$/]);
     await expect(hangar).toHaveCount(22);
+    // A Sala Ground é um recurso da aba (revisão do J): a busca a acha, a conta e mostra os horários dela
+    await busca.fill('sala');
+    await expect(linhas).toHaveCount(1);
+    await expect(linhas.first()).toHaveAttribute('data-r', 'SALA-GROUND');
+    await expect(contagem).toHaveText('1 de 27 recursos');
+    await irParaVista(page, 'rec', 'cadastro');
+    await expect.poll(horarios).toEqual(['ground']);
+    await irParaVista(page, 'rec', 'dia');
 
     // Nenhum recurso com os filtros: a tabela e a frota dizem por quê, e os horários, que nenhuma categoria aparece
     await busca.fill('nenhum assim');
     await expect(page.locator('#revisao tr.sem-resultado')).toHaveText('Nenhum recurso com esses filtros. Limpar filtros');
-    await expect(contagem).toHaveText('0 de 26 recursos');
+    await expect(contagem).toHaveText('0 de 27 recursos');
     await expect(hangar).toHaveCount(22);
     await irParaVista(page, 'rec', 'cadastro');
     await expect(page.locator('#frota li.sem-resultado')).toHaveText('Nenhum recurso com esses filtros. Limpar filtros');
@@ -603,7 +625,7 @@ test.describe('Recursos: a busca pela matrícula, as categorias e os grupos reco
     await expect(categorias).toHaveText('Todas as categorias');
     await expect(page.locator('#frota li.frota-item')).toHaveCount(26);
     await expect.poll(horarios).toEqual(['C152', 'C172', 'sim', 'PA-34', 'ground']);
-    await expect(contagem).toHaveText('26 recursos');
+    await expect(contagem).toHaveText('27 recursos');
   });
 
   // "Categoria ▾" é o filtro de vários valores dos outros cadastros: o painel com a regra ("alguma") e a dica, o foco que
@@ -626,12 +648,12 @@ test.describe('Recursos: a busca pela matrícula, as categorias e os grupos reco
     const pa34 = painel.locator('input[data-valor="PA-34"]');
     await pa34.focus();
     await page.keyboard.press('Space');
-    await expect(contagem).toHaveText('3 de 26 recursos');
+    await expect(contagem).toHaveText('3 de 27 recursos');
     await expect(pa34).toBeFocused();
     await expect(painel).toBeVisible();
     // O "Limpar" do painel: todas de novo
     await painel.locator('#flt-rec-cat-limpar').click();
-    await expect(contagem).toHaveText('26 recursos');
+    await expect(contagem).toHaveText('27 recursos');
     await expect(botao).toHaveText('Todas as categorias');
     // O clique fora fecha o painel
     await page.locator('#s-rec h2').click();
@@ -694,13 +716,13 @@ test.describe('Recursos: a busca pela matrícula, as categorias e os grupos reco
     await page.locator('#form-recurso [type="submit"]').click();
     await expect(page.locator('#frota .grupo h5')).toHaveText([/^C152/, /^PA-34/]);
     await expect.poll(() => page.locator('#frota li.frota-item').evaluateAll(lis => lis.map(li => li.dataset.r))).toEqual(['PR-NEW', 'PR-VOM', 'PT-JOB', 'PT-KIW']);
-    await expect(page.locator('#rec-contagem')).toHaveText('4 de 27 recursos');
+    await expect(page.locator('#rec-contagem')).toHaveText('4 de 28 recursos');
     await irParaVista(page, 'rec', 'dia');
     await expect(page.locator('#revisao tr[data-r="PR-NEW"]')).toBeVisible();
     // Os filtros mudam: ele segue os filtros
     await filtrarCategorias(page, ['sim', 'PA-34']);
     await expect(page.locator('#revisao tr[data-r="PR-NEW"]')).toHaveCount(0);
-    await expect(page.locator('#rec-contagem')).toHaveText('7 de 27 recursos');
+    await expect(page.locator('#rec-contagem')).toHaveText('7 de 28 recursos');
 
     // O editor dos horários aberto continua à vista quando os filtros o deixariam de fora; fechado, a categoria fica, com
     // o foco no "Editar" dela, até os filtros mudarem de novo

@@ -1,7 +1,7 @@
 // Recursos: a frota (acrescentar e retirar), a disponibilidade e as horas até a revisão de 50 horas, as janelas de
 // operação, o hangar, os horários de decolagem e os filtros (a busca pela matrícula e as categorias)
 import { gravarAlteracao, aindaNaoAbriu } from '../actions.js';
-import { categoriaDoTipo, nomeDoRecurso } from '../categorias.js';
+import { categoriaDoTipo, nomeDoRecurso, doNomeDaCategoria } from '../categorias.js';
 import { REVISAO_H, GROUND_REG } from '../config.js';
 import { $, showToast, fecharNoEsc } from '../dom.js';
 import { fmtH, lerHoras } from '../format.js';
@@ -16,7 +16,7 @@ import { registrarDesenho, redesenharPorNome } from '../redesenho.js';
 // "Horários fechados nesta data" (J): os eventos dela
 import './fechamentos.js';
 import { filtrarRecursos, limparFiltrosDosRecursos, manterRecursoAVista, criarFiltroDasCategorias } from '../views/filtros-dos-recursos.js';
-import { NOMES_DAS_CATEGORIAS, abrirEditorDosHorarios, fecharEditorDosHorarios, tirarDoRascunho, porNoRascunho, escolherModelo, rascunhoDosHorarios, editorDosHorariosAberto } from '../views/horarios.js';
+import { abrirEditorDosHorarios, fecharEditorDosHorarios, tirarDoRascunho, porNoRascunho, escolherModelo, rascunhoDosHorarios, editorDosHorariosAberto } from '../views/horarios.js';
 import { rRec, rRevisao, rHangar, alternarAtributos, aplicarFiltrosDosRecursos, alternarGrupoDaFrota } from '../views/recursos.js';
 import { mostrarVista, vistaDa } from '../views/vistas.js';
 
@@ -211,7 +211,7 @@ function salvarHorarios() {
   if (mesmaLista(anterior, lista)) { fecharEditorDosHorarios(); return; }
   if (!mesmaLista(anterior, base)) {
     fecharEditorDosHorarios();
-    showToast(`Os horários do ${NOMES_DAS_CATEGORIAS[cat]} mudaram depois que o editor abriu: nada foi salvo. Confira a lista e edite de novo.`);
+    showToast(`Os horários ${doNomeDaCategoria(cat)} mudaram depois que o editor abriu: nada foi salvo. Confira a lista e edite de novo.`);
     return;
   }
   S.horarios = { ...S.horarios, [cat]: lista };
@@ -223,7 +223,7 @@ function salvarHorarios() {
     if (p.p1 === antes.p1 && p.p2 === antes.p2 && p.jan === antes.jan) return;
     pedidos.push({ stuId: s.id, mid: p === s ? 0 : p.mid, p1: antes.p1, p2: antes.p2, ...(antes.jan === undefined ? {} : { jan: antes.jan }) });
   }));
-  gravarAlteracao('mod', `Horários de decolagem do ${NOMES_DAS_CATEGORIAS[cat]}: ${descreverHorarios(lista)}`,
+  gravarAlteracao('mod', `Horários de decolagem ${doNomeDaCategoria(cat)}: ${descreverHorarios(lista)}`,
     { kind: 'restaurarHorarios', cat, lista: anterior, pedidos, label: '↶ Reverter' });
   rRec(); redesenharPorNome('pedidos-do-dia');
   fecharEditorDosHorarios();

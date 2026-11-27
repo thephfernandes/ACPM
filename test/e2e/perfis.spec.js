@@ -141,7 +141,7 @@ test.describe('Perfis de acesso', () => {
     await botao.click();
     await busca.fill('vob');
     await expect(page.locator('#revisao tr[data-r]')).toHaveCount(1);
-    await expect(page.locator('#rec-contagem')).toHaveText('1 de 26 recursos');
+    await expect(page.locator('#rec-contagem')).toHaveText('1 de 27 recursos');
     await busca.fill('');
     await filtrarCategorias(page, ['PA-34']);
     await expect(botao).toHaveText('Categoria: PA-34');
@@ -154,7 +154,7 @@ test.describe('Perfis de acesso', () => {
     await expect(pa34).not.toBeChecked();
     await expect(botao).toHaveText('Todas as categorias');
     await expect(page.locator('#frota li.frota-item')).toHaveCount(26);
-    await expect(page.locator('#rec-contagem')).toHaveText('26 recursos');
+    await expect(page.locator('#rec-contagem')).toHaveText('27 recursos');
   });
 
   // O link não leva a escala no endereço (nomes, pesos e horas). Sem o servidor, a escala fica só neste navegador;

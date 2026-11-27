@@ -6,6 +6,7 @@
 // (js/views/recursos.js, js/views/horarios.js). O recurso acrescentado agora e a categoria dos horários editados agora
 // continuam à vista mesmo fora dos filtros, até eles mudarem: é ali que está quem acabou de mexer (e o foco do teclado)
 import { CATEGORIAS, categoriaDoTipo } from '../categorias.js';
+import { GROUND_REG, GROUND_EQ_TYPE } from '../config.js';
 import { chaveDeBusca } from '../format.js';
 import { S } from '../state.js';
 import { criarFiltroMultiplo } from './filtro-multiplo.js';
@@ -25,10 +26,13 @@ export const filtrandoRecursos = () => Boolean(buscada()) || filtros.categorias.
 // O recurso aparece na tabela e na frota: passa nos filtros, ou acabou de ser acrescentado
 export const recursoAVista = f => mantidos.recursos.has(f.reg) || (categoriaPassa(categoriaDoTipo(f.tipo)) && matriculaPassa(f.reg));
 
-// Os horários de decolagem de uma categoria aparecem: a categoria passa e, com a busca, algum recurso dela foi achado; ou
-// eles acabaram de ser editados
+// A Sala Ground: fora da frota, mas um recurso da aba (a linha dela na tabela desta data, os horários dela, a contagem)
+export const SALA_GROUND = Object.freeze({ reg: GROUND_REG, tipo: GROUND_EQ_TYPE });
+
+// Os horários de decolagem de uma categoria aparecem: a categoria passa e, com a busca, algum recurso dela foi achado (a
+// Sala Ground também); ou eles acabaram de ser editados
 export const horariosAVista = cat => mantidos.horarios.has(cat)
-  || (categoriaPassa(cat) && (!buscada() || (S.frota || []).some(f => categoriaDoTipo(f.tipo) === cat && matriculaPassa(f.reg))));
+  || (categoriaPassa(cat) && (!buscada() || [...(S.frota || []), SALA_GROUND].some(f => categoriaDoTipo(f.tipo) === cat && matriculaPassa(f.reg))));
 
 // Um filtro mudou ({ matricula } ou { categorias }): vale para todos, também o que acabou de ser acrescentado ou editado
 export function filtrarRecursos(mudanca) {

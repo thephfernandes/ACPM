@@ -42,7 +42,7 @@ test.describe('Ordem no hangar', () => {
     await filtrarCategorias(page, ['PA-34']);
     await page.locator('#flt-rec-mat').fill('vom');
     await expect(page.locator('#revisao tr[data-r]')).toHaveCount(1);
-    await expect(page.locator('#rec-contagem')).toHaveText('1 de 26 recursos');
+    await expect(page.locator('#rec-contagem')).toHaveText('1 de 27 recursos');
     expect(await posicoes(page)).toEqual(antes);
     // O PR-VOM (PA-34) sobe um lugar: troca com o PR-VOY, um C172 que a tabela filtrada não mostra
     const i = antes.indexOf('PR-VOM');
