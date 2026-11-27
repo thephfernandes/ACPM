@@ -54,10 +54,10 @@ const juntar = lista => (lista.length < 2 ? lista.join('') : `${lista.slice(0, -
 const ddmm = iso => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
 const camposDoPedido = p => Object.fromEntries(CAMPOS_DO_PEDIDO.filter(c => p[c] !== undefined).map(c => [c, p[c]]));
 const rotuloDoVoo = o => (o.mid ? `${o.s} (${o.mis})` : o.s);
-// Onde o voo está: "no PR-VOB", ou "na sala de Ground"; os horários do tipo: "horários do C152", ou "horários das aulas de
-// Ground"
+// Onde o voo está: "no PR-VOB", ou "na sala de Ground"; os horários do tipo: "horários do C152", ou "horários da Sala
+// Ground" (a lista dela em "Horários de decolagem", J)
 const noRecurso = r => (r === GROUND_REG ? 'na sala de Ground' : `no ${nomeDoRecurso(r)}`);
-const nomeDosHorariosDoTipo = tipo => (tipo === GROUND_EQ_TYPE ? 'horários das aulas de Ground' : `horários do ${tipo}`);
+const nomeDosHorariosDoTipo = tipo => (tipo === GROUND_EQ_TYPE ? 'horários da Sala Ground' : `horários do ${tipo}`);
 
 // A data aberta nos textos do diálogo, pelo nome certo: hoje, amanhã (a data que o operador costuma montar) ou a data
 // ("12/11"; em outro ano, com o ano). Três formas: depois de "de" ("Na demanda de amanhã"), depois de um verbo ("voa

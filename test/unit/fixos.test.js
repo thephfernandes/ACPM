@@ -713,7 +713,7 @@ describe('Voos agendados no motor', () => {
       [{}, agendado(420, 480, 'PR-VOB', 1), 'Agendado às 07:00, fora dos horários de decolagem do C152.'],
       [{ mis: 'Noturno', eq: 'C172', nb: 4, p1: 1050 }, agendado(1020, 1260, 'PR-HAR', 1), 'Agendado às 17:00: o Noturno sai às 17:30.'],
       [{ mis: 'Voo Solo' }, agendado(500, 560, 'PR-VOB', 1), 'Agendado às 08:20: o Voo Solo sai às 06:30.'],
-      [GROUND_C152, agendado(420, 510, 'SALA-GROUND', 1), 'Agendado às 07:00, fora dos horários das aulas de Ground.'],
+      [GROUND_C152, agendado(420, 510, 'SALA-GROUND', 1), 'Agendado às 07:00, fora dos horários de decolagem da Sala Ground.'],
       [{ mis: 'Simulador', eq: 'Sim. Mono' }, agendado(420, 480, 'SIM-MONO-A', 1), 'Agendado às 07:00, fora dos horários de decolagem do Sim. Mono.']
     ];
     for (const [pedido, pinoAgendado, m] of casos) {

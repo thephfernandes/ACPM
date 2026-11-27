@@ -241,7 +241,7 @@ function linhaDoFixo(state, ctx, item, pino, fKey = chaveDoVoo(item.stuId, item.
       // Os horários de decolagem da missão (o Ground, os da Sala Ground; o Noturno, às 17:30; o Voo Solo, às 06:30)
       const lista = ground ? horariosDoTipo(horarios, GROUND_EQ_TYPE) : horariosDaMissao(horarios, d.mis, d.eq);
       if (!lista.includes(a)) {
-        avisar('fora-dos-horarios', ground ? `Agendado às ${hm(a)}, fora dos horários das aulas de Ground.`
+        avisar('fora-dos-horarios', ground ? `Agendado às ${hm(a)}, fora dos horários de decolagem da Sala Ground.`
           : d.mis === 'Noturno' || d.mis === 'Voo Solo' ? `Agendado às ${hm(a)}: o ${d.mis} sai às ${hm(lista[0])}.`
             : `Agendado às ${hm(a)}, fora dos horários de decolagem do ${d.eq}.`);
       }
