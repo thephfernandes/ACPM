@@ -437,7 +437,7 @@
         <button type="button" aria-pressed="false" data-tl="painel"><svg class="ico"><use href="#i-painel"/></svg>Painel</button>
       </div>
       <button type="button" class="btn sec" id="btn-eixo" aria-pressed="false" title="As horas nas colunas e um recurso (ou instrutor) por linha do mapa; outro clique volta aos recursos nas colunas">Inverter eixo X:Y</button>
-      <button type="button" class="btn sec" id="btn-indisponiveis" aria-pressed="false" title="Esconder do mapa os recursos indisponíveis nesta data (em manutenção); o que ainda tem voo continua no mapa">Ocultar indisponíveis</button>
+      <button type="button" class="btn sec" id="btn-indisponiveis" aria-pressed="false" title="Esconder do mapa os recursos indisponíveis nesta data (em manutenção, ou a Sala Ground desligada); o que ainda tem voo continua no mapa">Ocultar indisponíveis</button>
       <button type="button" class="btn edit-only" id="btn-agendar" data-act="agendar" data-agendar="dia" aria-haspopup="dialog">+ Agendar voo</button>
       <span class="cresce"></span>
       <label class="flt-rotulo"><span>Categoria</span> <select id="flt-esc-cat" class="flt-ctrl"></select></label>
@@ -542,7 +542,7 @@
         e com a demanda vazia:
         a agenda é o centro dos agendamentos, e <i>Importar da agenda</i> monta a demanda do dia.
         As horas dos aviões e as filas do rodízio já chegam atualizadas com os voos da data anterior.</li>
-        <li><b>Recursos:</b> em <i>Disponibilidade do dia</i>, desligue os aviões e simuladores indisponíveis (em manutenção) e, em <i>Horários fechados nesta data</i>, feche os horários em que a escola não vai operar.
+        <li><b>Recursos:</b> em <i>Disponibilidade do dia</i>, desligue os aviões e simuladores indisponíveis (em manutenção) e a Sala Ground, quando ela não puder ser usada, e, em <i>Horários fechados nesta data</i>, feche os horários em que a escola não vai operar.
         Confira as horas de cada avião desde a última revisão de 50 horas.</li>
         <li><b>Instrutores:</b> em <i>Disponibilidade do dia</i>, desligue em <i>Vem</i> quem não vem na data e confira as janelas de cada um.</li>
         <li><b>Demanda:</b> clique em <i>Importar pedidos da agenda</i> (o botão diz quantos pedidos da secretaria ainda não estão na demanda) e ajuste o que precisar: missão, recurso, horários preferidos<span data-funcionalidade="prioridade">, duração e prioridade</span><span data-sem-funcionalidade="prioridade"> e duração</span>.
@@ -688,7 +688,7 @@
         <li><b>Por recurso</b> e <b>Por instrutor:</b> o mapa do dia, com a ocupação de cada um, e também os livres: todos os recursos (o avião em manutenção fica riscado) e os instrutores disponíveis no dia.
         Um clique num voo abre o voo para editar (veja <i>Editar um voo</i>, abaixo); Esc ou <i>Cancelar</i> fecham sem mudar nada.
         O mapa abre com os recursos (ou os instrutores) nas colunas e as horas descendo nas linhas; <b>Inverter eixo X:Y</b> põe as horas nas colunas e um recurso (ou instrutor) por linha, e outro clique volta (ao recarregar a página, o mapa abre de novo com os recursos nas colunas).
-        Em Por recurso, <b>Ocultar indisponíveis</b> tira do mapa os recursos desligados na data (em manutenção); o que ainda tem voo continua, e outro clique mostra todos.</li>
+        Em Por recurso, <b>Ocultar indisponíveis</b> tira do mapa os recursos desligados na data (o avião em manutenção, a Sala Ground indisponível); o que ainda tem voo continua, e outro clique mostra todos.</li>
         <li><b>Lista:</b> uma linha por voo, agrupados pelo horário de início (o das 17:30 é o do noturno).
         A turma de Ground ocupa uma linha só, com os alunos logo abaixo.
         A preferência aparece só quando o voo não ficou na 1ª (“2ª preferência” ou “horário livre”), e o peso fica em destaque quando chega perto do limite do avião.</li>
@@ -825,13 +825,13 @@
       <p>Duas vistas, com a busca e as categorias valendo nas duas.
       Recursos abre na <i>Disponibilidade do dia</i>, e a vista escolhida fica até a página ser recarregada:</p>
       <ul>
-        <li><b>Disponibilidade do dia</b> (nesta data: vale para a data aberta no topo, e a data seguinte começa com ela): os horários fechados nesta data<span data-funcionalidade="hangar">, a tabela dos aviões</span><span data-sem-funcionalidade="hangar"> e a tabela dos aviões</span> e simuladores (disponível ou em manutenção, as horas até a revisão de 50 horas e quanto cada um voa na escala do dia)<span data-funcionalidade="hangar"> e, ao lado dela (embaixo, nas telas menores), a ordem no hangar</span>.</li>
+        <li><b>Disponibilidade do dia</b> (nesta data: vale para a data aberta no topo, e a data seguinte começa com ela): os horários fechados nesta data<span data-funcionalidade="hangar">, a tabela dos aviões</span><span data-sem-funcionalidade="hangar"> e a tabela dos aviões</span> e simuladores (disponível ou em manutenção, as horas até a revisão de 50 horas e quanto cada um voa na escala do dia), com a Sala Ground por último (disponível ou indisponível)<span data-funcionalidade="hangar"> e, ao lado dela (embaixo, nas telas menores), a ordem no hangar</span>.</li>
         <li><b>Cadastro</b> (vale para todas as datas: mudar ali muda também as datas já abertas): a frota, com os atributos e o <i>Retirar</i>, e os horários de decolagem.
         <i>+ Novo recurso</i>, na barra da tela, abre o Cadastro com o formulário.</li>
       </ul>
       <p><i>Buscar matrícula</i> acha o recurso sem o hífen e sem diferença de maiúsculas (“vob” acha o PR-VOB), e <i>Categoria</i> abre as caixas das categorias (C152, C172, Simulador e PA-34) e mostra os recursos de alguma das marcadas (nenhuma marcada, todas); o botão diz quais estão marcadas, por exemplo <i>Categoria: C152 ou PA-34</i>.
       Os dois valem para a tabela, a frota e os horários de decolagem (os das categorias marcadas e, com a busca, os das categorias dos recursos achados)<span data-funcionalidade="hangar">, nunca para a ordem no hangar, que mostra sempre todos os aviões</span>.
-      Ao lado, o número diz quantos recursos aparecem (por exemplo, <i>3 de 26 recursos</i>); quando os filtros não deixam nenhum, <i>Limpar filtros</i> mostra todos de novo.
+      Ao lado, o número diz quantos recursos aparecem (por exemplo, <i>3 de 27 recursos</i>: a frota e a Sala Ground); quando os filtros não deixam nenhum, <i>Limpar filtros</i> mostra todos de novo.
       O recurso acrescentado agora e os horários editados agora continuam à vista mesmo fora dos filtros, até eles mudarem.</p>
       <p><b>Horários fechados nesta data:</b> <i>+ Fechar horários</i> fecha um intervalo da data (<i>De</i> e <i>Até</i>, de 10 em 10 minutos, ou <i>O dia todo</i>) para todos os recursos ou só para as categorias marcadas (a Sala Ground entre elas).
       Nenhum voo nem aula de Ground sai num horário fechado; a linha embaixo dos campos diz quantos horários de decolagem cada categoria perde, e eles aparecem riscados em <i>Horários de decolagem</i>.
@@ -845,6 +845,7 @@
       O histórico desfaz a lista e os pedidos juntos.
       O voo noturno sai sempre às 17:30, e a aula de Ground, nos horários da Sala Ground.</p>
       <p><b>Aviões e simuladores:</b> desligado quer dizer indisponível (em manutenção).
+      A <b>Sala Ground</b> também tem <i>Disponível</i> em cada data: desligada (<i>Indisponível</i>), nenhuma aula de Ground entra na escala, nem os voos que dependem dela; <i>+ Agendar voo</i> avisa e pede a confirmação, o mapa mostra a coluna dela como indisponível, a data ganha o aviso <i>A Sala Ground está indisponível nesta data</i> e as <i>Sugestões</i> dizem por quê. O histórico desfaz.
       Cada recurso tem atributos: na <b>Frota</b> (no Cadastro), um clique na matrícula abre as caixas dele, e eles valem para todas as datas: <i>Só Parafuso</i> (C152: só voa Parafuso, e o Parafuso no C152 só nele), <i>Só VFR</i> (C172 e PA-34 não homologados IFR, como o PR-CPL: nenhum voo IFR vai para ele, nem o noturno do PC) e <i>Habilitação própria</i> (o recurso exige do instrutor uma habilitação só dele, como o PR-VOM: marque-a nas habilitações de quem voa nele).
       O histórico desfaz.
       Para acrescentar um recurso à frota, use <i>+ Novo recurso</i> (na barra da tela, ele abre o Cadastro): a matrícula e a categoria (no C152, também “Só Parafuso”); o limite de peso e o controle das 50 horas vêm da categoria.

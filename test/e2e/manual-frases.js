@@ -25,7 +25,7 @@ const ANTIGAS = {
   // Cursos mostra um curso de cada vez (sem "todos")
   cursos: ['mostra um curso só ou todos'],
   // Recursos em duas vistas (não mais em duas partes), com as categorias marcadas na barra
-  recursos: ['A aba tem duas partes', 'Escolha uma categoria para ver só a frota dela', 'na Frota, em “Vale para todas as datas”',
+  recursos: ['3 de 26 recursos', 'A aba tem duas partes', 'Escolha uma categoria para ver só a frota dela', 'na Frota, em “Vale para todas as datas”',
     'Veja na aba Recursos se ele está ligado']
 };
 
@@ -59,9 +59,11 @@ const NOVAS = {
   // Recursos: as duas vistas, a busca pela matrícula, o filtro das categorias (a regra "alguma das marcadas") e o
   // cadastro da frota e os horários de decolagem
   recursos: ['Disponibilidade do dia', 'Novo recurso', 'Retirar', 'Horários de decolagem', 'de 30 em 30 minutos', 'divide as horas do dia',
-    'em Disponibilidade do dia, desligue', 'abre o Cadastro com o formulário', 'Buscar matrícula', '3 de 26 recursos',
+    'em Disponibilidade do dia, desligue', 'abre o Cadastro com o formulário', 'Buscar matrícula', '3 de 27 recursos',
     'os recursos de alguma das marcadas', 'Categoria: C152 ou PA-34', 'Filtro das categorias',
-    'cujo botão mostra o mesmo número', 'Veja em Recursos, na Disponibilidade do dia, se ele está ligado'],
+    'cujo botão mostra o mesmo número', 'Veja em Recursos, na Disponibilidade do dia, se ele está ligado',
+    // O "Disponível" da Sala Ground (J, S4; revisão do J)
+    'A Sala Ground também tem Disponível em cada data', 'A Sala Ground está indisponível nesta data', 'a Sala Ground indisponível'],
   // Cursos: um de cada vez, o índice das fases, as fases recolhidas e os alunos por fase
   cursos: ['um curso de cada vez', 'índice das fases', 'Recolher todas', 'Abrir todas']
 };
