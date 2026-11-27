@@ -4,15 +4,17 @@ import assert from 'node:assert/strict';
 import { LIMITES_DA_LEI } from '../../js/limites.js';
 import { ESQUEMA, FORMATO_DOS_CURSOS, migrarCadastro, migrarDia, precisaMigrar, antesDosCursosProprios, renomearSimulador } from '../../js/migracoes.js';
 import { FROTA_INICIAL } from '../../js/frota.js';
-import { HORARIOS_INICIAIS } from '../../js/horarios.js';
+import { HORARIOS_INICIAIS, INICIOS_DOS_TEMPOS as T, periodoDoMinuto } from '../../js/horarios.js';
+import { fechamentosDoWin, horarioAberto } from '../../js/fechamentos.js';
+import { CATEGORIAS } from '../../js/categorias.js';
 import { EQ } from '../../js/config.js';
 import { habilitacoesDoNivel } from '../../js/habilitacoes.js';
 
 describe('Migrações do formato dos dados', () => {
   // O único lugar que fixa o número: cada passo que muda o formato muda este número, o PASSOS de js/migracoes.js e o
   // README ("Formato dos dados"); os outros testes usam ESQUEMA
-  it('o formato dos dados gravados é o 27', () => {
-    assert.equal(ESQUEMA, 27);
+  it('o formato dos dados gravados é o 28', () => {
+    assert.equal(ESQUEMA, 28);
   });
 
   it('dia: renomeia os simuladores na disponibilidade e na escala, sem perder nada', () => {
@@ -253,9 +255,9 @@ describe('Formato 26', () => {
     assert.deepEqual(migrarCadastro({ esquema: 25, nid: 1000, ins: [], stu: [] }), { esquema: ESQUEMA, nid: 1000, ins: [], stu: [] });
   });
 
-  it('o dia não muda', () => {
+  it('o dia não muda (o 28, depois, dá os fechamentos do win)', () => {
     const dia = { esquema: 25, win: [true], av: { 'PR-VOM': true } };
-    assert.deepEqual(migrarDia(dia), { ...dia, esquema: ESQUEMA });
+    assert.deepEqual(migrarDia(dia), { ...dia, fechamentos: [{ de: T[1], ate: 1440 }], esquema: ESQUEMA });
   });
 });
 
@@ -272,12 +274,116 @@ describe('Formato 27', () => {
       ],
       frota: [{ reg: 'PR-VOM', tipo: 'PA-34', exige: ['aviao:PR-VOM'] }]
     };
-    assert.deepEqual(migrarCadastro(structuredClone(cadastro)), { ...cadastro, esquema: 27 });
+    assert.deepEqual(migrarCadastro(structuredClone(cadastro)), { ...cadastro, esquema: ESQUEMA });
     assert.ok(!habilitacoesDoNivel(9).includes('endosso_solo') && !habilitacoesDoNivel(9).includes('navegacao_150'));
   });
 
-  it('o dia não muda', () => {
+  it('o dia não muda (o 28, depois, dá os fechamentos do win; o pedido sem período fica com o limiteConfirmado)', () => {
     const dia = { esquema: 26, win: [true], pedidos: [{ id: 1000, fly: true, mis: 'Voo Local', limiteConfirmado: true }] };
-    assert.deepEqual(migrarDia(structuredClone(dia)), { ...dia, esquema: 27 });
+    assert.deepEqual(migrarDia(structuredClone(dia)), { ...dia, fechamentos: [{ de: T[1], ate: 1440 }], esquema: ESQUEMA });
+  });
+});
+
+// Formato 28 (J, N11, N12, N13): os horários fechados da data (fechamentos) no lugar das nove janelas (win, que fica, sem
+// ser lido onde há fechamentos); os pedidos sem período do dia e com as preferências em minutos. O cadastro não muda (a
+// lista da Sala Ground, horarios.ground, ausente fica ausente; o número protege a dela e o "Disponível" da sala no av, que
+// a aba do 27 tiraria ao gravar)
+describe('Formato 28', () => {
+  const no27 = (dia = {}) => ({ esquema: 27, ...dia });
+  const winDoPadrao = p => Array.from({ length: 9 }, (_, i) => Boolean(p & (1 << i)));
+
+  it('cada um dos 512 padrões das janelas vira fechamentos que fecham os mesmos minutos que o motor lia; o win fica', () => {
+    let diferencas = 0;
+    for (let p = 0; p < 512; p++) {
+      const win = winDoPadrao(p);
+      const novo = migrarDia(no27({ win }));
+      assert.deepEqual(novo.win, win);
+      assert.deepEqual(novo.fechamentos, fechamentosDoWin(win));
+      for (const { id } of CATEGORIAS) {
+        for (let m = 0; m < 1440; m += 10) if (horarioAberto(novo.fechamentos, m, id) !== win[periodoDoMinuto(m)]) diferencas++;
+      }
+    }
+    assert.equal(diferencas, 0);
+  });
+
+  it('cada sequência de janelas fechadas é um intervalo: a 0 desde a meia-noite, a 8 até 24:00; o dia todo aberto, nenhum', () => {
+    const fechadas = (...indices) => Array.from({ length: 9 }, (_, i) => !indices.includes(i));
+    assert.deepEqual(migrarDia(no27({ win: Array(9).fill(true) })).fechamentos, []);
+    assert.deepEqual(migrarDia(no27({ win: fechadas(4, 5, 6, 7, 8) })).fechamentos, [{ de: T[4], ate: 1440 }]);
+    assert.deepEqual(migrarDia(no27({ win: fechadas(0, 1, 3) })).fechamentos, [{ de: 0, ate: T[2] }, { de: T[3], ate: T[4] }]);
+    assert.deepEqual(migrarDia(no27({ win: Array(9).fill(false) })).fechamentos, [{ de: 0, ate: 1440 }]);
+  });
+
+  it('o win fora do padrão, como o motor o lê (o que não é true fecha): 8 posições, null na 4, 0 na 2', () => {
+    const aberto = Array(9).fill(true);
+    assert.deepEqual(migrarDia(no27({ win: aberto.slice(0, 8) })).fechamentos, [{ de: T[8], ate: 1440 }]);
+    assert.deepEqual(migrarDia(no27({ win: aberto.map((v, i) => (i === 4 ? null : v)) })).fechamentos, [{ de: T[4], ate: T[5] }]);
+    assert.deepEqual(migrarDia(no27({ win: aberto.map((v, i) => (i === 2 ? 0 : v)) })).fechamentos, [{ de: T[2], ate: T[3] }]);
+  });
+
+  it('o dia sem win fica sem fechamentos; o que já tem fechamentos fica com eles; o win que não é lista não vira nada', () => {
+    assert.deepEqual(migrarDia(no27({ av: { 'PR-VOB': true } })), { av: { 'PR-VOB': true }, esquema: ESQUEMA });
+    assert.deepEqual(migrarDia(no27({ win: 'x' })), { win: 'x', esquema: ESQUEMA });
+    const proprios = [{ de: 760, ate: 1050, categorias: ['C152'] }];
+    const comEles = migrarDia(no27({ win: Array(9).fill(false), fechamentos: proprios }));
+    assert.deepEqual(comEles.fechamentos, proprios);
+    assert.deepEqual(migrarDia(no27({ fechamentos: [] })), { fechamentos: [], esquema: ESQUEMA });
+  });
+
+  it('rodar duas vezes dá o mesmo', () => {
+    const dia = no27({
+      win: [true, false, false, true, true, true, true, false, true],
+      pedidos: { 1000: { fly: true, mis: 'Voo Local', jan: 'manha', limiteConfirmado: true, p1: 1, p2: 5, extra: [{ mid: 1, mis: 'Ground C152', jan: 'h2', p1: 0, p2: -1 }] } }
+    });
+    const uma = migrarDia(structuredClone(dia));
+    assert.deepEqual(migrarDia({ ...structuredClone(uma), esquema: 27 }), uma);
+    assert.deepEqual(migrarDia(structuredClone(uma)), uma);
+  });
+
+  it('o pedido: o período (manha, tarde, noite) sai, e o limiteConfirmado com ele; o hN e as preferências de 0 a 8 viram o horário; o resto fica', () => {
+    const dia = no27({
+      pedidos: {
+        1000: { fly: true, mis: 'Voo Local', jan: 'manha', limiteConfirmado: true, p1: 1, p2: 5, outro: 'x' },
+        1001: { fly: true, mis: 'IFR', jan: 'tarde', p1: 760, p2: -1 },
+        1002: { fly: false, mis: 'Noturno', jan: 'noite' },
+        1003: { fly: true, mis: 'Voo Local', jan: 'h3', p1: 0, p2: 8 },
+        1004: { fly: true, mis: 'Voo Local', jan: 'h750|h820' },
+        1005: { fly: true, mis: 'Voo Local', jan: 'h760', limiteConfirmado: true, p1: 760, p2: 870 },
+        1006: { fly: true, mis: 'Voo Local', jan: 'h8', limiteConfirmado: true },
+        1007: { fly: true, mis: 'Voo Local', jan: 'qualquer coisa', p1: 9 },
+        1008: { fly: true, mis: 'Voo Local', limiteConfirmado: true },
+        1009: null,
+        1010: { fly: true, mis: 'Navegação', jan: 'tarde', extra: [{ mid: 1, mis: 'Ground C152', jan: 'noite', limiteConfirmado: true, p1: 4 }, { mid: 2, mis: 'Voo Local', jan: 'h1', p2: 2 }, 'texto'] }
+      }
+    });
+    const { pedidos } = migrarDia(structuredClone(dia));
+    assert.deepEqual(pedidos, {
+      1000: { fly: true, mis: 'Voo Local', p1: T[1], p2: T[5], outro: 'x' },
+      1001: { fly: true, mis: 'IFR', p1: 760, p2: -1 },
+      1002: { fly: false, mis: 'Noturno' },
+      1003: { fly: true, mis: 'Voo Local', jan: `h${T[3]}`, p1: T[0], p2: T[8] },
+      1004: { fly: true, mis: 'Voo Local', jan: 'h750|h820' },
+      1005: { fly: true, mis: 'Voo Local', jan: 'h760', limiteConfirmado: true, p1: 760, p2: 870 },
+      1006: { fly: true, mis: 'Voo Local', jan: `h${T[8]}`, limiteConfirmado: true },
+      1007: { fly: true, mis: 'Voo Local', jan: 'qualquer coisa', p1: 9 },
+      1008: { fly: true, mis: 'Voo Local', limiteConfirmado: true },
+      1009: null,
+      1010: { fly: true, mis: 'Navegação', extra: [{ mid: 1, mis: 'Ground C152', p1: T[4] }, { mid: 2, mis: 'Voo Local', jan: `h${T[1]}`, p2: T[2] }, 'texto'] }
+    });
+  });
+
+  it('os pedidos guardados numa lista continuam numa lista', () => {
+    const dia = no27({ pedidos: [{ id: 1000, fly: true, mis: 'Voo Local', jan: 'manha', limiteConfirmado: true }, { id: 1001, fly: true, mis: 'Voo Local', jan: 'h760', limiteConfirmado: true }] });
+    assert.deepEqual(migrarDia(dia).pedidos, [{ id: 1000, fly: true, mis: 'Voo Local' }, { id: 1001, fly: true, mis: 'Voo Local', jan: 'h760', limiteConfirmado: true }]);
+  });
+
+  it('o av (com o "Disponível" da Sala Ground ou sem ele) e o resto do dia não mudam; o cadastro também não', () => {
+    const dia = no27({ av: { 'PR-VOB': false, 'SALA-GROUND': false }, fixos: { '1000_0_1': { a: 390, b: 450, r: 'PR-VOB', insId: 1 } }, campoDeOutraVersao: { x: 1 } });
+    assert.deepEqual(migrarDia(structuredClone(dia)), { ...dia, esquema: ESQUEMA });
+    assert.deepEqual(migrarDia(no27({ av: { 'PR-VOB': true } })).av, { 'PR-VOB': true }, 'nenhuma chave da sala é escrita');
+    const semGround = { esquema: 27, nid: 1000, ins: [], stu: [], horarios: { C152: [390, 500] } };
+    assert.deepEqual(migrarCadastro(structuredClone(semGround)), { ...semGround, esquema: ESQUEMA }, 'horarios.ground ausente fica ausente');
+    const comGround = { ...semGround, horarios: { ...semGround.horarios, ground: [420, 610] } };
+    assert.deepEqual(migrarCadastro(structuredClone(comGround)), { ...comGround, esquema: ESQUEMA });
   });
 });
