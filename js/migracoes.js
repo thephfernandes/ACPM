@@ -5,12 +5,13 @@
 // Sem o campo "esquema": versão 4 (o primeiro formato por data).
 import { habilitacoesDoNivel, marcasDoChecadorAntigo, habilitacaoDoAviao } from './habilitacoes.js';
 import { FROTA_INICIAL } from './frota.js';
-import { HORARIOS_INICIAIS, minutoDaPreferencia, ajustarPreferencias } from './horarios.js';
+import { HORARIOS_INICIAIS, INICIOS_DOS_TEMPOS, minutoDaPreferencia, ajustarPreferencias } from './horarios.js';
+import { fechamentosDoWin } from './fechamentos.js';
 import { disponibilidadeAtual } from './rules.js';
 import { LIMITES_DA_LEI } from './limites.js';
 import { cursosVazios } from './cursos.js';
 
-export const ESQUEMA = 27;
+export const ESQUEMA = 28;
 // O formato dos cursos: o formato do cadastro a partir do qual os programas vivem nas tabelas próprias (antes dele, vale
 // o programa guardado no cadastro, que a conversão única traz para as tabelas). O 22 é o do instrutor escolhido e o 23,
 // o dos atributos da frota; um aumento é esta linha mais public.formato_dos_cursos() (a migração dos cursos), com o
@@ -31,6 +32,27 @@ function pedidoEmMinutos(pedido) {
   // Na versão 12 o PA-34 sai de 30 em 30 minutos: a preferência vai para o horário mais próximo da lista nova
   if (novo.eq === 'PA-34') ajustarPreferencias(novo, HORARIOS_INICIAIS['PA-34']);
   if (Array.isArray(pedido.extra)) novo.extra = pedido.extra.map(pedidoEmMinutos);
+  return novo;
+}
+
+// Formato 28: o pedido sem período do dia (N13) e com as preferências em minutos. O "manha", o "tarde" e o "noite" saem,
+// e com eles a confirmação do 7º voo local (limiteConfirmado), que só vale no horário exato; o "hN" e as preferências
+// com o número de uma das nove janelas de antes (0 a 8) viram o horário dela; um jan que o passo não conhece fica como
+// está (os leitores o tratam como sem horário)
+const PERIODOS_DE_ANTES = ['manha', 'tarde', 'noite'];
+const daJanela = n => Number.isInteger(n) && n >= 0 && n < INICIOS_DOS_TEMPOS.length;
+function pedidoSemPeriodo(pedido) {
+  if (!pedido || typeof pedido !== 'object' || Array.isArray(pedido)) return pedido;
+  const novo = { ...pedido };
+  for (const campo of ['p1', 'p2']) if (daJanela(pedido[campo])) novo[campo] = minutoDaPreferencia(pedido[campo]);
+  if (PERIODOS_DE_ANTES.includes(pedido.jan)) {
+    delete novo.jan;
+    delete novo.limiteConfirmado;
+  } else if (typeof pedido.jan === 'string') {
+    const janela = /^h(\d{1,2})$/.exec(pedido.jan);
+    if (janela && daJanela(+janela[1])) novo.jan = `h${minutoDaPreferencia(+janela[1])}`;
+  }
+  if (Array.isArray(pedido.extra)) novo.extra = pedido.extra.map(pedidoSemPeriodo);
   return novo;
 }
 
@@ -229,6 +251,25 @@ const PASSOS = {
   27: {
     cadastro: cadastro => cadastro,
     dia: dia => dia
+  },
+  // Versão 28 (J): os horários fechados da data, fechamentos ({ de, ate, categorias? } em minutos; js/fechamentos.js), no
+  // lugar das nove janelas. O dia com win ganha os fechamentos que fecham os mesmos minutos que o motor lia (!win[i]:
+  // o que não é true fecha), mesmo vazios, para nenhum dia migrado depender da leitura do win; o win fica, sem ser lido
+  // onde há fechamentos. O dia sem win fica sem eles, e o que já os tem fica com os dele (rodar duas vezes dá o mesmo).
+  // Os pedidos (no mapa ou na lista em que estiverem, e as missões extras) ficam sem período do dia (pedidoSemPeriodo).
+  // O cadastro não muda: a lista da Sala Ground (horarios.ground) ausente fica ausente, e o av não ganha a chave da sala
+  // (ausente, a sala está disponível); o número protege as duas, que a aba do 27 tiraria ao gravar
+  28: {
+    cadastro: cadastro => cadastro,
+    dia: dia => {
+      const novo = { ...dia };
+      if (!Array.isArray(dia.fechamentos) && Array.isArray(dia.win)) novo.fechamentos = fechamentosDoWin(dia.win);
+      if (Array.isArray(dia.pedidos)) novo.pedidos = dia.pedidos.map(pedidoSemPeriodo);
+      else if (dia.pedidos && typeof dia.pedidos === 'object') {
+        novo.pedidos = Object.fromEntries(Object.entries(dia.pedidos).map(([id, pedido]) => [id, pedidoSemPeriodo(pedido)]));
+      }
+      return novo;
+    }
   }
 };
 

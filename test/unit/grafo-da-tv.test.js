@@ -30,11 +30,12 @@ function grafo(inicio) {
 
 // Desde o F0b: js/agenda.js não leva mais a importação dos pedidos (js/processamento.js), e com ela js/fixos.js e
 // js/progresso.js saíram da TV. Desde o J: js/tempos.js (os nove inícios congelados, sem nenhum import) entra pelo
-// js/format.js e pelo js/horarios.js, que já eram da TV
+// js/format.js e pelo js/horarios.js, que já eram da TV; com o formato 28, js/fechamentos.js (puro: os horários fechados
+// da data e os do win de antes, que o passo 28 converte) entra pelo js/migracoes.js, e os imports dele já eram da TV
 const DA_TV = [
   'agenda.js', 'backends/local.js', 'backends/supabase.js', 'categorias.js', 'config-do-painel.js',
   'config-supabase.js', 'config.js', 'conflitos.js', 'cursos.js', 'dados-pessoais.js', 'escala-gravada.js',
-  'format.js', 'frota.js', 'habilitacoes.js', 'horarios.js', 'limites.js', 'meteorologia.js', 'migracoes.js',
+  'fechamentos.js', 'format.js', 'frota.js', 'habilitacoes.js', 'horarios.js', 'limites.js', 'meteorologia.js', 'migracoes.js',
   'painel.js', 'perfis.js', 'programa.js', 'quadro.js', 'resultados.js', 'rules.js', 'sessao-da-tv.js', 'status.js',
   'tempos.js', 'views/meteorologia.js', 'views/painel-aeroporto.js', 'voo.js'
 ];

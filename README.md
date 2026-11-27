@@ -274,6 +274,20 @@ horário no pedido (`pedidos[].limiteConfirmado`, só `true`, vinda do pedido da
 assim"): com ela, o motor deixa esse voo passar do limite no minuto exato do pedido, sem tomar a vaga dos outros seis. Só
 o app muda: o primeiro acesso de um Operador ou Administrador regrava os dias e o cadastro no 27.
 
+No formato 28 (o J da linha de produção), as nove janelas de operação deixam de existir. O dia guarda os horários
+fechados da data, `fechamentos`: uma lista de `{ de, ate, categorias? }` em minutos, `[de, ate)`, com
+`0 ≤ de < ate ≤ 1440`, `categorias` as ids de `js/categorias.js` (ausente: todos os recursos; nunca uma matrícula),
+ordenada, juntada e com no máximo 12 (`normalizarFechamentos`, `js/fechamentos.js`). O passo dá a cada dia com `win` os
+fechamentos que fecham os mesmos minutos que o motor lia (cada sequência de janelas fechadas vira um intervalo; a primeira
+desde a meia-noite, a última até 24:00; o que não é `true` fecha, como no motor; nenhum no dia todo aberto, mas a lista
+vazia entra), conferido nos 512 padrões; o `win` fica, sem ser lido onde há `fechamentos`, e o dia que já os tem fica com
+os dele. Os pedidos do dia ficam sem período: o `jan` `manha`, `tarde` ou `noite` sai, e com ele o `limiteConfirmado`
+(que só vale no horário exato); o `hN` e as preferências `p1`, `p2` com o número de uma das nove janelas (0 a 8) viram o
+horário dela; um `jan` que o passo não conhece fica como está. O cadastro não muda, mas pode guardar a lista da Sala
+Ground (`horarios.ground`; ausente, os oito horários padrão), e o dia, o "Disponível" dela (`av['SALA-GROUND']`, um
+booleano; ausente, disponível): a aba do formato 27 tiraria os dois ao gravar. Só o app muda: o primeiro acesso de um
+Operador ou Administrador regrava os dias e o cadastro no 28.
+
 ## Estrutura
 
 | Caminho | Conteúdo |
@@ -281,7 +295,9 @@ o app muda: o primeiro acesso de um Operador ou Administrador regrava os dias e 
 | `index.html` | A marcação do app: o topo (com o botão da data, `#btn-data`), a linha de produção (`nav#linha`: os quatro cartões das etapas, os cadastros, o Rodízio e o BI), o trilho (`aside#trilho`: o calendário da data aberta e os avisos dela) e as onze telas (`main#conteudo > section.tela`), dentro de `div.casca`, com os avisos do app acima |
 | `painel.html`, `js/painel.js` | TV da recepção: o painel de hoje na tela toda, no quadro, com as colunas e as listas da configuração do painel (com o servidor, a que `painel_do_dia` entrega; sem ela, o padrão), e a meteorologia no pé |
 | `css/*.css` | Os estilos, uma folha por dona, que `index.html` carrega nesta ordem (a da cascata): `base` (as cores e os temas claro e escuro, os títulos, os campos), `componentes` (botões, barras, tabelas, etiquetas, o filtro de vários valores, os avisos, as dicas), `painel` (o painel no estilo dos aeroportos e a meteorologia), `tv`, `casca` (a barra do topo, a moldura `.casca`, as telas, o login, a impressão), `linha` (a linha de produção: os cartões, os estados, aberta, recolhida e a faixa do celular), `trilho` (o calendário e os avisos da data, ao lado da tela ou no painel do botão da data), uma por tela (`escala`, `demanda`, `agenda`, `recursos`, `instrutores`, `alunos`, `cadastros`, `cursos`, `rodizio`, `bi`, `conta`, `manual`), `gavetas`, `dialogos` e `toque` (os alvos de 44 px dos componentes no celular, por último). A TV carrega `css/app.css`, que importa as cinco das duas páginas (`base`, `componentes`, `painel`, `tv`, `toque`). `test/unit/estilos.test.js` confere as listas; `node scripts/medir-estilos.mjs` mede o estilo de cada elemento das duas páginas em várias larguras, temas e telas (com `--comparar antes.json depois.json`, a diferença entre duas versões) |
-| `js/config.js` | Janelas, missões, limites de peso e a frota inicial |
+| `js/config.js` | Missões, limites de peso e a frota inicial |
+| `js/tempos.js`, `js/horarios.js` | Os nove inícios dos tempos de antes, congelados (`js/tempos.js`, sem imports; só o `w` das linhas, as chaves das turmas de Ground e a leitura dos dados antigos), e os horários de decolagem de cada categoria, a Sala Ground com elas (`HORARIOS_PADRAO`, `HORARIO_DO_NOTURNO`, `HORARIO_DO_SOLO`, o editor e o seu efeito nos pedidos) |
+| `js/fechamentos.js`, `js/views/fechamentos.js`, `js/eventos/fechamentos.js` | Os horários fechados da data (formato 28): o normalizador, os fechamentos das nove janelas de antes (`fechamentosDoWin`), `horarioAberto` por categoria e o rótulo; a lista "Horários fechados nesta data" de Recursos, com "+ Fechar horários" |
 | `js/frota.js` | A frota no cadastro (matrícula, tipo, os atributos "Só Parafuso", "Só VFR" e "Habilitação própria", o que o recurso exige do instrutor, `exige`, e o inativo): validação de um recurso novo, `comAtributo` (marcar e desmarcar um atributo; a habilitação própria também em `exige`) e as matrículas de cada tipo |
 | `js/categorias.js` | Categorias de recurso dos filtros (C152, C172, Simulador, PA-34 e Sala Ground) |
 | `js/inativos.js` | O inativo no cadastro (`inativo: true` em alunos, instrutores e recursos; ainda sem a chave na tela): vale na data aberta de hoje em diante. O motor, a simulação do agendamento e as listas da escala leem o estado derivado (`estadoParaEscalar`: o instrutor inativo não vem, o recurso inativo fica indisponível), nunca gravado, e só nele tiram o inativo (`inativoNoEstado`); as listas do cadastro ("Não escalar com", "Priorizar com", o formulário da Agenda, os alunos de um curso) ficam sem ele em qualquer data; as filas do rodízio e o hangar ficam com os ativos (`ativosNaData`); a Escala avisa dos voos de quem ficou inativo (`voosComInativos`), com "Refazer a escala"; o pedido do aluno inativo fica registrado, "Aluno inativo", fora dos pendentes e da importação |
@@ -327,7 +343,7 @@ o app muda: o primeiro acesso de um Operador ou Administrador regrava os dias e 
 | `js/state.js`, `js/actions.js` | Estado da aplicação e ações (perfil, data, histórico e a escala refeita a cada alteração; o perfil trocado redesenha pelo momento `perfil`); `gravarAlteracao` é o único jeito de os eventos mudarem os dados, e nada grava antes de os dados da data aberta serem lidos (`lerData` lê uma data de cada vez; `aindaNaoAbriu` recusa a mudança com o aviso). A alteração é gravada antes de a tela ser redesenhada: um desenho que falha não impede a gravação nem o histórico |
 | `js/redesenho.js` | O registro dos desenhos da tela: cada tela registra o dela no módulo de eventos (`registrarDesenho`, com o nome e os momentos `dados`, `consulta`, `releitura`, `escala`, `perfil`, `pedidos` e `data-aberta`; `sessao` fica reservado para a aprovação); quem muda os dados redesenha por momento (`redesenhar`) ou pelo nome (`redesenharPorNome`), sem importar a tela. `test/unit/desenhos-registrados.test.js` confere os nomes e os momentos |
 | `js/sem-falhar.js` | Faz sem deixar o erro parar quem chamou (vai para o console): o foco depois de redesenhar e cada desenho da tela |
-| `js/manual.js` | Tabelas do manual geradas das regras (missões, habilitações exigidas, janelas, pesos e rodízio) |
+| `js/manual.js` | Tabelas do manual geradas das regras (missões, habilitações exigidas, pesos e rodízio) |
 | `js/telas.js` | As telas, sem DOM (`TELAS`: o nome de cada uma, a etapa ou o grupo e quem a vê; `ESTAGIOS`, as quatro etapas da linha), a tela e a data da abertura de cada perfil (`telaDeAbertura`, `dataDeAbertura`), o endereço `#/<tela>[/<item>]` (`destinoDoEndereco`, `enderecoDoDestino`) e o trilho ao lado ou não, pela classe da largura da janela e pelo que a pessoa guardou (`classeDaLargura`, `trilhoFixo`, `lerPreferencias`) |
 | `js/calendario.js` | O calendário do trilho, sem DOM: as semanas de um mês, o dia de cada tecla, a única parada do Tab, o que cada dia diz ao leitor de tela e a linha da data aberta |
 | `js/endereco.js` | O endereço da página: a tela no histórico do navegador (`empilharTela`, `substituirTela`, com a rolagem de cada entrada), a data em `?data=` (fora do histórico: Voltar troca a tela, não a data) e o endereço sem a tela ao sair |
