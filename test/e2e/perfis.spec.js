@@ -134,7 +134,8 @@ test.describe('Perfis de acesso', () => {
     await expect(botao).toBeEnabled();
     await botao.click();
     await expect(painel).toBeVisible();
-    await expect(painel.locator('input[data-filtro]')).toHaveCount(4);
+    // As cinco categorias, a Sala Ground com elas (J, S4)
+    await expect(painel.locator('input[data-filtro]')).toHaveCount(5);
     await expect(painel.locator('input[data-filtro]:disabled')).toHaveCount(0);
     await expect(painel.locator('#flt-rec-cat-limpar')).toBeEnabled();
     await botao.click();

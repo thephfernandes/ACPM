@@ -9,6 +9,14 @@ import { filtrarCursos } from './alunos.js';
 export const linhaDoPedido = (page, id, mid = 0) => page.locator(`#dem tr[data-k="d"][data-id="${id}"][data-mid="${mid}"]`);
 // Um campo da linha de um pedido (data-f: 'mis', 'eq', 'nb', 'pr'…)
 export const campoDoPedido = (page, id, campo, { mid = 0 } = {}) => linhaDoPedido(page, id, mid).locator(`[data-f="${campo}"]`);
+// O horário guardado no pedido (o jan: 'h<minuto>', ou null sem horário), lido do dia aberto: a Demanda não tem mais a
+// coluna Disponibilidade (N13)
+export const horarioGuardado = (page, id, mid = 0) => page.evaluate(async ([id, mid]) => {
+  const { S } = await import('/js/state.js');
+  const s = S.stu.find(x => x.id === id);
+  const m = mid === 0 ? s : (s?.extra || []).find(x => x.mid === mid);
+  return m?.jan ?? null;
+}, [id, mid]);
 // O "Voa" de uma linha da Demanda (ou de um trecho dela)
 export const caixaVoa = linha => linha.locator('[data-f="fly"]');
 // Marca (sim) ou desmarca o "Voa" do pedido do aluno; sem mid, o de todas as linhas dele (que precisam ser uma só)

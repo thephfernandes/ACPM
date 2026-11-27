@@ -72,7 +72,7 @@ export const FRASES_DAS_FUNCIONALIDADES = {
   progresso: ['agrupados pela fase em que estão', 'Próxima: PP-07 · Usar', 'Outra missão…', 'próxima missão', 'progresso', 'Aprovado ou Reprovado',
     '12/40 · próxima PP-13', 'fora da ordem', 'com quantos alunos estão em cada uma',
     'o resultado do voo vai para o código do pedido'],
-  prioridade: ['duração e prioridade', 'de 1 a 5, e 1 é a mais alta', 'a disponibilidade, a prioridade ou o instrutor', 'por prioridade (1 primeiro)',
+  prioridade: ['duração e prioridade', 'de 1 a 5, e 1 é a mais alta', 'as preferências, a prioridade ou o instrutor', 'por prioridade (1 primeiro)',
     'a 1ª preferência pesa mais para quem tem mais prioridade', 'seguindo as prioridades', 'Como dar preferência a um aluno?',
     'aumente a prioridade dele (1 é a mais alta)']
 };
@@ -80,7 +80,7 @@ export const FRASES_DAS_FUNCIONALIDADES = {
 export const FRASES_SEM_AS_FUNCIONALIDADES = {
   hangar: ['sai o primeiro livre na ordem da frota', 'uma parada de 2 h ou mais pesa mais', 'os horários fechados nesta data e a tabela dos aviões'],
   progresso: ['o código da missão do curso que o pedido já tem', 'para o aluno de um curso, escolha a missão na lista', 'oferece esse voo', 'e um clique leva à fase'],
-  prioridade: ['disponibilidade e duração.', 'Depois os voos e simuladores: quem', 'seguindo a ordem dos pedidos']
+  prioridade: ['horários preferidos e duração.', 'Depois os voos e simuladores: quem', 'seguindo a ordem dos pedidos']
 };
 
 export const FRASES_QUE_SAIRAM = Object.values(ANTIGAS).flat();

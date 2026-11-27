@@ -114,10 +114,11 @@ test.describe('Sugestões para um conflito', () => {
   });
 
   test('fora da disponibilidade do pedido: dois cliques ("Confirmei com o aluno"); o voo e o pedido mudam; o histórico desfaz os dois', async ({ page }) => {
-    // O voo das 08:20, de quem só pode de manhã, fixo com o único instrutor, que agora só vem à tarde
+    // O voo das 08:20, de quem pediu as 08:20 (o horário exato: sem períodos do dia, N13), fixo com o único instrutor,
+    // que agora só vem à tarde
     const aw = Array(9).fill(true).map((_, w) => w >= 4);
     const estado = {
-      ...cenario({ ins: [instrutor(1, 9, { aw })], stu: [aluno(1000, { p1: 500, p2: -1, jan: 'manha' })] }),
+      ...cenario({ ins: [instrutor(1, 9, { aw })], stu: [aluno(1000, { p1: 500, p2: -1, jan: 'h500' })] }),
       fixos: { '1000_0_1': { a: 500, b: 560, r: 'PP-LJV', insId: 1 } }
     };
     await abrir(page, { estado });
@@ -143,7 +144,7 @@ test.describe('Sugestões para um conflito', () => {
     await page.locator('#audit-log-list [data-act="rev-log"]').first().click();
     await page.keyboard.press('Escape');
     await expect(page.locator('#out details.conflitos')).toHaveCount(1);
-    await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('acpm4_dia_2026-11-11')).pedidos[1000].jan)).toBe('manha');
+    await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('acpm4_dia_2026-11-11')).pedidos[1000].jan)).toBe('h500');
   });
 
   test('no Gestor, a caixa de conflitos aparece sem o botão Sugestões', async ({ page }) => {

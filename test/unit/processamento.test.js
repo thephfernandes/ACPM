@@ -326,7 +326,7 @@ describe('Importar as solicitações da agenda para a demanda', () => {
 // O inativo do cadastro (formato 26): o pedido do aluno inativo não entra nem conta como visto, de hoje em diante
 describe('Importar: o aluno inativo', () => {
   it('com semInativos, o pedido do aluno inativo fica de fora (fora de importadas) e é contado; sem, entra como antes', () => {
-    const pedidoDe = (id, aluno) => ({ id, data: '2026-11-11', aluno, aluno_nome: `Aluno ${aluno}`, missao: 'Voo Local', janela: 'horario', horario: '06:30', horario: null, cancelada_em: null });
+    const pedidoDe = (id, aluno) => ({ id, data: '2026-11-11', aluno, aluno_nome: `Aluno ${aluno}`, missao: 'Voo Local', janela: 'horario', horario: '06:30', cancelada_em: null });
     const estado = () => {
       const e = cenario({ ins: [instrutor(1, 9)], stu: [aluno(1000, { fly: false }), aluno(1001, { fly: false }, { inativo: true })] });
       e.importadas = [];

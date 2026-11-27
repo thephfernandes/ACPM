@@ -30,9 +30,9 @@ test.describe('A prioridade desligada (o padrão)', () => {
   test('a Demanda fica sem a coluna, e nenhum texto fala dela: as dicas, o glossário e o Manual', async ({ page }) => {
     await abrir(page, { estado: dia() });
     await irPara(page, 'dem');
-    await expect(page.locator('#s-dem thead th')).toHaveText(['Aluno', 'Voa', 'Missão', 'Recurso', 'Instrutor', '1ª preferência', '2ª preferência', 'Disponibilidade', 'Duração']);
+    await expect(page.locator('#s-dem thead th')).toHaveText(['Aluno', 'Voa', 'Missão', 'Recurso', 'Instrutor', '1ª preferência', '2ª preferência', 'Duração']);
     await expect(page.locator('#dem [data-f="pr"]')).toHaveCount(0);
-    await expect(linhaDoPedido(page, 1000).locator('td')).toHaveCount(9);
+    await expect(linhaDoPedido(page, 1000).locator('td')).toHaveCount(8);
     await expect(page.locator('[data-dica="prioridade"]')).toHaveCount(0);
     for (const aba of ['esc', 'dem', 'age', 'rec', 'ins', 'alu', 'cur', 'rod', 'bi']) await irPara(page, aba);
     await page.locator('#btn-manual').click();

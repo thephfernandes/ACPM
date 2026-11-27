@@ -1,6 +1,6 @@
 // A Agenda de Solicitações (modo local): a lista da data aberta, a "Data do pedido" e o prazo das 13:00, o registro com
 // "Registrado por", a exceção da coordenação e o cancelamento. O relógio dos testes está em 10/11/2026, 12:00 em São Paulo.
-import { test, comProgresso, expect, abrir, irPara, abrirEscala, lerEscala, caixaVoa, campoDaAgenda, contagemDoDia, dataAberta, diaAnterior, diaSeguinte, importarDaAgenda, mudarData, registrarPedido,
+import { test, comProgresso, expect, abrir, irPara, abrirEscala, lerEscala, caixaVoa, horarioGuardado, campoDaAgenda, contagemDoDia, dataAberta, diaAnterior, diaSeguinte, importarDaAgenda, mudarData, registrarPedido,
   escolherMissaoDoCurso, missaoDoCursoNaAgenda, appPronto, exportar, AMANHA } from './fixtures.js';
 import { readFileSync } from 'node:fs';
 import { documentosAtuais } from './supabase-falso.js';
@@ -302,7 +302,7 @@ test.describe('Agenda de Solicitações', () => {
     await importarDaAgenda(page);
     const linha = page.locator('#dem tr[data-k="d"][data-id="1000"][data-mid="0"]');
     await expect(linha.locator('[data-f="eq"]')).toHaveValue('PA-34');
-    await expect(linha.locator('[data-f="jan"]')).toHaveValue('h450');
+    await expect.poll(() => horarioGuardado(page, 1000)).toBe('h450');
     await abrirEscala(page);
     expect((await lerEscala(page)).linhas.find(l => l.includes('Aluno 1000'))).toMatch(/^07:30/);
   });
@@ -577,10 +577,10 @@ test.describe('Agenda de Solicitações', () => {
     await importarDaAgenda(page);
     const linha = id => page.locator(`#dem tr[data-k="d"][data-id="${id}"][data-mid="0"]`);
     await expect(caixaVoa(linha(1000))).toBeChecked();
-    await expect(linha(1000).locator('[data-f="jan"]')).toHaveValue('h500');
+    await expect.poll(() => horarioGuardado(page, 1000)).toBe('h500');
     await expect(linha(1000).locator('[data-f="nb"]')).toHaveValue('2.5');
     await expect(linha(1001).locator('[data-f="mis"]')).toHaveValue('IFR');
-    await expect(linha(1001).locator('[data-f="jan"]')).toHaveValue('h870');
+    await expect.poll(() => horarioGuardado(page, 1001)).toBe('h870');
     await expect(page.locator('#audit-log-list')).toContainText('Agenda: Aluno 1000 incluído (Voo Local · às 08:20 · 2,5 h)');
 
     await importarDaAgenda(page);
