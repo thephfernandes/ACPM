@@ -13,12 +13,11 @@ table.cadastro tr:hover input, table.cadastro input:focus { border-color: var(--
 table.cadastro input.falta { border-color: var(--wa); background: var(--wa-bg); }
 input.falta::placeholder { color: var(--wa); }
 @media (max-width: 640px) {
-  /* O cadastro no celular (Instrutores e Alunos): um cartão por pessoa, o mesmo nas duas abas. Cada parte vai para o lugar
-     dela pela classe da célula (e não pela posição: a coluna nova não tira as outras do lugar), com o nome da coluna
-     pequeno em cima (data-rotulo; a linha dos títulos some). O nome inteiro na primeira linha; o peso e o CANAC (quando
-     há) lado a lado; as habilitações, ou o curso, "Priorizar com" e "Não escalar com"; os botões no fim, à direita, e
-     "Editar habilitações", o primeiro deles no HTML (o Tab segue a ordem da tela), numa linha só dele, embaixo das
-     habilitações */
+  /* O cadastro de Instrutores no celular (Alunos é lista e detalhe: css/lista.css): um cartão por pessoa. Cada parte vai
+     para o lugar dela pela classe da célula (e não pela posição: a coluna nova não tira as outras do lugar), com o nome da
+     coluna pequeno em cima (data-rotulo; a linha dos títulos some). O nome inteiro na primeira linha; o peso e o CANAC
+     (quando há) lado a lado; as habilitações; os botões no fim, à direita, e "Editar habilitações", o primeiro deles no
+     HTML (o Tab segue a ordem da tela), numa linha só dele, embaixo das habilitações */
   table.cadastro { min-width: 0; }
   table.cadastro thead { display: none; }
   table.cadastro, table.cadastro tbody, table.cadastro td { display: block; }
@@ -26,7 +25,6 @@ input.falta::placeholder { color: var(--wa); }
     display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px 16px; align-items: end; padding: 10px 8px; border-top: 1px solid var(--ln);
     grid-template-areas: "nome nome" "peso canac" "habs habs" "acoes acoes";
   }
-  table.cadastro.alunos tr.cd { grid-template-areas: "nome nome" "peso canac" "curso curso" "voa-com voa-com" "nao-escalar nao-escalar" "acoes acoes"; }
   table.cadastro tr.cd:first-child { border-top: 0; }
   table.cadastro td { padding: 0; border: 0; }
   table.cadastro tr.cd > td[data-rotulo]::before { content: attr(data-rotulo); display: block; margin-bottom: 2px; font: 600 12.5px 'Barlow', sans-serif; color: var(--mu); }
@@ -35,17 +33,10 @@ input.falta::placeholder { color: var(--wa); }
   table.cadastro td.c-canac { grid-area: canac; min-width: 0; padding-bottom: 12px; color: var(--ink); }
   table.cadastro td.c-canac:empty { display: none; }
   table.cadastro td.c-habs { grid-area: habs; }
-  table.cadastro td.c-curso { grid-area: curso; min-width: 0; }
-  table.cadastro td.c-voa-com { grid-area: voa-com; min-width: 0; }
-  table.cadastro td.c-nao-escalar { grid-area: nao-escalar; min-width: 0; }
   table.cadastro td.acoes { grid-area: acoes; display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 8px; white-space: normal; }
   table.cadastro td.acoes [data-act="editar-habs"] { flex: 1 0 100%; justify-content: flex-start; }
   table.cadastro input.nm { min-width: 0; font-weight: 600; }
   table.cadastro input { border-color: var(--ln); }
-  table.cadastro td.c-curso select { max-width: 100%; }
-  table.alunos select[data-f="bl"], table.alunos select[data-f="voaCom"] { border-color: var(--ln); }
-  /* Quem só consulta não tem a lista para escolher: sem nenhum instrutor, "Priorizar com" e "Não escalar com" não aparecem
-     (o nome sozinho, sem nada embaixo). O Gestor não tem nenhum botão no cartão (a Secretaria tem "Dados pessoais") */
-  body[data-role="gestor"] table.alunos :is(td.c-voa-com, td.c-nao-escalar):not(:has(.tg)) { display: none; }
+  /* O Gestor não tem nenhum botão no cartão (a Secretaria tem "Dados pessoais") */
   body[data-role="gestor"]:not([data-perfil="secretaria"]) table.cadastro td.acoes { display: none; }
 }

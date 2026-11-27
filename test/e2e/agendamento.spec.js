@@ -2,7 +2,7 @@
 // peso; a conferência roda o motor numa cópia da escala (o conflito não deixa agendar; a regra do curso pede "Agendar
 // mesmo assim"). O voo agendado fica fixo (o cadeado), o pedido aparece na Demanda com a missão do curso, o peso
 // digitado vai para o cadastro e o Histórico desfaz
-import { test, expect, abrir, irPara, abrirEscala, entrar, AMANHA, abrirHistorico, aprovar, caixaVem, caixaVoa, linhaDoInstrutor, reabrir, relativoDaData, confirmarAgendamento, refazer } from './fixtures.js';
+import { test, expect, abrir, irPara, abrirEscala, entrar, AMANHA, abrirHistorico, aprovar, caixaVem, caixaVoa, linhaDoInstrutor, reabrir, relativoDaData, confirmarAgendamento, refazer, campoDoAluno } from './fixtures.js';
 import { instalarSupabaseFalso, documentosAtuais, CONTAS } from './supabase-falso.js';
 import { aluno, cenario, instrutor, GROUND_C152 } from '../helpers/montar.js';
 import { FROTA_INICIAL } from '../../js/frota.js';
@@ -289,7 +289,7 @@ test.describe('Agendar um voo na Escala', () => {
     await expect(lista.locator('.audit-desc', { hasText: '(agendamento)' })).toHaveText(['Peso Instrutor 02: 91 kg (agendamento)', 'Peso Maria Silva: 82,5 kg (agendamento)']);
     await page.locator('#btn-fechar-historico').click();
     await irPara(page, 'alu');
-    await expect(page.locator('#alu tr[data-id="1001"] [data-f="kg"]')).toHaveValue('82.5');
+    await expect((await campoDoAluno(page, 1001, 'kg'))).toHaveValue('82.5');
     await irPara(page, 'ins');
     await page.locator('#s-ins [data-vista-ins="cadastro"]').click();
     await expect(page.locator('#inst tr[data-id="2"] [data-f="kg"]')).toHaveValue('91');

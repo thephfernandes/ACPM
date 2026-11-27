@@ -1,4 +1,4 @@
-import { test, comProgresso, expect, prepararContexto, vigiarErros, irPara, abrirEscala, lerEscala, AMANHA, entrar, URL_APP, abrirHistorico, alternarDisponivel, botaoAprovar, caixaDisponivel, exportar, dataAberta } from './fixtures.js';
+import { test, comProgresso, expect, abrirInstrutores, linhaDoAluno, prepararContexto, vigiarErros, irPara, abrirEscala, lerEscala, AMANHA, entrar, URL_APP, abrirHistorico, alternarDisponivel, botaoAprovar, caixaDisponivel, exportar, dataAberta, linhasDosAlunos } from './fixtures.js';
 import { criarSupabaseFalso, instalarSupabaseFalso, documentosAtuais, CONTAS } from './supabase-falso.js';
 import { estadoSintetico } from '../helpers/estado.js';
 import { comExemplo } from '../helpers/exemplo.js';
@@ -62,6 +62,79 @@ test.describe('Modo compartilhado: gravação, conflitos e link da escala', () =
     await alternarDisponivel(page, 'PR-BTB', false);
     await expect(page.locator('#aviso-sync-texto')).toHaveText('O app foi atualizado. Recarregue a página para continuar (a sua última alteração não foi salva).');
     await expect(page.locator('body')).toHaveAttribute('data-role', 'gestor');
+    expect(erros).toEqual([]);
+    await contexto.close();
+  });
+
+  // O cadastro alterado por outra pessoa (F2): a data é lida de novo, a tela não trava e o aviso diz o que não foi gravado.
+  // A alteração refeita é gravada sem recarregar
+  test('conflito no cadastro: a data é lida de novo, o aviso diz o que não foi gravado, e a alteração refeita é gravada', async ({ browser }) => {
+    const contexto = await novoContexto(browser);
+    const servidor = await instalarSupabaseFalso(contexto, comDados());
+    const page = await contexto.newPage();
+    const erros = vigiarErros(page, { statusEsperados: [409] });
+    await entrar(page, CONTAS.operador);
+    // Uma colega cadastra um aluno antes desta pessoa mudar o peso de um instrutor
+    const cadastro = structuredClone(servidor.banco.get('cadastro').conteudo);
+    servidor.alterarPorOutraPessoa('cadastro', { ...cadastro, nid: cadastro.nid + 1, stu: [...cadastro.stu, { ...cadastro.stu[0], id: cadastro.nid, nm: 'Aluno da colega' }] });
+    const id = cadastro.ins[0].id, nome = cadastro.ins[0].nm;
+    await abrirInstrutores(page, 'cadastro');
+    const peso = page.locator(`#inst tr[data-id="${id}"] [data-f="kg"]`);
+    await peso.fill('77');
+    await peso.press('Tab');
+    await expect(page.locator('#aviso-sync-texto')).toHaveText(
+      `Outra pessoa alterou o cadastro enquanto você editava: a tela mostra a versão atual, e esta alteração não foi gravada: Peso ${nome}: 77 kg. Refaça o que ainda for preciso.`);
+    await expect(page.locator('#btn-recarregar')).toBeHidden();
+    // A tela não trava: o perfil continua o de quem edita, e a versão da colega está na tela
+    await expect(page.locator('body')).toHaveAttribute('data-role', 'operador');
+    await expect(peso).not.toHaveValue('77');
+    await page.locator('#btn-fechar-aviso').click();
+    await expect(page.locator('#aviso-sync')).toBeHidden();
+    // Refeita, a alteração é gravada em cima da versão da colega
+    await peso.fill('77');
+    await peso.press('Tab');
+    await expect.poll(() => servidor.banco.get('cadastro').conteudo.ins.find(x => x.id === id).kg).toBe(77);
+    expect(servidor.banco.get('cadastro').conteudo.stu.some(s => s.nm === 'Aluno da colega')).toBe(true);
+    await expect(page.locator('#aviso-sync')).toBeHidden();
+    expect(erros).toEqual([]);
+    await contexto.close();
+  });
+
+  // A aba velha inclui um aluno depois de uma colega incluir outro: os dois recebem o mesmo id (o nid do cadastro). A
+  // inclusão é recusada; o aluno da colega fica como está, o detalhe diz que a inclusão não foi confirmada, e o endereço
+  // nunca leva o id do aluno da colega
+  test('conflito no cadastro ao incluir um aluno: o da colega fica, o detalhe diz que a inclusão não foi confirmada, e o endereço não leva o id dele', async ({ browser }) => {
+    const contexto = await novoContexto(browser);
+    const servidor = await instalarSupabaseFalso(contexto, comDados());
+    const page = await contexto.newPage();
+    const erros = vigiarErros(page, { statusEsperados: [409] });
+    await entrar(page, CONTAS.operador);
+    const cadastro = structuredClone(servidor.banco.get('cadastro').conteudo);
+    const id = cadastro.nid;
+    servidor.alterarPorOutraPessoa('cadastro', { ...cadastro, nid: id + 1, stu: [...cadastro.stu, { ...cadastro.stu[0], id, nm: 'Aluno da colega' }] });
+    const enderecos = [];
+    page.on('framenavigated', f => { if (f === page.mainFrame()) enderecos.push(f.url()); });
+    await irPara(page, 'alu');
+    await page.locator('[data-act="adds"]').click();
+    await expect(page.locator('#aviso-sync-texto')).toHaveText(
+      'Outra pessoa alterou o cadastro enquanto você editava: a tela mostra a versão atual, e esta alteração não foi gravada: Aluno cadastrado: Novo aluno. Refaça o que ainda for preciso.');
+    await expect(page.locator('#det-alu')).toContainText('A inclusão do aluno novo não foi confirmada pelo servidor.');
+    await expect(page).toHaveURL(/#\/alu$/);
+    await expect(linhaDoAluno(page, id).locator('.lista-titulo')).toHaveText('Aluno da colega');
+    await expect(linhaDoAluno(page, id).locator('.lista-botao')).not.toHaveAttribute('aria-current', 'true');
+    expect(servidor.banco.get('cadastro').conteudo.stu.find(s => s.id === id).nm).toBe('Aluno da colega');
+    expect(await page.evaluate(() => location.hash)).not.toContain(String(id));
+    expect(enderecos.filter(u => u.includes(`#/alu/${id}`))).toEqual([]);
+    // O aluno da colega abre pelo endereço (o id da inclusão recusada não fica perdido para ele)
+    await page.locator('#btn-fechar-aviso').click();
+    await page.evaluate(i => { location.hash = `#/alu/${i}`; }, id);
+    await expect(page.locator('#det-alu-titulo')).toHaveText('Aluno da colega');
+    await expect(linhaDoAluno(page, id).locator('.lista-botao')).toHaveAttribute('aria-current', 'true');
+    await expect(page).toHaveURL(new RegExp(`#/alu/${id}$`));
+    // Refeito, o aluno novo entra com o id seguinte
+    await page.locator('[data-act="adds"]').click();
+    await expect(page).toHaveURL(new RegExp(`#/alu/${id + 1}$`));
+    await expect.poll(() => servidor.banco.get('cadastro').conteudo.stu.map(s => s.nm)).toContain('Novo aluno');
     expect(erros).toEqual([]);
     await contexto.close();
   });
@@ -329,6 +402,6 @@ test.describe('Modo compartilhado: gravação, conflitos e link da escala', () =
     await expect(page.locator('#aviso-link-texto')).toHaveText(/^Este link antigo levava a escala no próprio endereço e não vale mais/);
     await expect(page.locator('body')).toHaveAttribute('data-role', 'operador');
     await irPara(page, 'alu');
-    await expect(page.locator('#alu .cd')).toHaveCount(0);
+    await expect(linhasDosAlunos(page)).toHaveCount(0);
   });
 });

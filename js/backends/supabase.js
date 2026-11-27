@@ -2,8 +2,9 @@
 // cadastro (e os documentos antigos: estado, escala, historico e bi) ficam na tabela documentos e são gravados por
 // salvar_documento; dia:AAAA-MM-DD fica na tabela dias e é gravado por salvar_dia. O histórico é a tabela historico.
 // - Gravações do mesmo documento saem em série, sempre com o conteúdo mais recente
-// - Se outra pessoa gravou antes (conflito), o backend para de gravar e avisa por aoConflito (formato: true quando a
-//   recusa é pelo formato dos dados, de uma versão mais nova do app)
+// - Se outra pessoa gravou antes (conflito), o backend avisa por aoConflito (formato: true quando a recusa é pelo formato
+//   dos dados, de uma versão mais nova do app) e para de gravar, a não ser que aoConflito responda 'releitura' (o app lê a
+//   data de novo: a gravação seguinte leva a versão dessa leitura)
 // - Sem conexão ou com o servidor fora do ar, a alteração não se perde: a gravação avisa por aoErro e tenta de novo
 //   sozinha, esperando cada vez mais (e na hora em que a conexão volta); aoGravar avisa quando der certo. Uma recusa
 //   definitiva (sem permissão, dado inválido) avisa por aoErro com definitivo: true e não tenta de novo
@@ -61,10 +62,11 @@ export function criarBackendSupabase(cliente, { aoConflito = () => {}, aoErro = 
           aoGravar(documento);
           continue;
         }
+        // O conflito: a alteração não foi gravada. O app decide (aoConflito): 'releitura' (o cadastro, que ele lê de novo
+        // com a data) deixa o backend gravando depois da leitura; qualquer outra resposta trava tudo, como sempre
         if (error.code === 'PT409') {
           delete pendentes[documento];
-          bloqueado = true;
-          aoConflito(documento, { formato: error.hint === 'formato' });
+          bloqueado = aoConflito(documento, { formato: error.hint === 'formato' }) !== 'releitura';
           return false;
         }
         if (sessaoExpirada(status)) {

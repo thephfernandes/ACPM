@@ -282,6 +282,38 @@ describe('Backend Supabase', () => {
     assert.deepEqual(conflitos, [['cadastro', { formato: true }]]);
   });
 
+  // O conflito no cadastro que o app resolve lendo a data de novo (aoConflito responde 'releitura'): a alteração não é
+  // gravada, mas o backend não trava; a gravação seguinte, depois da leitura, sai com a versão nova
+  it('conflito no cadastro com releitura: responde false, não trava, e a gravação depois da leitura sai', async () => {
+    const cliente = clienteFalso({ cadastro: { conteudo: { v: 1 }, versao: 1 } });
+    const conflitos = [];
+    const backend = criarBackendSupabase(cliente, { aoConflito: (doc, motivo) => { conflitos.push([doc, motivo]); return 'releitura'; } });
+    await backend.ler('cadastro');
+    cliente.banco.set('cadastro', { conteudo: { v: 2, colega: true }, versao: 2 });
+    assert.equal(await backend.gravar('cadastro', { v: 3 }), false);
+    assert.deepEqual(conflitos, [['cadastro', { formato: false }]]);
+    assert.deepEqual(cliente.banco.get('cadastro'), { conteudo: { v: 2, colega: true }, versao: 2 }, 'a alteração recusada não foi gravada');
+    // A leitura traz a versão do colega; a alteração refeita é gravada em cima dela
+    assert.deepEqual(await backend.ler('cadastro'), { v: 2, colega: true });
+    assert.equal(await backend.gravar('cadastro', { v: 3, colega: true }), true);
+    assert.deepEqual(cliente.banco.get('cadastro'), { conteudo: { v: 3, colega: true }, versao: 3 });
+    // O histórico também continua sendo registrado
+    assert.equal(typeof await backend.registrar({ data: '2026-11-20', tipo: 'mod', descricao: 'Peso Aluno 1000: 80 kg' }), 'number');
+  });
+
+  it('conflito sem releitura (qualquer outra resposta de aoConflito): trava como sempre', async () => {
+    for (const resposta of [undefined, 'travar', true]) {
+      const cliente = clienteFalso({ cadastro: { conteudo: { v: 1 }, versao: 1 } });
+      const backend = criarBackendSupabase(cliente, { aoConflito: () => resposta });
+      await backend.ler('cadastro');
+      cliente.banco.set('cadastro', { conteudo: { v: 2 }, versao: 2 });
+      assert.equal(await backend.gravar('cadastro', { v: 3 }), false);
+      await backend.ler('cadastro');
+      assert.equal(await backend.gravar('cadastro', { v: 3 }), false, `resposta ${resposta}: depois do conflito nada mais é gravado`);
+      assert.equal(await backend.registrar({ data: '2026-11-20', tipo: 'mod', descricao: 'x' }), null);
+    }
+  });
+
   // A leitura só para consultar (o formato do cadastro, em "Tentar de novo") não troca a versão que a gravação seguinte
   // leva: a gravação dos dados da tela, lidos antes, não passa por cima do que outra pessoa gravou depois
   it('a leitura só para consultar não muda a versão lida: a gravação seguinte continua com a de antes', async () => {

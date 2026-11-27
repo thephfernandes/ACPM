@@ -117,6 +117,46 @@ function avisarAlteracoesEsperando() {
   { recarregar: false });
 }
 
+// Um conflito na gravação (js/backends/supabase.js, aoConflito). No cadastro (outra pessoa mudou um aluno, um instrutor, a
+// frota), com a data já lida e sem ser pelo formato: a data é lida de novo, sem travar a tela, e o aviso diz o que não foi
+// gravado (responde 'releitura', e o backend continua gravando depois da leitura). Os outros (o dia, o formato, um conflito
+// enquanto a data abre) travam a tela, como sempre
+export function aposConflito(documento, { formato = false } = {}) {
+  if (documento !== 'cadastro' || formato || !dadosLidos) {
+    travarAposConflito({ formato });
+    return 'travar';
+  }
+  // As alterações cuja gravação não foi confirmada: as entradas "gravando…" do histórico sem a marca da gravação que deu
+  // certo (uma alteração já gravada cuja entrada ainda vai para o servidor não está perdida)
+  const perdidas = AUDIT_LOG.filter(e => e.estado === 'gravando' && !e.alteracaoGravada).map(e => e.desc);
+  setTimeout(() => relerAposConflito(perdidas));
+  return 'releitura';
+}
+
+// O texto do aviso depois do conflito no cadastro: até cinco alterações (os textos do histórico, sem dado pessoal), e o
+// número das outras
+function avisoDaReleitura(perdidas) {
+  const inicio = 'Outra pessoa alterou o cadastro enquanto você editava: a tela mostra a versão atual';
+  if (!perdidas.length) return `${inicio}, e a sua última alteração não foi gravada. Refaça o que ainda for preciso.`;
+  const lista = perdidas.slice(0, 5).join('; ') + (perdidas.length > 5 ? `; e mais ${perdidas.length - 5}` : '');
+  return `${inicio}, e ${perdidas.length > 1 ? 'estas alterações não foram gravadas' : 'esta alteração não foi gravada'}: ${lista}. Refaça o que ainda for preciso.`;
+}
+
+// Lê a data aberta de novo (o cadastro e o dia, com as versões de agora: nada é gravado até chegarem) e avisa. A leitura
+// que falha trava a tela, como o conflito de antes
+async function relerAposConflito(perdidas) {
+  try {
+    if (!await lerData(DATA)) return;
+  } catch {
+    travarAposConflito();
+    return;
+  }
+  $('#escala-atualizada').hidden = true;
+  redesenhar('dados');
+  lerPedidosDaData();
+  mostrarAviso('refazer', avisoDaReleitura(perdidas), { recarregar: false, fechar: true });
+}
+
 // Depois de um conflito nada mais é gravado: a tela fica só para consulta até recarregar, com o aviso
 export function travarAposConflito({ formato = false } = {}) {
   setRole('gestor', true);
@@ -143,6 +183,9 @@ export function aindaNaoAbriu() {
 // grava os dados e a escala juntos. Ao abrir a aba Escala, ela já está pronta
 // A gravação mais recente da escala: as entradas do histórico esperam por ela
 let gravacaoAtual = Promise.resolve(true);
+// A gravação mais recente, para quem espera a alteração que acabou de fazer (o aluno novo fica "novo" no endereço até ela;
+// os dados pessoais dele esperam por ela): responde se deu certo
+export const ultimaGravacao = () => gravacaoAtual;
 
 // Refaz e grava a escala; responde se a gravação deu certo. Os eventos da tela gravam por gravarAlteracao
 // A ordem: a escala é refeita com os dados da tela (sem desenhar), gravada, e só então redesenhada. salvarDia copia os dados
@@ -251,6 +294,8 @@ export function logChange(type, texto, revertAction = null, reverte = null) {
   if (avisoAberto() === 'espera') avisarAlteracoesEsperando();
   const data = DATA;
   queueMicrotask(() => gravacaoAtual.then(async gravou => {
+    // A alteração foi gravada: a entrada não é mais uma alteração perdida, mesmo esperando o registro no servidor
+    if (gravou) entry.alteracaoGravada = true;
     const id = gravou ? await ApiClient.registrarHistorico(data, { tipo: type, descricao: desc, reverter: revertAction, reverte }) : null;
     if (id === null || id === undefined) entry.estado = 'nao-gravada';
     else {

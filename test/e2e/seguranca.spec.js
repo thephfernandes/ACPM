@@ -1,7 +1,7 @@
 // Conteúdo gravado malicioso: quem tem uma conta de operador consegue gravar qualquer coisa no
 // cadastro, no dia, na escala salva e no histórico pela API. Nada disso pode virar HTML ou script em nenhuma tela: o
 // app escapa tudo o que mostra (texto e atributos) e, ao abrir, só aceita os valores que ele mesmo produz.
-import { test, comTodasAsFuncionalidades, expect, irPara, prepararContexto, vigiarErros, AMANHA, preencherLogin, URL_APP, ABAS, abrirHistorico, appPronto, botaoDaAba, caixaDisponivel } from './fixtures.js';
+import { test, comTodasAsFuncionalidades, expect, irPara, prepararContexto, vigiarErros, AMANHA, preencherLogin, URL_APP, ABAS, abrirHistorico, appPronto, botaoDaAba, caixaDisponivel, linhasDosAlunos, abrirAluno, campoDoAberto } from './fixtures.js';
 import { documentosAtuais, instalarSupabaseFalso, CONTAS } from './supabase-falso.js';
 import { runAllocationEngine } from '../../js/engine.js';
 import { aluno, cenario, instrutor, missaoExtra, GROUND_C152 } from '../helpers/montar.js';
@@ -125,7 +125,9 @@ test.describe('Conteúdo gravado malicioso', () => {
     await abrirCom(page, documentos());
     await percorrer(page);
     await irPara(page, 'alu');
-    await expect(page.locator('#alu tr[data-id="1000"] [data-f="nm"]')).toHaveValue(`Aluno ${X}`);
+    await abrirAluno(page, 1000);
+    await expect(campoDoAberto(page, 'nm')).toHaveValue(`Aluno ${X}`);
+    await expect(page.locator('#det-alu-titulo')).toHaveText(`Aluno ${X}`);
     // Os nomes maliciosos do programa (das tabelas dos cursos) chegam à aba Cursos (a conferência dela não passa por estar
     // vazia): os das missões, o do curso e os das fases, também no "+ Missão" da fase e no nome do campo
     await irPara(page, 'cur');
@@ -327,7 +329,7 @@ test.describe('Link antigo com os dados na URL', () => {
 
     expect(await page.evaluate(() => window.__xss)).toBeUndefined();
     await expect(page.locator('img[src="x"]')).toHaveCount(0);
-    await expect(page.locator('#alu .cd')).toHaveCount(0);
+    await expect(linhasDosAlunos(page)).toHaveCount(0);
     await expect(page.locator('#inst .cd')).toHaveCount(0);
     expect(erros).toEqual([]);
     await contexto.close();

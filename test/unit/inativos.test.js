@@ -2,7 +2,7 @@
 // inativo sem vir, o recurso inativo indisponível), nunca gravado; a Escala avisa dos voos de quem ficou inativo
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { inativo, inativoNoEstado, inativoValeEm, ativosNaData, estadoParaEscalar, voosComInativos, textoDoVooComInativo } from '../../js/inativos.js';
+import { inativo, inativoNoEstado, inativoValeEm, ativosNaData, estadoParaEscalar, voosComInativos, textoDoVooComInativo, usoNaData, avisoDoInativo } from '../../js/inativos.js';
 import { ocupacaoDaEscala, avioesQueServem, instrutoresQueServem } from '../../js/candidatos.js';
 import { instrutoresDoPedido, instrutoresDoVoo } from '../../js/instrutor-escolhido.js';
 import { sugerirReparos } from '../../js/reparo.js';
@@ -167,5 +167,47 @@ describe('A carga da data', () => {
     const semAtivos = ApiClient.normalizeAndMigrateState(structuredClone(estado));
     assert.equal(comAtivos.hangar.includes('PR-B'), false);
     assert.equal(semAtivos.hangar.includes('PR-B'), true);
+  });
+});
+
+// O "Ativo" do cadastro (F2): o que a pessoa ou o recurso tem na data aberta, contado antes da mudança, e o aviso dito ao
+// desligar e ao ligar
+describe('O uso na data e o aviso do "Ativo"', () => {
+  const ESCALA = {
+    out: [
+      { fKey: '1000_0_1', stuId: 1000, insId: 1, r: 'PR-VOB' },
+      { fKey: '1001_0_1', stuId: 1001, insId: 1, r: 'PR-VOB' },
+      { fKey: '1002_0_1', stuId: 1002, insId: 1, r: 'PR-IGU' },
+      { fKey: '1003_0_1', stuId: 1003, insId: 2, r: 'PR-VOB' }
+    ]
+  };
+  const ESTADO = {
+    stu: [aluno(1000, { insId: 1 }), aluno(1001, { insId: 1 }), aluno(1002), aluno(1003, { insId: 2 })],
+    fixos: { '1001_0_1': { a: 390, b: 450, r: 'PR-VOB', insId: 1 } },
+    fStatus: { '1002_0_1': 'Cancelado' }
+  };
+
+  it('os voos (sem os cancelados), os fixos entre eles e os pedidos que escolheram o instrutor', () => {
+    assert.deepEqual(usoNaData(ESTADO, ESCALA, { de: 'instrutor', id: 1 }), { voos: 2, fixos: 1, escolhidoEm: 2 });
+    assert.deepEqual(usoNaData(ESTADO, ESCALA, { de: 'recurso', id: 'PR-VOB' }), { voos: 3, fixos: 1, escolhidoEm: 0 });
+    assert.deepEqual(usoNaData(ESTADO, ESCALA, { de: 'aluno', id: 1001 }), { voos: 1, fixos: 1, escolhidoEm: 0 });
+    assert.deepEqual(usoNaData(ESTADO, null, { de: 'aluno', id: 1001 }), { voos: 0, fixos: 0, escolhidoEm: 0 });
+  });
+
+  it('o aviso ao desligar: de hoje em diante, o que muda nesta data, e as datas passadas não mudam', () => {
+    assert.equal(avisoDoInativo({ de: 'instrutor', nome: 'Instrutor 01', inativo: true, uso: { voos: 3, fixos: 1, escolhidoEm: 2 }, valeNaData: true }),
+      'Instrutor 01 inativo de hoje em diante. Nesta data: 2 voos vão para outro instrutor; 1 voo fixo fica em conflito; escolhido em 2 pedidos, que ficam rejeitados. As datas passadas não mudam.');
+    assert.equal(avisoDoInativo({ de: 'recurso', nome: 'PR-VOB', inativo: true, uso: { voos: 1, fixos: 0, escolhidoEm: 0 }, valeNaData: true }),
+      'PR-VOB inativo de hoje em diante. Nesta data: 1 voo vai para outro avião. As datas passadas não mudam.');
+    assert.equal(avisoDoInativo({ de: 'aluno', nome: 'Ana', inativo: true, uso: { voos: 1, fixos: 0, escolhidoEm: 0 }, valeNaData: true }),
+      'Ana inativo de hoje em diante. Os voos dele nesta data continuam; os pedidos ficam registrados e só entram quando ele voltar a ativo. As datas passadas não mudam.');
+    assert.equal(avisoDoInativo({ de: 'instrutor', nome: 'Instrutor 01', inativo: true, uso: { voos: 0, fixos: 0, escolhidoEm: 0 }, valeNaData: true }),
+      'Instrutor 01 inativo de hoje em diante. As datas passadas não mudam.');
+    assert.equal(avisoDoInativo({ de: 'instrutor', nome: 'Instrutor 01', inativo: true, uso: { voos: 3, fixos: 1, escolhidoEm: 2 }, valeNaData: false }),
+      'Instrutor 01 inativo de hoje em diante. Esta data é passada e não muda.');
+  });
+
+  it('o aviso ao ligar de novo', () => {
+    assert.equal(avisoDoInativo({ de: 'aluno', nome: 'Ana', inativo: false, uso: null, valeNaData: true }), 'Ana ativo de novo, de hoje em diante.');
   });
 });

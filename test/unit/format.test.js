@@ -1,6 +1,6 @@
 import { describe, it, mock } from 'node:test';
 import assert from 'node:assert/strict';
-import { hm, fmtH, fmtDurLabel, rotuloDoInicio, pad, esc, opts, amanhaISO, hojeISO, somarDias, fimDoMes, rotuloDaData, nomeLimpo, LIMITE_DO_NOME, dataIsoValida, minutoDoDia, lerHoras, numeroBr, duracaoHm, pesoBr, chaveDeBusca } from '../../js/format.js';
+import { hm, fmtH, fmtDurLabel, rotuloDoInicio, pad, esc, opts, amanhaISO, hojeISO, somarDias, fimDoMes, rotuloDaData, nomeLimpo, LIMITE_DO_NOME, dataIsoValida, minutoDoDia, lerHoras, numeroBr, duracaoHm, pesoBr, chaveDeBusca, iniciais } from '../../js/format.js';
 
 // O relógio no fuso do aeroclube (São Paulo, UTC−3), qualquer que seja o da máquina (o CI roda em UTC): das 21:00 à
 // meia-noite, a data local já não é a do UTC. O fuso de antes volta no fim
@@ -131,5 +131,16 @@ describe('Formatação', () => {
       assert.equal(minutoDoDia(new Date(2026, 10, 11, 0, 0)), 0);
       assert.equal(minutoDoDia(new Date(2026, 10, 11, 23, 59)), 1439);
     });
+  });
+});
+
+// As iniciais (o menu da conta e os avatares das listas, F2): o primeiro e o último nome; o e-mail, a primeira letra
+describe('iniciais', () => {
+  it('o primeiro e o último nome, em maiúsculas; um nome só, a primeira letra; o e-mail, a primeira letra; vazio, "?"', () => {
+    assert.equal(iniciais('Maria da Conceição Souza'), 'MS');
+    assert.equal(iniciais('ana'), 'A');
+    assert.equal(iniciais('ana.souza@exemplo.com'), 'A');
+    assert.equal(iniciais(''), '?');
+    assert.equal(iniciais(null), '?');
   });
 });

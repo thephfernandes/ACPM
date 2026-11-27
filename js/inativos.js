@@ -1,7 +1,8 @@
 // O inativo no cadastro (formato 26): um aluno, um instrutor ou um recurso com inativo: true (sem o campo, ativo). Vale na
 // data aberta quando ela é hoje ou depois; uma data passada é vista como se ninguém estivesse inativo (ela não é refeita
 // com o cadastro de hoje). Funções puras: quem escala lê o estado derivado (estadoParaEscalar), nunca gravado; as listas
-// de escolha leem os ativos da data (ativosNaData); a Escala avisa dos voos de quem ficou inativo (voosComInativos)
+// de escolha leem os ativos da data (ativosNaData); a Escala avisa dos voos de quem ficou inativo (voosComInativos); a chave
+// "Ativo" (js/eventos/inativos.js) diz o que muda na data aberta (usoNaData, avisoDoInativo)
 
 export const inativo = item => Boolean(item) && typeof item === 'object' && item.inativo === true;
 
@@ -62,3 +63,38 @@ export function voosComInativos(estado, resultado, { data, hoje }) {
 // O texto de um item: "2 voos com Instrutor 02 (inativo) na escala desta data"
 export const textoDoVooComInativo = ({ de, nome, voos }) =>
   `${voos} ${voos === 1 ? 'voo' : 'voos'} com ${de === 'aluno' ? 'o aluno ' : ''}${nome} (inativo) na escala desta data`;
+
+// O que a pessoa ou o recurso tem na escala da data aberta (resultado), contado antes de o "Ativo" mudar: os voos (sem os
+// cancelados), quantos deles são fixos (estado.fixos) e, de um instrutor, em quantos pedidos ele é o escolhido
+export function usoNaData(estado, resultado, { de, id }) {
+  const status = (estado && estado.fStatus) || {};
+  const fixos = (estado && estado.fixos) || {};
+  const doVoo = { aluno: o => o.stuId, instrutor: o => o.insId, recurso: o => o.r }[de];
+  const voos = resultado && Array.isArray(resultado.out) && doVoo
+    ? resultado.out.filter(o => doVoo(o) === id && (status[o.fKey] || o.status) !== 'Cancelado') : [];
+  const pedidos = de === 'instrutor' ? (estado && Array.isArray(estado.stu) ? estado.stu : []).flatMap(s => [s, ...(s.extra || [])]) : [];
+  return {
+    voos: voos.length,
+    fixos: voos.filter(o => Object.hasOwn(fixos, o.fKey)).length,
+    escolhidoEm: pedidos.filter(p => p && p.insId === id).length
+  };
+}
+
+const quantos = (n, um, varios) => `${n} ${n === 1 ? um : varios}`;
+
+// O aviso do "Ativo" (a notificação e o leitor de tela). Desligado: de hoje em diante, o que muda na data aberta (se ela
+// não é passada) e que as datas passadas não mudam. Ligado: de novo, de hoje em diante
+export function avisoDoInativo({ de, nome, inativo: ficouInativo, uso, valeNaData }) {
+  if (!ficouInativo) return `${nome} ativo de novo, de hoje em diante.`;
+  if (!valeNaData) return `${nome} inativo de hoje em diante. Esta data é passada e não muda.`;
+  if (de === 'aluno') return `${nome} inativo de hoje em diante. Os voos dele nesta data continuam; os pedidos ficam registrados e só entram quando ele voltar a ativo. As datas passadas não mudam.`;
+  const { voos = 0, fixos = 0, escolhidoEm = 0 } = uso || {};
+  const outro = de === 'recurso' ? 'outro avião' : 'outro instrutor';
+  const soltos = voos - fixos;
+  const partes = [
+    soltos ? `${quantos(soltos, 'voo vai', 'voos vão')} para ${outro}` : '',
+    fixos ? `${quantos(fixos, 'voo fixo fica', 'voos fixos ficam')} em conflito` : '',
+    escolhidoEm ? `escolhido em ${quantos(escolhidoEm, 'pedido, que fica rejeitado', 'pedidos, que ficam rejeitados')}` : ''
+  ].filter(Boolean);
+  return `${nome} inativo de hoje em diante.${partes.length ? ` Nesta data: ${partes.join('; ')}.` : ''} As datas passadas não mudam.`;
+}

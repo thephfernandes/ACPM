@@ -21,7 +21,7 @@ import { nomeDaHabilitacao } from '../habilitacoes.js';
 import { MODELOS } from '../modelos-de-curso.js';
 import { codigoValido } from '../cursos.js';
 import { ApiClient } from '../storage.js';
-import { $, showToast, fecharNoEsc } from '../dom.js';
+import { $, showToast, fecharNoEsc, ponteiroApertado, depoisDoClique } from '../dom.js';
 import { duracaoDigitada, ERRO_DA_DURACAO } from '../rules.js';
 import { S, estadoDaEscala } from '../state.js';
 import { confirmado } from './confirmacao.js';
@@ -102,20 +102,15 @@ function ordemValida(novo, movido) {
 // sobre o curso como ficou) ou na próxima tecla, se o próprio clique não a refez. As marcas e as listas avisam a mudança
 // no click: a aba é refeita na hora
 const DIGITADO = 'input:not([type="checkbox"])';
-let apertado = false, depoisDoClique = false;
-document.addEventListener('mousedown', () => { apertado = true; }, true);
-document.addEventListener('mouseup', () => { apertado = false; }, true);
-document.addEventListener('keydown', () => { apertado = false; }, true);
+let esperarOClique = false;
 function refazerAba() {
   const lugar = $('#cursos');
-  if (!depoisDoClique || !lugar) {
+  if (!esperarOClique || !lugar) {
     rCursos();
     return;
   }
   const comoEstava = lugar.firstElementChild;
   function refazer() {
-    removeEventListener('mouseup', soltou, true);
-    removeEventListener('keydown', refazer, true);
     if (lugar.firstElementChild !== comoEstava) return;
     // O clique armou um ✕ (o primeiro dos dois cliques de "Tirar"): a aba espera o segundo, ou o ✕ voltar a ser o que era
     if (lugar.querySelector('[data-arm="1"]')) {
@@ -130,12 +125,8 @@ function refazerAba() {
     const novo = document.activeElement;
     if (cursor && novo !== ativo && novo.matches(DIGITADO) && novo.value === cursor[0]) novo.setSelectionRange(cursor[1], cursor[2], cursor[3]);
   }
-  // O click vem logo depois do mouseup, na mesma tarefa
-  function soltou() {
-    setTimeout(refazer);
-  }
-  addEventListener('mouseup', soltou, true);
-  addEventListener('keydown', refazer, true);
+  // Depois do clique (js/dom.js: o botão solto, a próxima tecla ou a janela sem o foco)
+  depoisDoClique(refazer);
 }
 
 // Uma alteração que não vale: o aviso, e a aba volta a mostrar o curso como está (o campo mexido também)
@@ -527,13 +518,13 @@ document.addEventListener('change', e => {
   const campo = e.target.closest('#cursos [data-cc], #cursos [data-cf], #cursos [data-cfa]');
   if (!campo || !editavel()) return;
   if (aindaNaoAbriu()) { rCursos(); return; }
-  depoisDoClique = apertado && campo.matches(DIGITADO);
+  esperarOClique = ponteiroApertado() && campo.matches(DIGITADO);
   try {
     if (campo.hasAttribute('data-cc')) mudarCampoDoCurso(campo);
     else if (campo.hasAttribute('data-cfa')) mudarCampoDaFase(campo);
     else mudarCampoDaMissao(campo);
   } finally {
-    depoisDoClique = false;
+    esperarOClique = false;
   }
 });
 

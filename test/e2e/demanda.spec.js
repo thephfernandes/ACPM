@@ -1,4 +1,4 @@
-import { test, comProgresso, expect, abrir, abrirSintetico, abrirComExemplo, irPara, abrirEscala, lerEscala, confirmar, filtrarCursos, AMANHA, abrirHistorico, aprovar, botaoAprovar, caixaVoa, dataAberta, diaSeguinte, importarDaAgenda, reabrir, tabelaDoDia, voar, registrarPedido, refazer } from './fixtures.js';
+import { test, comProgresso, expect, abrir, abrirSintetico, abrirComExemplo, irPara, abrirEscala, lerEscala, confirmar, filtrarCursos, AMANHA, abrirHistorico, aprovar, botaoAprovar, caixaVoa, dataAberta, diaSeguinte, importarDaAgenda, reabrir, tabelaDoDia, voar, registrarPedido, refazer, linhasDosAlunos } from './fixtures.js';
 import { aluno, cenario, instrutor, missaoExtra } from '../helpers/montar.js';
 
 const linhaDoAluno = (page, nome) => page.locator(`#dem tr[data-k="d"][data-mid="0"][data-nm="${nome.toLowerCase()}"]`);
@@ -335,8 +335,8 @@ test.describe('Demanda', () => {
     // As marcas são as de Alunos (um filtro só): lá, aparece o aluno do PC
     await irPara(page, 'alu');
     await expect(page.locator('#flt-alu-cur')).toHaveText('Curso: PC');
-    await expect(page.locator('#alu tr.cd:visible')).toHaveCount(1);
-    await expect(page.locator('#alu tr.cd:visible')).toHaveAttribute('data-id', '1001');
+    await expect(linhasDosAlunos(page)).toHaveCount(1);
+    await expect(linhasDosAlunos(page)).toHaveAttribute('data-id', '1001');
     // Outra data: as linhas são outras, e as marcas continuam
     await irPara(page, 'dem');
     await diaSeguinte(page);
@@ -460,7 +460,7 @@ test.describe('Demanda', () => {
     await irPara(page, 'alu');
     await expect(page.locator('#flt-alu-cur')).toHaveText('Todos os cursos');
     await expect(page.locator('#flt-alu-cur-painel input[data-filtro]:checked')).toHaveCount(0);
-    await expect(page.locator('#alu tr.cd:visible')).toHaveCount(2);
+    await expect(linhasDosAlunos(page)).toHaveCount(2);
     await expect(page.locator('#alu-contagem')).toHaveText('2 alunos');
   });
 

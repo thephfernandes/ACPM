@@ -1,7 +1,7 @@
-// As gavetas do cadastro (os Dados pessoais, de Alunos, e as Habilitações, de Instrutores) e o Esc: a gaveta continua
+// As gavetas do cadastro (os Dados pessoais e as Habilitações, de Instrutores, até C; os de Alunos ficam no detalhe, F2) e o Esc: a gaveta continua
 // aberta nas outras abas, e o Esc fecha só a camada de cima (o diálogo, o filtro, a gaveta que abriu por último ou a que
 // tem o foco). Vieram de acessibilidade.spec.js
-import { test, expect, abrir, abrirComExemplo, irPara, abrirEscala, semNome, abrirHistorico, botaoDoHistorico } from './fixtures.js';
+import { test, expect, abrir, abrirComExemplo, irPara, irParaVista, abrirEscala, semNome, abrirHistorico, botaoDoHistorico } from './fixtures.js';
 import { aluno, cenario, instrutor } from '../helpers/montar.js';
 
 test.describe('O Esc e as gavetas do cadastro', () => {
@@ -62,8 +62,8 @@ test.describe('O Esc e as gavetas do cadastro', () => {
   // Os Dados pessoais continuam abertos nas outras abas, como as habilitações: o diálogo do agendamento é a camada de cima
   test('o Esc fecha só a camada de cima: com os Dados pessoais abertos, o primeiro fecha o diálogo do agendamento, o segundo, o painel (nada é gravado)', async ({ page }) => {
     await abrir(page, { estado: cenario({ ins: [instrutor(1, 9)], stu: [aluno(1000)] }) });
-    await irPara(page, 'alu');
-    await page.locator('#alu tr[data-id="1000"] [data-dados]').click();
+    await irParaVista(page, 'ins', 'cadastro');
+    await page.locator('#inst tr[data-id="1"] [data-dados]').click();
     const painel = page.locator('#painel-dados');
     await expect(painel).toBeVisible();
     await abrirEscala(page);
@@ -86,8 +86,8 @@ test.describe('O Esc e as gavetas do cadastro', () => {
   // a outra gaveta cobre o botão dele para o mouse
   const GAVETAS = [
     ['os Dados pessoais', '#painel-dados', '#dado-cpf', async page => {
-      await irPara(page, 'alu');
-      await page.locator('#alu tr[data-id="1000"] [data-dados]').click();
+      await irParaVista(page, 'ins', 'cadastro');
+      await page.locator('#inst tr[data-id="1"] [data-dados]').click();
     }],
     ['as Habilitações', '#painel-instrutor', '#btn-fechar-painel-instrutor', async page => {
       await irPara(page, 'ins');
@@ -125,11 +125,11 @@ test.describe('O Esc e as gavetas do cadastro', () => {
 
   test('o Esc fecha só a gaveta de cima: com o Histórico aberto, os Dados pessoais abertos depois fecham primeiro', async ({ page }) => {
     await abrir(page, { estado: cenario({ ins: [instrutor(1, 9)], stu: [aluno(1000)] }) });
-    await irPara(page, 'alu');
+    await irParaVista(page, 'ins', 'cadastro');
     await abrirHistorico(page);
     await expect(page.locator('#historico')).toBeVisible();
     // A gaveta do Histórico pode cobrir o botão da linha: pelo teclado
-    await page.locator('#alu tr[data-id="1000"] [data-dados]').focus();
+    await page.locator('#inst tr[data-id="1"] [data-dados]').focus();
     await page.keyboard.press('Enter');
     await expect(page.locator('#dado-cpf')).toBeFocused();
     expect(await gavetaNaTela(page)).toBe('painel-dados');

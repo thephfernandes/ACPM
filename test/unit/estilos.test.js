@@ -12,7 +12,7 @@ const ler = arquivo => readFileSync(`${RAIZ}${arquivo}`, 'utf8');
 // A ordem é a da cascata: a base, os componentes e o painel (também da TV), a casca, a linha, o trilho, cada tela, as gavetas e os diálogos;
 // os alvos de toque por último, como estavam no fim de css/app.css
 const DO_APP = ['base', 'componentes', 'painel', 'tv', 'casca', 'linha', 'trilho', 'escala', 'demanda', 'agenda', 'recursos', 'instrutores', 'alunos',
-  'cadastros', 'cursos', 'rodizio', 'bi', 'conta', 'manual', 'gavetas', 'dialogos', 'toque'];
+  'cadastros', 'cursos', 'rodizio', 'bi', 'conta', 'manual', 'gavetas', 'dialogos', 'lista', 'toque'];
 const DA_TV = ['base', 'componentes', 'painel', 'tv', 'toque'];
 
 const linksDe = html => [...html.matchAll(/<link rel="stylesheet" href="css\/([\w-]+)\.css">/g)].map(m => m[1]);

@@ -4,18 +4,39 @@
 import { focarNoTitulo } from '../dom.js';
 import { empilharTela, substituirTela, escreverDataNoEndereco } from '../endereco.js';
 import { ApiClient } from '../storage.js';
-import { TELAS, podeVer, telaDeAbertura, destinoDoEndereco } from '../telas.js';
+import { TELAS, podeVer, telaDeAbertura, destinoDoEndereco, enderecoDoDestino } from '../telas.js';
 
 const aoMostrarDe = new Map();
 let aberta = 'esc';
 let escolhida = false;
 let navegacao = 0;
 
-// O que a tela faz ao aparecer (ler os dados dela, desenhar, ir a um lugar). Pode devolver o elemento do lugar do item, que
+// O que a tela faz ao aparecer (ler os dados dela, desenhar, ir a um lugar). Recebe o item do endereço e { historico } (como
+// a tela foi aberta: 'nenhum' quando veio do endereço, Voltar e Avançar). Pode devolver o elemento do lugar do item, que
 // vem à vista (e recebe o foco, quando a navegação leva o foco), ou { lugar, focou: true }, quando ela mesma já pôs o foco
-// (Aprovar, no botão da aprovação)
+// (Aprovar, no botão da aprovação). Uma tela de lista e detalhe (data-forma="lista-detalhe") devolve também { item }: o
+// registro escolhido, que fica no endereço (#/alu/1000; null: só a tela). O item de um lugar (um id do Manual, a aprovação)
+// vale uma vez e sai do endereço
 export function registrarTela(id, { aoMostrar = () => {} } = {}) {
   aoMostrarDe.set(id, aoMostrar);
+}
+
+// A tela é de lista e detalhe: o registro escolhido fica no endereço, e Voltar entre dois endereços dela a refaz
+const ehListaDetalhe = id => {
+  const tela = TELAS[id];
+  const secao = tela && document.getElementById(tela.secao ?? 's-' + id);
+  return Boolean(secao && secao.dataset.forma === 'lista-detalhe');
+};
+
+// O registro escolhido numa tela de lista e detalhe, no endereço (js/views/mestre-detalhe.js): na entrada atual, ou numa
+// entrada nova (o detalhe aberto numa vista só, que Voltar fecha; detalhe: a marca dela). Só com a tela aberta, e só um
+// item que o endereço aceita (senão, a tela sem item)
+export function itemNoEndereco(id, item, { empilhar = false, detalhe = null } = {}) {
+  if (aberta !== id) return;
+  const valido = item !== null && item !== undefined && destinoDoEndereco(enderecoDoDestino({ tela: id, item: String(item) }));
+  const destino = { tela: id, item: valido ? String(item) : null };
+  if (empilhar) empilharTela(destino, detalhe ? { detalhe } : {});
+  else substituirTela(destino);
 }
 
 export const telaAberta = () => aberta;
@@ -83,7 +104,7 @@ export async function mostrarTela(id, { item = null, historico = 'empilhar', foc
   });
 
   const aoMostrar = ler ? aoMostrarDe.get(id) : null;
-  const feito = aoMostrar ? await aoMostrar(item ?? tela.item ?? null) : null;
+  const feito = aoMostrar ? await aoMostrar(item ?? tela.item ?? null, { historico }) : null;
   if (vez !== navegacao) return;
   const lugar = feito && !(feito instanceof Element) && 'lugar' in feito ? feito.lugar : feito;
   const focou = Boolean(feito && feito.focou);
@@ -95,8 +116,12 @@ export async function mostrarTela(id, { item = null, historico = 'empilhar', foc
   else if (!nativo) window.scrollTo(0, 0);
 
   if (focar && !focou) focarNoTitulo(elemento || secao);
-  // O item vale uma vez: o endereço fica só com a tela (recarregar não repete o que ele fez)
-  if (item && !nativo && item !== tela.item) substituirTela({ tela: id });
+  // O registro escolhido de uma tela de lista e detalhe fica no endereço; o item de um lugar vale uma vez: o endereço fica
+  // só com a tela (recarregar não repete o que ele fez)
+  if (feito && !(feito instanceof Element) && 'item' in feito) {
+    const naEntrada = destinoDoEndereco(window.location.hash);
+    if (!naEntrada || naEntrada.tela !== id || (naEntrada.item ?? null) !== (feito.item ?? null)) substituirTela({ tela: id, item: feito.item });
+  } else if (item && !nativo && item !== tela.item) substituirTela({ tela: id });
   mostrarNaFaixa(atual);
 }
 
@@ -131,7 +156,8 @@ export function ligarEndereco() {
     const destino = destinoDoHash(window.location.hash) || (window.location.hash ? null : { tela: telaDeAbertura(perfilAtual()), item: null });
     const rolagem = window.history.state && Number.isFinite(window.history.state.rolagem) ? window.history.state.rolagem : null;
     if (!destino) { escreverDataNoEndereco(); return; }
-    if (destino.tela === aberta && !destino.item) {
+    // Na mesma tela, sem item, só a rolagem; a tela de lista e detalhe é refeita (Voltar do detalhe devolve a lista)
+    if (destino.tela === aberta && !destino.item && !ehListaDetalhe(aberta)) {
       escreverDataNoEndereco();
       if (rolagem !== null) window.scrollTo(0, rolagem);
       return;

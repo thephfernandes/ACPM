@@ -64,6 +64,18 @@ describe('redesenhar', () => {
     assert.deepEqual(feitos, ['escala', 'bi']);
   });
 
+  // A lista e o detalhe (F2) refazem tudo no 'consulta': o desenho com comMomento recebe o momento; os outros, nada
+  it('o desenho com comMomento recebe o momento; os outros são chamados sem nada', async () => {
+    const { registrarDesenho, redesenhar, redesenharPorNome } = await registroNovo();
+    const recebidos = [];
+    registrarDesenho('alunos', (...args) => recebidos.push(['alunos', ...args]), { em: ['dados', 'consulta'], comMomento: true });
+    registrarDesenho('escala', (...args) => recebidos.push(['escala', ...args]), { em: ['consulta'] });
+    redesenhar('consulta');
+    redesenhar('dados');
+    redesenharPorNome('alunos');
+    assert.deepEqual(recebidos, [['alunos', 'consulta'], ['escala'], ['alunos', 'dados'], ['alunos']]);
+  });
+
   it('um momento que não existe é erro', async () => {
     const { redesenhar } = await registroNovo();
     assert.throws(() => redesenhar('solicitacoes'), /não existe/);

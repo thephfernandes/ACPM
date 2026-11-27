@@ -171,7 +171,7 @@ body[data-role="gestor"] .edit-only { display: none !important; }
 body[data-role="gestor"]:not([data-perfil="secretaria"]) .so-dados { display: none !important; }
 body[data-role="gestor"] main label.alvo { cursor: default !important; }
 body[data-role="gestor"] .st-sel,
-body[data-role="gestor"] main input:not(.flt-ctrl):not(.agenda-campo):not(.conta-campo):not(#onlyfly):not(#bi-dt),
+body[data-role="gestor"] main input:not(.flt-ctrl):not(.agenda-campo):not(.conta-campo):not(.dado-campo):not(#onlyfly):not(#bi-dt),
 body[data-role="gestor"] main select:not(.flt-ctrl):not(.agenda-campo):not(.conta-campo) {
   opacity: 0.82;
 }

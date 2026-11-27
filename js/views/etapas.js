@@ -147,14 +147,21 @@ export function etapaNaDemanda(stu, d, mid) {
 }
 
 // Em Alunos: as aprovadas sobre as missões que contam (a dispensada não conta), a fase em que o aluno está (quando o
-// curso tem mais de uma) e a próxima missão
-export function progressoDoAluno(stu) {
+// curso tem mais de uma) e a próxima missão, como texto: { contagem: '13/46', resto: 'Fase 5 · próxima NAV-01' }. null sem
+// progresso (sem curso, sem os programas, com o progresso desligado: js/funcionalidades.js)
+export function progressoEmTexto(stu) {
   const curso = cursoDoAluno(stu);
-  if (!curso) return '';
+  if (!curso) return null;
   const { aprovadas, total, faseAtual, proxima } = progressoNoCurso(curso, situacao(), stu.id);
-  if (!total) return '';
-  const fase = faseAtual && indiceDoPrograma(programaParaInferir()).percurso(curso.sigla).fases.length > 1 ? ` · ${esc(rotuloDaFase(faseAtual))}` : '';
-  return `<small class="progresso" data-dica="progresso">${aprovadas}/${total}${fase}${proxima ? ` · próxima ${esc(rotuloDaMissao(curso, proxima))}` : ' · concluído'}</small>`;
+  if (!total) return null;
+  const fase = faseAtual && indiceDoPrograma(programaParaInferir()).percurso(curso.sigla).fases.length > 1 ? rotuloDaFase(faseAtual) : '';
+  return { contagem: `${aprovadas}/${total}`, resto: [fase, proxima ? `próxima ${rotuloDaMissao(curso, proxima)}` : 'concluído'].filter(Boolean).join(' · ') };
+}
+
+// O progresso numa linha (a lista dos alunos da aba Cursos)
+export function progressoDoAluno(stu) {
+  const p = progressoEmTexto(stu);
+  return p ? `<small class="progresso" data-dica="progresso">${p.contagem} · ${esc(p.resto)}</small>` : '';
 }
 
 // Na aba Cursos (os alunos por fase): a fase em que o aluno está no curso dele (a do progresso: a primeira fase aberta em

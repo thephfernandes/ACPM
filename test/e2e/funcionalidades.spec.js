@@ -2,7 +2,7 @@
 // cursos desligados, o que continua e o que fica guardado (ligar de novo traz tudo de volta). Com elas ligadas, os testes
 // de cada tela (hangar.spec.js, cursos-no-dia.spec.js, agendamento.spec.js, cursos.spec.js e os outros com comHangar ou
 // comProgresso). A prioridade, desligada e ligada: prioridade.spec.js
-import { test, comTodasAsFuncionalidades, expect, irPara, abrirEscala, abrirHistorico, diaSeguinte, entrar, prepararContexto, appPronto, vigiarErros, tabelaDoDia, importarDaAgenda, alternarDisponivel, mudarData, botaoDaData, trilho, avisosDaData, contagemDosAvisos, contagemDoDia, AMANHA, confirmarAgendamento, refazer } from './fixtures.js';
+import { test, comTodasAsFuncionalidades, expect, irPara, abrirEscala, abrirHistorico, diaSeguinte, entrar, prepararContexto, appPronto, vigiarErros, tabelaDoDia, importarDaAgenda, alternarDisponivel, mudarData, botaoDaData, trilho, avisosDaData, contagemDosAvisos, contagemDoDia, AMANHA, confirmarAgendamento, refazer, campoDoAluno, textoDoProgresso } from './fixtures.js';
 import { FRASES_DAS_FUNCIONALIDADES, FRASES_SEM_AS_FUNCIONALIDADES } from './manual-frases.js';
 import { instalarSupabaseFalso, documentosAtuais, CONTAS } from './supabase-falso.js';
 import { montarGlossario } from '../../js/glossario.js';
@@ -75,14 +75,14 @@ test('o padrão do app: o hangar e o progresso desligados; no localhost, ?funcio
   await irPara(page, 'rec');
   await expect(page.locator('#hangar')).toHaveCount(0);
   await irPara(page, 'alu');
-  await expect(page.locator('#alu .progresso')).toHaveCount(0);
+  await expect(page.locator('#alu .lista-meta')).toHaveCount(0);
 
   await page.goto('./?funcionalidades=hangar,progresso');
   await appPronto(page);
   await irPara(page, 'rec');
   await expect(page.locator('#hangar li').first()).toHaveAttribute('data-id', 'PR-VOB');
   await irPara(page, 'alu');
-  await expect(page.locator('#alu tr[data-id="1001"] .progresso')).toHaveText('1/46 · Fase 1 · próxima IN-02');
+  await expect.poll(() => textoDoProgresso(page, 1001)).toBe('1/46 · Fase 1 · próxima IN-02');
 });
 
 // A tela, Voltar e a data mudam o endereço (js/endereco.js) sem tirar dele a escolha
@@ -271,11 +271,11 @@ test.describe('O progresso nos cursos desligado', () => {
   test('em Alunos, o curso sem o progresso; em Cursos, a lista dos alunos pelo nome, e a tela funciona', async ({ page }) => {
     await abrirCom(page);
     await irPara(page, 'alu');
-    await expect(page.locator('#alu tr[data-id="1000"] [data-f="curso"]')).toHaveValue('PP');
-    await expect(page.locator('#alu .progresso')).toHaveCount(0);
+    await expect((await campoDoAluno(page, 1000, 'curso'))).toHaveValue('PP');
+    await expect(page.locator('#alu .lista-meta')).toHaveCount(0);
     // O curso continua a mudar em Alunos
-    await page.locator('#alu tr[data-id="1002"] [data-f="curso"]').selectOption('PC');
-    await page.locator('#alu tr[data-id="1002"] [data-f="curso"]').selectOption('PP');
+    await (await campoDoAluno(page, 1002, 'curso')).selectOption('PC');
+    await (await campoDoAluno(page, 1002, 'curso')).selectOption('PP');
 
     await irPara(page, 'cur');
     const pp = page.locator('#cursos .curso[data-curso="PP"]');

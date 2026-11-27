@@ -1,48 +1,63 @@
-// Alunos: incluir, excluir, os campos de cada linha, "Priorizar com", "Não escalar com" e os filtros
-import { gravarAlteracao } from '../actions.js';
+// Alunos: a lista e o detalhe (o componente: js/views/mestre-detalhe.js, com os modelos de js/views/alunos.js), incluir,
+// excluir, os campos do cadastro, "Priorizar com" e "Não escalar com". Os campos são gravados ao sair deles (change), pelo
+// mesmo caminho de sempre (registro.js, gravarAlteracao); o valor recusado fica no campo, com a mensagem
+import { gravarAlteracao, ultimaGravacao } from '../actions.js';
 import { normalizarCursoDoAluno } from '../cursos.js';
-import { showToast, focusLast } from '../dom.js';
 import { nomeLimpo, numeroBr } from '../format.js';
 import { blank, pesoDoTexto, ERRO_DO_PESO } from '../rules.js';
-import { S, insBy, stuBy } from '../state.js';
+import { S, insBy, stuBy, isGestor } from '../state.js';
 import { confirmado } from './confirmacao.js';
 import { aoAcionar, aoMudarCampo } from './registro.js';
 import { registrarDesenho, redesenharPorNome } from '../redesenho.js';
-import { rAlu, prepararFiltrosDosAlunos, filtrarAlunos, limparFiltrosDosAlunos, manterAlunoAVista, atualizarLinhaDoAluno, atualizarCanacDosAlunos } from '../views/alunos.js';
+import { criarMestreDetalhe } from '../views/mestre-detalhe.js';
+import { modeloDosAlunos, detalheDoAluno } from '../views/alunos.js';
 import { aoMudarDadosPessoais } from '../views/dados-pessoais.js';
+import { pessoaEscolhida } from '../views/editor-de-dados-pessoais.js';
+import { criarFiltroDosCursos } from '../views/filtro-dos-cursos.js';
+import { registrarTela } from '../views/telas.js';
 
-// O desenho de Alunos (js/redesenho.js)
-registrarDesenho('alunos', rAlu, { em: ['dados', 'consulta', 'releitura'], ordem: 30 });
-
-// A coluna CANAC acompanha os dados pessoais
-aoMudarDadosPessoais(atualizarCanacDosAlunos);
-
-// Filtros: o nome e o curso; as marcas ficam no filtro de vários valores, que ouve as próprias caixas
-// (js/views/filtro-dos-cursos.js). "Limpar filtros" aparece na linha que diz que nenhum passa; sem data-act, ele vale
-// também para quem só consulta
-document.addEventListener('input', e => {
-  if (e.target.dataset && e.target.dataset.flt === 'alu') filtrarAlunos({ nome: e.target.value });
+const tela = criarMestreDetalhe({
+  id: 'alu',
+  rotulo: 'Alunos',
+  nomes: ['aluno', 'alunos'],
+  semItens: 'Nenhum aluno cadastrado. Clique em “+ Novo aluno” acima para cadastrar.',
+  vazio: 'Escolha um aluno na lista.',
+  // O filtro dos cursos (o mesmo da Demanda: as marcas valem nas duas telas)
+  filtros: [{ criar: aoMudar => criarFiltroDosCursos('flt-alu-cur', aoMudar), valores: item => item.valores.curso }],
+  modelo: () => modeloDosAlunos(tela.selecionado()),
+  // O aluno escolhido: os dados pessoais dele são lidos (250 ms depois de a escolha parar nele)
+  detalhe: id => {
+    pessoaEscolhida('aluno', +id, opcoes => tela.desenhar(opcoes));
+    return detalheDoAluno(id);
+  },
+  edita: () => !isGestor()
 });
-prepararFiltrosDosAlunos();
-document.addEventListener('click', e => {
-  if (e.target.closest('[data-limpar-filtros="alu"]')) limparFiltrosDosAlunos();
-});
 
-// O aluno novo, também: com o nome selecionado, à vista mesmo fora da busca (até ela mudar)
+// O desenho de Alunos (js/redesenho.js): os dados de uma data, quem só consulta, a releitura e o perfil
+registrarDesenho('alunos', tela.desenhar, { em: ['dados', 'consulta', 'releitura', 'perfil'], ordem: 30, comMomento: true });
+// O endereço: #/alu/<id> escolhe o aluno (numa vista só, abre o detalhe)
+registrarTela('alu', { aoMostrar: (item, opcoes) => tela.aoMostrar(item, opcoes) });
+// O CANAC das linhas acompanha os dados pessoais
+aoMudarDadosPessoais(() => tela.desenhar());
+
+// O aluno novo: escolhido, com o nome selecionado, à vista mesmo fora da busca (até ela mudar)
 aoAcionar('adds', () => {
-  const newStu = { id: S.nid++, nm: 'Novo aluno', kg: 0, bl: [], extra: [], ...blank() };
-  S.stu.push(newStu);
-  manterAlunoAVista(newStu.id);
-  gravarAlteracao('inc', `Aluno cadastrado: ${newStu.nm}`);
-  rAlu(); redesenharPorNome('pedidos-do-dia'); focusLast('#alu .nm');
+  const novo = { id: S.nid++, nm: 'Novo aluno', kg: 0, bl: [], extra: [], ...blank() };
+  S.stu.push(novo);
+  if (!gravarAlteracao('inc', `Aluno cadastrado: ${novo.nm}`)) { S.stu = S.stu.filter(x => x !== novo); return; }
+  tela.novo(novo.id, ultimaGravacao());
+  redesenharPorNome('pedidos-do-dia');
+  tela.focarNoCampo('nm', { selecionar: true });
 });
 
+// O ✕ de uma etiqueta: o foco vai para a lista do mesmo campo (o ✕ sumiu)
 aoAcionar('unbl', (b, { id }) => {
   const s = stuBy(id);
   const blkIns = insBy(+b.dataset.b);
   s.bl = s.bl.filter(v => v !== +b.dataset.b);
   gravarAlteracao('mod', `${s.nm}: volta a ser escalado com ${blkIns ? blkIns.nm : ''}`);
-  atualizarLinhaDoAluno(s, { naoEscalar: true });
+  tela.desenhar();
+  tela.focarNoCampo('bl');
   redesenharPorNome('pedidos-do-dia');
 });
 
@@ -52,29 +67,33 @@ aoAcionar('unvc', (b, { id }) => {
   s.voaCom = (s.voaCom || []).filter(v => v !== +b.dataset.b);
   if (!s.voaCom.length) delete s.voaCom;
   gravarAlteracao('mod', `${s.nm}: deixa de priorizar ${ins ? ins.nm : ''}`);
-  atualizarLinhaDoAluno(s, { voaComMudou: true });
+  tela.desenhar();
+  tela.focarNoCampo('voaCom');
   redesenharPorNome('pedidos-do-dia');
 });
 
+// "Excluir aluno…", no rodapé do detalhe: dois cliques
 aoAcionar('dels', (b, { id }) => {
-  if (!confirmado(b, 'Confirmar')) return;
+  if (!confirmado(b, 'Confirmar exclusão')) return;
   const target = stuBy(id);
   S.stu = S.stu.filter(x => x.id !== id);
   gravarAlteracao('exc', `Aluno excluído: ${target ? target.nm : id}`);
-  redesenharPorNome('instrutores'); rAlu(); redesenharPorNome('pedidos-do-dia');
+  tela.removido(id);
+  redesenharPorNome('instrutores', 'pedidos-do-dia');
 });
 
-// Os campos de um aluno
+// Os campos do cadastro de um aluno, no detalhe
 aoMudarCampo('s', (t, { f, id }) => {
   const s = stuBy(id);
-  let historico = [];
+  if (!s) return;
+  let historico;
   if (f === 'nm') {
     const old = s.nm;
     s.nm = nomeLimpo(t.value, s.nm);
     historico = ['mod', `Aluno: ${old} → ${s.nm}`];
   } else if (f === 'kg') {
     const kg = pesoDoTexto(t.value, t.validity.badInput);
-    if (kg === null) { showToast(ERRO_DO_PESO); t.value = s.kg || ''; return; }
+    if (kg === null) { tela.erroNoCampo('kg', ERRO_DO_PESO); return; }
     s.kg = kg;
     historico = ['mod', `Peso ${s.nm}: ${numeroBr(s.kg)} kg`];
   } else if (f === 'bl' && t.value) {
@@ -94,9 +113,11 @@ aoMudarCampo('s', (t, { f, id }) => {
     if (curso) s.curso = curso;
     else delete s.curso;
     historico = ['mod', `Curso de ${s.nm}: ${curso || 'nenhum'}`];
-  }
+  } else return;
   gravarAlteracao(...historico);
-  atualizarLinhaDoAluno(s, { naoEscalar: f === 'bl', voaComMudou: f === 'voaCom' });
+  tela.desenhar();
+  // As listas de instrutores: o foco fica na lista que mudou (a opção escolhida saiu dela)
+  if (f === 'bl' || f === 'voaCom') tela.focarNoCampo(f);
   // A Demanda mostra o nome do aluno, o “Priorizar com” dele (no Automático do instrutor) e as missões do curso dele
   if (['nm', 'voaCom', 'bl', 'curso'].includes(f)) redesenharPorNome('pedidos-do-dia');
 });

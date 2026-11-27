@@ -1,6 +1,6 @@
 // Escala por data no modo compartilhado: migração dos documentos antigos no servidor, gestor navegando
 // entre as datas sem gravar e autor das alterações no histórico.
-import { test, comProgresso, expect, prepararContexto, vigiarErros, irPara, AMANHA, entrar, preencherLogin, URL_APP, alternarDisponivel, appPronto, caixaDisponivel, dataAberta, escolherNoCalendario, mudarData, rotuloDaData, botaoDaData } from './fixtures.js';
+import { test, comProgresso, expect, prepararContexto, vigiarErros, irPara, AMANHA, entrar, preencherLogin, URL_APP, alternarDisponivel, appPronto, caixaDisponivel, dataAberta, escolherNoCalendario, mudarData, rotuloDaData, botaoDaData, textoDoProgresso, progressoNaLinha } from './fixtures.js';
 import { instalarSupabaseFalso, documentosAtuais, documentosFase3, CONTAS } from './supabase-falso.js';
 import { comNomesAntigos } from '../helpers/formato.js';
 import { ESQUEMA } from '../../js/migracoes.js';
@@ -120,7 +120,7 @@ test.describe('Escala por data (modo compartilhado)', () => {
     expect([doPP(servidor).versao, doPP(servidor).missoes.map(m => [m.codigo, m.nome])]).toEqual([2, [['PP-01', 'Familiarização'], ['PP-02', 'Navegação']]]);
     expect(servidor.banco.get('cadastro').conteudo.cursos, 'o cadastro guarda a cópia do programa').toEqual(PROGRAMA);
     await irPara(page, 'alu');
-    await expect(page.locator('#alu tr[data-id="1000"] .progresso')).toHaveText('0/2 · próxima PP-01');
+    await expect.poll(() => textoDoProgresso(page, 1000)).toBe('0/2 · próxima PP-01');
     await expect(page.locator('#aviso-dados')).toBeHidden();
     const amanha = servidor.dias.get(AMANHA).conteudo;
     expect([amanha.esquema, amanha.av['SIM-MLTE-D'], amanha.av['SIM-MONO-A']]).toEqual([ESQUEMA, false, true]);
@@ -139,7 +139,7 @@ test.describe('Escala por data (modo compartilhado)', () => {
     const pendentes = 'Os programas dos cursos ainda não foram trazidos do cadastro (isso acontece na primeira abertura de um Operador ou Administrador depois da atualização): a próxima missão e o progresso ficam desligados.';
     await expect(page.locator('#aviso-dados-texto')).toHaveText(pendentes);
     await irPara(page, 'alu');
-    await expect(page.locator('#alu tr[data-id="1000"] .progresso')).toHaveCount(0);
+    await expect(progressoNaLinha(page, 1000)).toHaveCount(0);
     await irPara(page, 'cur');
     await expect(page.locator('#cursos')).toHaveText(pendentes);
     expect(servidor.gravacoes).toEqual([]);

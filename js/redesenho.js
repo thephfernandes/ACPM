@@ -14,13 +14,15 @@ const MOMENTOS = ['dados', 'consulta', 'releitura', 'escala', 'perfil', 'pedidos
 const desenhos = new Map();
 
 // Um nome repetido ou um momento que não está na lista é erro (o teste dos desenhos registrados confere os dois)
-export function registrarDesenho(nome, desenhar, { em = [], ordem = 50 } = {}) {
+// comMomento: o desenho recebe o momento em que é refeito (a lista e o detalhe refazem tudo no 'consulta'); os outros são
+// chamados sem nada
+export function registrarDesenho(nome, desenhar, { em = [], ordem = 50, comMomento = false } = {}) {
   if (desenhos.has(nome)) throw new Error(`O desenho "${nome}" já está registrado.`);
   if (typeof desenhar !== 'function') throw new Error(`O desenho "${nome}" não é uma função.`);
   for (const momento of em) {
     if (!MOMENTOS.includes(momento)) throw new Error(`O desenho "${nome}" pede um momento que não existe: "${momento}".`);
   }
-  desenhos.set(nome, { nome, desenhar, em: [...em], ordem });
+  desenhos.set(nome, { nome, desenhar, em: [...em], ordem, comMomento });
 }
 
 // Os desenhos registrados, na ordem em que são refeitos (a ordem; no empate, a do registro)
@@ -32,7 +34,8 @@ export function desenhosRegistrados() {
 export function redesenhar(momento) {
   if (!MOMENTOS.includes(momento)) throw new Error(`O momento "${momento}" não existe.`);
   for (const { nome, em } of desenhosRegistrados()) {
-    if (em.includes(momento)) semFalhar(desenhos.get(nome).desenhar);
+    const { desenhar, comMomento } = desenhos.get(nome);
+    if (em.includes(momento)) semFalhar(comMomento ? () => desenhar(momento) : desenhar);
   }
 }
 

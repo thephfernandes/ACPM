@@ -14,6 +14,11 @@ export const REGIOES = { casca: 'header.topo, #linha, #trilho:not([hidden])', te
 // A largura do documento: maior que a da janela, a página rola para o lado
 export const larguraDaPagina = page => page.evaluate(() => document.documentElement.scrollWidth);
 
+// Os painéis da tela aberta (a lista e o detalhe das telas de lista e detalhe, data-regiao) que rolam para o lado: um painel
+// que rola sozinho passa pela conferência do documento sem ser medido
+export const paineisQueRolamParaOLado = page => page.evaluate(() => [...document.querySelectorAll('main#conteudo > section.on [data-regiao]')]
+  .filter(r => r.checkVisibility() && r.scrollWidth > r.clientWidth + 1).map(r => r.dataset.regiao));
+
 // Controles da tela aberta e da casca com área de toque menor que 44 px (a caixa de seleção conta com o rótulo que a
 // envolve; links no meio do texto ficam de fora)
 export const alvosPequenos = page => page.evaluate(() => {

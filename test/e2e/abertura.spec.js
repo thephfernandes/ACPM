@@ -6,7 +6,7 @@
 // lidas uma de cada vez (a versão que a gravação leva é a da leitura dos dados da tela), e nenhuma data é lida antes de a
 // abertura preparar os dados, nem depois de a preparação falhar. O que fica aberto na tela quando a data abre passa a
 // mostrar os dados dela
-import { test, comProgresso, expect, prepararContexto, vigiarErros, preencherLogin, entrar, irPara, irParaVista, abrirEscala, AMANHA, URL_APP, abrirHistorico, alternarDisponivel, botaoAprovar, caixaDisponivel, caixaVoa, dataAberta, diaAnterior, diaSeguinte, exportar, importarDaAgenda, rotuloDaData, escolherNoCalendario, confirmarAgendamento } from './fixtures.js';
+import { test, comProgresso, expect, prepararContexto, vigiarErros, preencherLogin, entrar, irPara, irParaVista, abrirEscala, AMANHA, URL_APP, abrirHistorico, alternarDisponivel, botaoAprovar, caixaDisponivel, caixaVoa, dataAberta, diaAnterior, diaSeguinte, exportar, importarDaAgenda, rotuloDaData, escolherNoCalendario, confirmarAgendamento, linhasDosAlunos } from './fixtures.js';
 import { criarSupabaseFalso, documentosAtuais, CONTAS } from './supabase-falso.js';
 import { aluno, cenario, instrutor } from '../helpers/montar.js';
 import { runAllocationEngine } from '../../js/engine.js';
@@ -94,7 +94,7 @@ test.describe('A escala abrindo: nada é gravado antes de os dados da data chega
     for (const [nome, usar] of BOTOES_DA_ABERTURA) await recusada(page, nome, () => usar(page));
     // A tela também ficou como estava: sem o aluno novo, o formulário do curso novo, o diálogo de agendar ou "Limpar
     // demanda" armado
-    await expect(page.locator('#alu tr.cd')).toHaveCount(0);
+    await expect(linhasDosAlunos(page)).toHaveCount(0);
     await expect(page.locator('#cursos .curso')).toHaveCount(0);
     await expect(page.locator('#form-curso')).toBeHidden();
     await expect(page.locator('#dlg-agendar')).toBeHidden();
@@ -108,7 +108,7 @@ test.describe('A escala abrindo: nada é gravado antes de os dados da data chega
     liberar();
     await expect(page.locator('body[data-pronto]')).toBeAttached();
     await irPara(page, 'alu');
-    await expect(page.locator('#alu tr.cd')).toHaveCount(2);
+    await expect(linhasDosAlunos(page)).toHaveCount(2);
     await page.locator('#s-alu [data-act="adds"]').click();
     await expect.poll(() => cadastroDe(servidor).alunos).toEqual(['Aluno 1000', 'Aluno 1001', 'Novo aluno']);
     await irPara(page, 'cur');
@@ -148,7 +148,7 @@ test.describe('A escala abrindo: nada é gravado antes de os dados da data chega
     await expect(page.locator('body[data-pronto]')).toBeAttached();
     await expect(page.locator('#aviso-sync')).toBeHidden();
     await irPara(page, 'alu');
-    await expect(page.locator('#alu tr.cd')).toHaveCount(2);
+    await expect(linhasDosAlunos(page)).toHaveCount(2);
     await page.locator('#s-alu [data-act="adds"]').click();
     await expect.poll(() => cadastroDe(servidor).alunos).toEqual(['Aluno 1000', 'Aluno 1001', 'Novo aluno']);
     expect(erros).toEqual([]);
@@ -309,9 +309,9 @@ test.describe('A escala abrindo: nada é gravado antes de os dados da data chega
     liberar();
     await expect(page.locator('body[data-pronto]')).toBeAttached();
     await irPara(page, 'alu');
-    await expect(page.locator('#alu tr.cd')).toHaveCount(2);
+    await expect(linhasDosAlunos(page)).toHaveCount(2);
     await recusada(page, '+ Novo aluno', () => page.locator('#s-alu [data-act="adds"]').click());
-    await expect(page.locator('#alu tr.cd')).toHaveCount(2);
+    await expect(linhasDosAlunos(page)).toHaveCount(2);
 
     soltar13();
     await expect(rotuloDaData(page)).toContainText('13/11');
@@ -413,7 +413,7 @@ test.describe('A escala abrindo: nada é gravado antes de os dados da data chega
     await page.locator('#btn-recarregar').click();
     await expect(page.locator('body[data-pronto]')).toBeAttached();
     await irPara(page, 'alu');
-    await expect(page.locator('#alu tr.cd')).toHaveCount(2);
+    await expect(linhasDosAlunos(page)).toHaveCount(2);
     expect(cadastroDe(servidor).alunos).toEqual(['Aluno 1000', 'Aluno 1001']);
     expect(erros).toEqual([]);
     await contexto.close();
@@ -438,7 +438,7 @@ test.describe('A escala abrindo: nada é gravado antes de os dados da data chega
 
     await page.evaluate(() => localStorage.removeItem('acpm3_audit'));
     await page.reload();
-    await expect(page.locator('#alu tr.cd')).toHaveCount(2);
+    await expect(linhasDosAlunos(page)).toHaveCount(2);
     await expect(page.locator('#aviso-sync')).toBeHidden();
   });
 });

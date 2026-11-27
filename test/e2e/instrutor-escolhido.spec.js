@@ -1,6 +1,6 @@
 // O instrutor escolhido pelo operador: na Demanda (o app encaixa o voo com ele) e na Escala (o nome do instrutor abre a
 // lista; o voo fica onde está, fixo, com o escolhido, e o resto é refeito em volta). O histórico desfaz
-import { test, expect, abrir, irPara, abrirEscala, confirmar, abrirHistorico, alternarVem, aprovar, reabrir, editorDoVoo, refazer, abrirCaixa } from './fixtures.js';
+import { test, expect, abrir, irPara, abrirEscala, confirmar, abrirHistorico, alternarVem, aprovar, reabrir, editorDoVoo, refazer, abrirCaixa, campoDoAluno, abrirAluno } from './fixtures.js';
 import { aluno, cenario, instrutor } from '../helpers/montar.js';
 
 // Dois voos às 08:20: o app põe o Instrutor 02 (menos habilitações) com o Aluno 1000 e o Instrutor 01 com o 1001
@@ -96,10 +96,11 @@ test.describe('Instrutor escolhido', () => {
   test('Priorizar com (Alunos): o aluno voa com o instrutor dele; quando ele não vem, com outro, e a escala avisa', async ({ page }) => {
     await abrir(page, { estado: dia() });
     await irPara(page, 'alu');
-    const aluno = page.locator('#alu tr.cd[data-id="1000"]');
+    await abrirAluno(page, 1000);
+    const aluno = page.locator('#det-alu .det[data-id="1000"]');
     await aluno.locator('[data-f="voaCom"]').selectOption({ label: 'Instrutor 01' });
     await expect(aluno.locator('.tg.par')).toHaveText(/Instrutor 01/);
-    await expect(page.locator('#alu tr.cd[data-id="1000"] [data-f="voaCom"]')).toBeFocused();
+    await expect((await campoDoAluno(page, 1000, 'voaCom'))).toBeFocused();
     // Quem está no “Priorizar com” não aparece em “Não escalar com”, e o contrário
     await expect(aluno.locator('[data-f="bl"] option', { hasText: 'Instrutor 01' })).toHaveCount(1);
     await aluno.locator('[data-f="bl"]').selectOption({ label: 'Instrutor 03' });
@@ -123,8 +124,8 @@ test.describe('Instrutor escolhido', () => {
 
     // Tirar do “Priorizar com”: o aviso some
     await irPara(page, 'alu');
-    await page.locator('#alu tr.cd[data-id="1000"] [data-act="unvc"]').click();
-    await expect(page.locator('#alu tr.cd[data-id="1000"] .tg.par')).toHaveCount(0);
+    await page.locator('#det-alu .det[data-id="1000"] [data-act="unvc"]').click();
+    await expect(page.locator('#det-alu .det[data-id="1000"] .tg.par')).toHaveCount(0);
     await abrirEscala(page);
     await expect(page.locator('#out details.avisos')).toHaveCount(0);
   });
@@ -132,10 +133,11 @@ test.describe('Instrutor escolhido', () => {
   test('o “Priorizar com” fica no cadastro: vale também na data seguinte', async ({ page }) => {
     await abrir(page, { estado: dia() });
     await irPara(page, 'alu');
-    await page.locator('#alu tr.cd[data-id="1001"] [data-f="voaCom"]').selectOption({ label: 'Instrutor 02' });
+    await (await campoDoAluno(page, 1001, 'voaCom')).selectOption({ label: 'Instrutor 02' });
     await page.reload();
     await irPara(page, 'alu');
-    await expect(page.locator('#alu tr.cd[data-id="1001"] .tg.par')).toHaveText(/Instrutor 02/);
+    await abrirAluno(page, 1001);
+    await expect(page.locator('#det-alu .det[data-id="1001"] .tg.par')).toHaveText(/Instrutor 02/);
   });
 
   test('o voo fixo pela escolha na Escala continua fixo ao mudar o status; "Automático" na Demanda o solta', async ({ page }) => {

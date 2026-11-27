@@ -1,6 +1,6 @@
 // Acessibilidade: cada botão e cada campo tem um nome para o leitor de tela, e nenhum se chama só "✕" (que o leitor
 // lê como "multiplicação"). Vale para todas as abas, o Histórico e o painel de habilitações.
-import { test, expect, abrir, abrirComExemplo, irPara, entrar, abrirEscala, abrirCaixa, prepararContexto, vigiarErros, REGIOES, abasVisiveis, abrirHistorico, aprovar, botaoAprovar, botaoDoHistorico, botaoDoMenuDaConta, percorrerTelas, relativoDaData, rotuloDaData, semNome, alternarVem, botoesDasAbas, botaoDaData, mudarData, contagemDoDia, diaDoCalendario, trilho, AMANHA, avisosDaData, contagemDosAvisos, editorDoVoo, refazer } from './fixtures.js';
+import { test, expect, abrir, abrirComExemplo, irPara, entrar, abrirEscala, abrirCaixa, prepararContexto, vigiarErros, REGIOES, abasVisiveis, abrirHistorico, aprovar, botaoAprovar, botaoDoHistorico, botaoDoMenuDaConta, percorrerTelas, relativoDaData, rotuloDaData, semNome, alternarVem, botoesDasAbas, botaoDaData, mudarData, contagemDoDia, diaDoCalendario, trilho, AMANHA, avisosDaData, contagemDosAvisos, editorDoVoo, refazer, abrirAluno } from './fixtures.js';
 import { instalarSupabaseFalso, documentosAtuais, CONTAS } from './supabase-falso.js';
 import { comExemplo } from '../helpers/exemplo.js';
 import { estadoSintetico } from '../helpers/estado.js';
@@ -324,16 +324,17 @@ test.describe('O leitor de tela e o teclado', () => {
     const anuncio = page.locator('#anuncio');
     await expect(anuncio).toHaveAttribute('role', 'status');
     await expect(anuncio).toBeEmpty();
-    // Um botão com texto e um ✕ com nome próprio (o do aluno): o anúncio é o nome do botão armado
+    // Um botão com texto e um com nome próprio ("Excluir aluno…", com o nome do aluno): o anúncio é o nome do botão armado
     const aprovar = botaoAprovar(page);
     await aprovar.click();
     await expect(anuncio).toHaveText('Confirmar aprovação. Para confirmar, acione o botão de novo.');
     await irPara(page, 'alu');
-    const x = page.locator('#alu [data-act="dels"]').first();
+    await abrirAluno(page, 1000);
+    const x = page.locator('#det-alu-excluir');
     const nome = await x.getAttribute('aria-label');
     await x.click();
     await expect(x).toHaveClass(/\barm\b/);
-    await expect(anuncio).toHaveText(`Confirmar: ${nome}. Para confirmar, acione o botão de novo.`);
+    await expect(anuncio).toHaveText(`Confirmar exclusão: ${nome}. Para confirmar, acione o botão de novo.`);
   });
 
   test('o menu da conta: as setas, Home e End andam pelos itens; o Tab que sai do menu o fecha', async ({ page, context }) => {
@@ -564,10 +565,11 @@ test.describe('O leitor de tela e o teclado', () => {
       await aprovar(page);
       await conferir('selo da aprovação', page.locator('#selo-aprovada'));
       await irPara(page, 'alu');
-      const x = page.locator('#alu [data-act="dels"]').first();
+      await abrirAluno(page, 1000);
+      const x = page.locator('#det-alu-excluir');
       await x.click();
       await expect(x).toHaveClass(/\barm\b/);
-      await conferir('✕ armado', x);
+      await conferir('"Excluir aluno…" armado', x);
       expect(fracos).toEqual([]);
     });
 

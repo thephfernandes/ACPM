@@ -2,7 +2,7 @@
 // seguinte, a volta de BH às 07:30 entra sozinha na escala, com o instrutor, o aluno e o avião livres só às 10:10, e o
 // repouso antes dela é um aviso. No programa do curso, o Noturno pode vir em trechos (a ida, a noite e a volta): é um voo
 // só, oferecido pela noite
-import { test, comProgresso, expect, abrir, irPara, abrirEscala, prepararContexto, vigiarErros, AMANHA, entrar, campoDaAgenda, diaSeguinte, rotuloDaData, refazer } from './fixtures.js';
+import { test, comProgresso, expect, abrir, irPara, abrirEscala, prepararContexto, vigiarErros, AMANHA, entrar, campoDaAgenda, diaSeguinte, rotuloDaData, refazer, textoDoProgresso } from './fixtures.js';
 import { criarSupabaseFalso, documentosAtuais, CONTAS } from './supabase-falso.js';
 import { aluno, cenario, instrutor } from '../helpers/montar.js';
 import { cursosIniciais, gravarCurso } from '../../js/programa.js';
@@ -95,7 +95,7 @@ test.describe('O Noturno em trechos no programa do curso', () => {
     await entrar(page, CONTAS.operador);
 
     await irPara(page, 'alu');
-    await expect(page.locator('#alu tr[data-id="1000"] .progresso')).toHaveText('1/4 · Fase 6 · próxima NOT (com TSL-01 e TSL-02)');
+    await expect.poll(() => textoDoProgresso(page, 1000)).toBe('1/4 · Fase 6 · próxima NOT (com TSL-01 e TSL-02)');
     await irPara(page, 'dem');
     await page.locator('#onlyfly').uncheck();
     const pedido = page.locator('#dem tr[data-id="1000"][data-mid="0"]');
@@ -129,7 +129,7 @@ test.describe('O Noturno em trechos no programa do curso', () => {
     await voo.locator('[data-resultado]').selectOption('aprovado');
     await expect.poll(() => servidor.resultados.map(r => r.missao)).toEqual(['TMA-01', 'NOT']);
     await irPara(page, 'alu');
-    await expect(page.locator('#alu tr[data-id="1000"] .progresso')).toHaveText('4/4 · concluído');
+    await expect.poll(() => textoDoProgresso(page, 1000)).toBe('4/4 · concluído');
     expect(erros).toEqual([]);
     await contexto.close();
   });

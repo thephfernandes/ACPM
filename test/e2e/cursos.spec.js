@@ -2,7 +2,7 @@
 // acpm4_cursos). O Administrador inclui, muda, reordena e tira missões; os outros perfis só consultam. Cada alteração
 // grava o curso inteiro (não o cadastro nem o dia) e não entra no histórico da data. Cada aluno tem o curso dele, em
 // Alunos.
-import { test, comProgresso, expect, abrir, irPara, irParaVista, confirmar, abrirEscala, prepararContexto, vigiarErros, preencherLogin, AMANHA, URL_APP, entrar as entrarNoApp, abrirHistorico, appPronto, caixaVoa, diaSeguinte, rotuloDaData, alvosPequenos, larguraDaPagina, semNome } from './fixtures.js';
+import { test, comProgresso, expect, abrir, irPara, irParaVista, confirmar, abrirEscala, prepararContexto, vigiarErros, preencherLogin, AMANHA, URL_APP, entrar as entrarNoApp, abrirHistorico, appPronto, caixaVoa, diaSeguinte, rotuloDaData, alvosPequenos, larguraDaPagina, semNome, campoDoAluno, textoDoProgresso, progressoNaLinha } from './fixtures.js';
 import { criarSupabaseFalso, documentosAtuais, documentosFase3, CONTAS } from './supabase-falso.js';
 import { aluno, cenario, instrutor, missaoExtra } from '../helpers/montar.js';
 import { IDS } from '../helpers/casos-do-programa.js';
@@ -236,11 +236,11 @@ test.describe('Cursos', () => {
   test('cada aluno tem o curso dele, na lista de alunos', async ({ page }) => {
     await abrir(page, { estado: dia() });
     await irPara(page, 'alu');
-    await expect(page.locator('#alu tr[data-id="1000"] [data-f="curso"]')).toHaveValue('PP');
-    await page.locator('#alu tr[data-id="1001"] [data-f="curso"]').selectOption('INVA');
+    await expect((await campoDoAluno(page, 1000, 'curso'))).toHaveValue('PP');
+    await (await campoDoAluno(page, 1001, 'curso')).selectOption('INVA');
     await page.reload();
     await irPara(page, 'alu');
-    await expect(page.locator('#alu tr[data-id="1001"] [data-f="curso"]')).toHaveValue('INVA');
+    await expect((await campoDoAluno(page, 1001, 'curso'))).toHaveValue('INVA');
   });
 
   test('no Gestor, o programa (em texto) e o curso dos alunos só aparecem', async ({ page }) => {
@@ -252,7 +252,9 @@ test.describe('Cursos', () => {
     await expect(curso(page, 'PP').getByRole('button', { name: '+ Missão' })).toBeHidden();
     await expect(page.locator('#cursos')).toContainText('Só o Administrador muda; aqui é consulta.');
     await irPara(page, 'alu');
-    await expect(page.locator('#alu tr[data-id="1000"] [data-f="curso"]')).toBeDisabled();
+    // O curso, em texto (quem só consulta não tem o campo)
+    await expect((await campoDoAluno(page, 1000, 'curso'))).toHaveCount(0);
+    await expect(page.locator('#det-alu [data-campo="curso"] .det-valor')).toHaveText('PP · Piloto Privado');
   });
 
   // Neste navegador, o perfil muda pelo topo: a aba Cursos aberta mostra ou tira na hora os controles de quem muda
@@ -301,7 +303,7 @@ test.describe('Cursos no dia', () => {
     await page.keyboard.press('Escape');
 
     await irPara(page, 'alu');
-    await expect(page.locator('#alu tr[data-id="1000"] .progresso')).toHaveText('1/2 · próxima PP-02');
+    await expect.poll(() => textoDoProgresso(page, 1000)).toBe('1/2 · próxima PP-02');
     // Com um resultado, o código da missão fica travado (os resultados guardam o código; o nome muda), já na tela que
     // registrou e, depois de recarregar, pelo programa lido
     const travado = async () => {
@@ -371,7 +373,7 @@ test.describe('Cursos no servidor (modo compartilhado)', () => {
     await abrirEscala(gestor.page);
     await expect(voo(gestor.page).locator('.res-aprovado')).toHaveText('Aprovado');
     await irPara(gestor.page, 'alu');
-    await expect(gestor.page.locator('#alu tr[data-id="1000"] .progresso')).toHaveText('1/2 · próxima PP-02');
+    await expect.poll(() => textoDoProgresso(gestor.page, 1000)).toBe('1/2 · próxima PP-02');
     expect(gestor.erros).toEqual([]);
     await gestor.contexto.close();
   });
@@ -475,7 +477,7 @@ test.describe('Cursos no servidor (modo compartilhado)', () => {
       '[10/11 12:00] Operador de Teste · Programa trazido do cadastro (2 missões)'
     ]);
     await irPara(gestor.page, 'alu');
-    await expect(gestor.page.locator('#alu tr[data-id="1000"] .progresso')).toHaveText('0/2 · próxima PP-02');
+    await expect.poll(() => textoDoProgresso(gestor.page, 1000)).toBe('0/2 · próxima PP-02');
     expect(gestor.erros).toEqual([]);
     await gestor.contexto.close();
   });
@@ -620,10 +622,10 @@ test.describe('Cursos no servidor (modo compartilhado)', () => {
     await expect(admin.page.locator('#cursos')).toHaveText(semProgramas);
     await expect(admin.page.locator('#cursos [data-act="missao-nova"]')).toHaveCount(0);
     await irPara(admin.page, 'alu');
-    await expect(admin.page.locator('#alu tr[data-id="1000"] .progresso')).toHaveCount(0);
+    await expect(progressoNaLinha(admin.page, 1000)).toHaveCount(0);
     await admin.page.locator('#btn-tentar-dados').click();
     await expect(admin.page.locator('#aviso-dados')).toBeHidden();
-    await expect(admin.page.locator('#alu tr[data-id="1000"] .progresso')).toHaveText('0/2 · próxima PP-01');
+    await expect.poll(() => textoDoProgresso(admin.page, 1000)).toBe('0/2 · próxima PP-01');
     await irPara(admin.page, 'cur');
     await expect(linhas(admin.page, 'PP')).toHaveCount(2);
     // Um curso de cada vez: o PP, com o "+ Missão" da fase dele
@@ -658,7 +660,7 @@ test.describe('Cursos no servidor (modo compartilhado)', () => {
     await tentar.click();
     await expect(gestor.page.locator('#aviso-dados')).toBeHidden();
     await irPara(gestor.page, 'alu');
-    await expect(gestor.page.locator('#alu tr[data-id="1000"] .progresso')).toHaveText('0/2 · próxima PP-01');
+    await expect.poll(() => textoDoProgresso(gestor.page, 1000)).toBe('0/2 · próxima PP-01');
     await irPara(gestor.page, 'cur');
     await expect(linhas(gestor.page, 'PP')).toHaveCount(2);
     expect(servidor.gravacoes).toHaveLength(gravacoes);
@@ -675,21 +677,21 @@ test.describe('Cursos no servidor (modo compartilhado)', () => {
     const operador = await entrar(browser, servidor, CONTAS.operador, { statusEsperados: [503] });
     await expect(operador.page.locator('#aviso-dados')).toBeVisible();
     await irPara(operador.page, 'alu');
-    const opcoes = id => operador.page.locator(`#alu tr[data-id="${id}"] [data-f="curso"] option`);
+    const opcoes = async id => (await campoDoAluno(operador.page, id, 'curso')).locator('option');
     const tres = ['PP · Piloto Privado', 'PC · Piloto Comercial', 'INVA · Instrutor de Voo'];
-    await expect(opcoes(1000)).toHaveText(['—', ...tres]);
-    await expect(operador.page.locator('#alu tr[data-id="1000"] [data-f="curso"]')).toHaveValue('PP');
-    await expect(opcoes(1001)).toHaveText(['—', ...tres]);
-    await expect(opcoes(1002)).toHaveText(['—', ...tres, 'MLTE']);
-    await expect(operador.page.locator('#alu tr[data-id="1002"] [data-f="curso"]')).toHaveValue('MLTE');
+    await expect(await opcoes(1000)).toHaveText(['—', ...tres]);
+    await expect((await campoDoAluno(operador.page, 1000, 'curso'))).toHaveValue('PP');
+    await expect(await opcoes(1001)).toHaveText(['—', ...tres]);
+    await expect(await opcoes(1002)).toHaveText(['—', ...tres, 'MLTE']);
+    await expect((await campoDoAluno(operador.page, 1002, 'curso'))).toHaveValue('MLTE');
     // A matrícula feita sem os programas vale
-    await operador.page.locator('#alu tr[data-id="1001"] [data-f="curso"]').selectOption('INVA');
+    await (await campoDoAluno(operador.page, 1001, 'curso')).selectOption('INVA');
     await expect(operador.page.locator('#audit-log-list')).toContainText('Curso de Aluno 1001: INVA');
     // Lidos os programas, a lista é a das tabelas dos cursos: o curso que não existe nelas é dito como tal
     await operador.page.locator('#btn-tentar-dados').click();
     await expect(operador.page.locator('#aviso-dados')).toBeHidden();
-    await expect(opcoes(1002)).toHaveText(['—', ...tres, 'MLTE (curso desconhecido)']);
-    await expect(operador.page.locator('#alu tr[data-id="1001"] [data-f="curso"]')).toHaveValue('INVA');
+    await expect(await opcoes(1002)).toHaveText(['—', ...tres, 'MLTE (curso desconhecido)']);
+    await expect((await campoDoAluno(operador.page, 1001, 'curso'))).toHaveValue('INVA');
     expect(operador.erros).toEqual([]);
     await operador.contexto.close();
   });
@@ -1304,7 +1306,7 @@ test.describe('Cursos: cursos novos, encerrar, o cronograma do PP e o curso de c
   }
   const comPP = conteudo => gravarCurso({ cursos: cursosIniciais() }, { sigla: 'PP', versaoLida: 1, conteudo, descricao: 'PP: programa' }).cursos;
   const descricoes = async page => (await programaGuardado(page)).alteracoes.map(a => a.descricao);
-  const opcoesDoCurso = (page, id) => page.locator(`#alu tr[data-id="${id}"] [data-f="curso"] option`);
+  const opcoesDoCurso = async (page, id) => (await campoDoAluno(page, id, 'curso')).locator('option');
   // Os valores de uma lista de campos
   const valores = campos => campos.evaluateAll(els => els.map(e => e.value));
   const aprovada = (aluno, missao, id) => ({ id, aluno, curso: 'PP', missao, resultado: 'aprovado', data: '2026-11-05', voo: null, registrado_em: '2026-11-05T12:00:00.000Z', registrado_por: 'Operador' });
@@ -1360,8 +1362,8 @@ test.describe('Cursos: cursos novos, encerrar, o cronograma do PP e o curso de c
 
     // Em Alunos, o curso novo está na lista; com ele, a próxima missão, a escala e o resultado no MLTE
     await irPara(page, 'alu');
-    await expect(opcoesDoCurso(page, 1001)).toHaveText(['—', 'PP · Piloto Privado', 'PC · Piloto Comercial', 'INVA · Instrutor de Voo', 'MLTE · Multimotor']);
-    await page.locator('#alu tr[data-id="1001"] [data-f="curso"]').selectOption('MLTE');
+    await expect(await opcoesDoCurso(page, 1001)).toHaveText(['—', 'PP · Piloto Privado', 'PC · Piloto Comercial', 'INVA · Instrutor de Voo', 'MLTE · Multimotor']);
+    await (await campoDoAluno(page, 1001, 'curso')).selectOption('MLTE');
     await expect(page.locator('#audit-log-list')).toContainText('Curso de Aluno 1001: MLTE');
     await irPara(page, 'dem');
     await page.locator('#onlyfly').uncheck();
@@ -1445,15 +1447,15 @@ test.describe('Cursos: cursos novos, encerrar, o cronograma do PP e o curso de c
 
     // Em Alunos: o PC não aparece para quem não está nele; quem está continua, com o curso marcado como encerrado
     await irPara(page, 'alu');
-    await expect(opcoesDoCurso(page, 1001)).toHaveText(['—', 'PP · Piloto Privado', 'INVA · Instrutor de Voo']);
-    await expect(opcoesDoCurso(page, 1000)).toHaveText(['—', 'PP · Piloto Privado', 'INVA · Instrutor de Voo', 'PC · Piloto Comercial (encerrado)']);
-    await expect(page.locator('#alu tr[data-id="1000"] [data-f="curso"]')).toHaveValue('PC');
+    await expect(await opcoesDoCurso(page, 1001)).toHaveText(['—', 'PP · Piloto Privado', 'INVA · Instrutor de Voo']);
+    await expect(await opcoesDoCurso(page, 1000)).toHaveText(['—', 'PP · Piloto Privado', 'INVA · Instrutor de Voo', 'PC · Piloto Comercial (encerrado)']);
+    await expect((await campoDoAluno(page, 1000, 'curso'))).toHaveValue('PC');
     // O curso que não existe nas tabelas dos cursos continua, dito como tal
-    await expect(opcoesDoCurso(page, 1002)).toHaveText(['—', 'PP · Piloto Privado', 'INVA · Instrutor de Voo', 'ZZ9 (curso desconhecido)']);
-    await expect(page.locator('#alu tr[data-id="1002"] [data-f="curso"]')).toHaveValue('ZZ9');
+    await expect(await opcoesDoCurso(page, 1002)).toHaveText(['—', 'PP · Piloto Privado', 'INVA · Instrutor de Voo', 'ZZ9 (curso desconhecido)']);
+    await expect((await campoDoAluno(page, 1002, 'curso'))).toHaveValue('ZZ9');
     // Quem sai do encerrado não volta para ele pela lista
-    await page.locator('#alu tr[data-id="1000"] [data-f="curso"]').selectOption('PP');
-    await expect(opcoesDoCurso(page, 1000)).toHaveText(['—', 'PP · Piloto Privado', 'INVA · Instrutor de Voo']);
+    await (await campoDoAluno(page, 1000, 'curso')).selectOption('PP');
+    await expect(await opcoesDoCurso(page, 1000)).toHaveText(['—', 'PP · Piloto Privado', 'INVA · Instrutor de Voo']);
 
     // Reativado (o encerrado escolhido no alto), ele volta às matrículas
     await irPara(page, 'cur');
@@ -1473,7 +1475,7 @@ test.describe('Cursos: cursos novos, encerrar, o cronograma do PP e o curso de c
     await nome.press('Enter');
     await expect(pc.locator('h3 small')).toHaveText('Piloto Comercial ACPM · 0 missões');
     await irPara(page, 'alu');
-    await expect(opcoesDoCurso(page, 1001)).toHaveText(['—', 'PP · Piloto Privado', 'PC · Piloto Comercial ACPM', 'INVA · Instrutor de Voo']);
+    await expect(await opcoesDoCurso(page, 1001)).toHaveText(['—', 'PP · Piloto Privado', 'PC · Piloto Comercial ACPM', 'INVA · Instrutor de Voo']);
     await expect.poll(() => descricoes(page)).toEqual(['PC encerrado', 'PC reativado', 'Curso PC renomeado: Piloto Comercial ACPM']);
     expect((await programaGuardado(page)).cursos.find(c => c.sigla === 'PC')).toMatchObject({ nome: 'Piloto Comercial ACPM', ativo: true, versao: 4 });
   });
@@ -1524,7 +1526,7 @@ test.describe('Cursos: cursos novos, encerrar, o cronograma do PP e o curso de c
     const estado = cenario({ ins: [instrutor(1, 9)], stu: [aluno(1000, { fly: false }, { curso: 'PP' })] });
     await abrirComCursos(page, { estado, cursos: comPP(plano), resultados: [aprovada(1000, 'IN-01', 1), aprovada(1000, 'PP-02', 2)] });
     await irPara(page, 'alu');
-    await expect(page.locator('#alu tr[data-id="1000"] .progresso')).toHaveText('2/3 · próxima TMA-05');
+    await expect.poll(() => textoDoProgresso(page, 1000)).toBe('2/3 · próxima TMA-05');
     await irPara(page, 'cur');
     const pp = curso(page, 'PP');
     await confirmar(page, '#cursos .curso[data-curso="PP"] [data-act="curso-modelo"]');
@@ -1544,7 +1546,7 @@ test.describe('Cursos: cursos novos, encerrar, o cronograma do PP e o curso de c
       .toEqual([['IN-01', false], ['PP-02', true], ['TMA-05', false]]);
     // O resultado da IN-01 continua contando; o da PP-02, fora do programa, não
     await irPara(page, 'alu');
-    await expect(page.locator('#alu tr[data-id="1000"] .progresso')).toHaveText('1/46 · Fase 1 · próxima IN-02');
+    await expect.poll(() => textoDoProgresso(page, 1000)).toBe('1/46 · Fase 1 · próxima IN-02');
   });
 
   // O trecho do Noturno de cada missão Noturno: o Noturno desmanchado é recusado com o motivo (a tela volta a mostrar como

@@ -10,3 +10,5 @@ export const gerenciaContas = perfil => perfil === 'administrador';
 export const soPainel = perfil => perfil === 'painel';
 // Dados pessoais de alunos e instrutores (CPF, CANAC, nascimento, celular e e-mail): operadores, administradores e a secretaria
 export const veDadosPessoais = perfil => operaEscala(perfil) || perfil === 'secretaria';
+// Quem altera os dados pessoais: os mesmos, por enquanto (a secretaria deixa de alterar no passo A, com o servidor)
+export const editaDadosPessoais = perfil => veDadosPessoais(perfil);

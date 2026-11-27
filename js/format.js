@@ -57,6 +57,12 @@ export const dataIsoValida = texto => {
 export const LIMITE_DO_NOME = 80;
 export const nomeLimpo = (valor, anterior) => String(valor).trim().replace(/\s+/g, ' ').slice(0, LIMITE_DO_NOME).trim() || anterior;
 
+// As iniciais do primeiro e do último nome (ou a primeira letra do e-mail): o menu da conta e os avatares das listas
+export const iniciais = nome => {
+  const partes = String(nome ?? '').split(/[\s@.]+/).filter(Boolean);
+  return ((partes[0] || '?')[0] + (partes.length > 1 && !String(nome).includes('@') ? partes[partes.length - 1][0] : '')).toUpperCase();
+};
+
 // A chave de uma busca: o texto sem os acentos (os sinais que a forma NFD separa da letra: “joao” acha “João”, “conceicao”
 // acha “Conceição”), em minúsculas, sem os espaços das pontas e com um espaço só entre as palavras. As buscas comparam a
 // chave do que se digita com a de cada nome

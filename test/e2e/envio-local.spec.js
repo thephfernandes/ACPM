@@ -1,4 +1,4 @@
-import { test, expect, irPara, preencherLogin, URL_APP } from './fixtures.js';
+import { test, expect, irPara, preencherLogin, URL_APP, linhasDosAlunos } from './fixtures.js';
 import { instalarSupabaseFalso, documentosAtuais, CONTAS } from './supabase-falso.js';
 import { estadoSintetico } from '../helpers/estado.js';
 import { aluno } from '../helpers/montar.js';
@@ -41,7 +41,7 @@ test.describe('Envio dos dados do navegador para o servidor', () => {
     expect(servidor.historico.filter(h => h.importado).map(h => h.descricao)).toEqual(['Aluno cadastrado: Aluno 1000']);
     expect(servidor.banco.has('estado'), 'o servidor recebe só o formato por data').toBe(false);
     await irPara(page, 'alu');
-    await expect(page.locator('#alu .cd')).toHaveCount(3);
+    await expect(linhasDosAlunos(page)).toHaveCount(3);
   });
 
   test('"Começar sem eles" não envia nada', async ({ page, context }) => {
@@ -51,7 +51,7 @@ test.describe('Envio dos dados do navegador para o servidor', () => {
     await page.locator('#btn-ignorar-local').click();
     await expect(page.locator('#linha')).toBeVisible();
     await irPara(page, 'alu');
-    await expect(page.locator('#alu .cd')).toHaveCount(0);
+    await expect(linhasDosAlunos(page)).toHaveCount(0);
     expect(servidor.banco.has('cadastro')).toBe(false);
   });
 
@@ -62,7 +62,7 @@ test.describe('Envio dos dados do navegador para o servidor', () => {
     await expect(page.locator('#linha')).toBeVisible();
     await expect(page.locator('#envio-local')).toBeHidden();
     await irPara(page, 'alu');
-    await expect(page.locator('#alu .cd')).toHaveCount(0);
+    await expect(linhasDosAlunos(page)).toHaveCount(0);
     expect(servidor.gravacoes).toEqual([]);
   });
 

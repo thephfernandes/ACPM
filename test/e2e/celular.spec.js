@@ -1,14 +1,17 @@
 // No celular (390 px): nenhuma aba rola para o lado e os alvos têm 44 px. Os testes de uma tela no celular estão no
 // spec dela.
-import { test, expect, abrirComExemplo, irPara, alvosPequenos, botaoDaAba, larguraDaPagina, percorrerTelas } from './fixtures.js';
+import { test, expect, abrirComExemplo, irPara, alvosPequenos, botaoDaAba, larguraDaPagina, paineisQueRolamParaOLado, percorrerTelas } from './fixtures.js';
 
 test.use({ viewport: { width: 390, height: 844 } });
 
 test.describe('Celular', () => {
   test('nenhuma aba rola para o lado; o mapa rola dentro do próprio painel', async ({ page }) => {
     await abrirComExemplo(page);
-    // Todas as abas, as outras vistas e as tabelas sem nenhum com os filtros
-    await percorrerTelas(page, async tela => expect(await larguraDaPagina(page), tela).toBeLessThanOrEqual(390));
+    // Todas as abas, as outras vistas e as tabelas sem nenhum com os filtros; nas telas de lista e detalhe, cada painel
+    await percorrerTelas(page, async tela => {
+      expect(await larguraDaPagina(page), tela).toBeLessThanOrEqual(390);
+      expect(await paineisQueRolamParaOLado(page), tela).toEqual([]);
+    });
     await irPara(page, 'esc');
     for (const vista of ['eq', 'ins']) {
       await page.locator(`#s-esc [data-tl="${vista}"]`).click();

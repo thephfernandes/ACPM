@@ -1,7 +1,7 @@
 // Perfis de acesso no modo compartilhado e o que cada um pode fazer.
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { PERFIS, ROTULOS, operaEscala, registraNaAgenda, gerenciaContas, veDadosPessoais, soPainel } from '../../js/perfis.js';
+import { PERFIS, ROTULOS, operaEscala, registraNaAgenda, gerenciaContas, veDadosPessoais, editaDadosPessoais, soPainel } from '../../js/perfis.js';
 
 describe('Perfis de acesso', () => {
   it('cinco perfis, com os nomes da tela', () => {
@@ -12,6 +12,13 @@ describe('Perfis de acesso', () => {
   it('dados pessoais: operadores, administradores e a secretaria; a TV da recepção só vê o painel', () => {
     assert.deepEqual(PERFIS.map(veDadosPessoais), [true, false, true, true, false]);
     assert.deepEqual(PERFIS.map(soPainel), [false, false, false, false, true]);
+  });
+
+  // F2 separa ver de alterar; até o passo A (o servidor), a secretaria altera, como hoje
+  it('alterar os dados pessoais: operadores, administradores e, até o passo A, a secretaria; nem o Gestor nem a TV', () => {
+    assert.deepEqual(PERFIS.map(editaDadosPessoais), [true, false, true, true, false]);
+    assert.equal(editaDadosPessoais(null), false);
+    assert.equal(editaDadosPessoais('constructor'), false);
   });
 
   it('o administrador tem tudo o que o operador tem e, além disso, gerencia as contas', () => {

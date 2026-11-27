@@ -74,6 +74,11 @@ export function validarReversao(rev, frota) {
       && MATRICULA.test(rev.reg) && Object.hasOwn(ATRIBUTOS_DO_RECURSO, rev.atributo)
       ? { kind: 'setAtributo', reg: rev.reg, atributo: rev.atributo, val: rev.val, label } : null;
   }
+  // O "Ativo" do cadastro: o aluno ou o instrutor (pelo id) e o recurso (pela matrícula), e o inativo a restaurar
+  if (rev.kind === 'setInativo') {
+    const idCerto = rev.de === 'recurso' ? typeof rev.id === 'string' && MATRICULA.test(rev.id) : (rev.de === 'aluno' || rev.de === 'instrutor') && idValido(rev.id);
+    return idCerto && typeof rev.inativo === 'boolean' ? { kind: 'setInativo', de: rev.de, id: rev.id, inativo: rev.inativo, label } : null;
+  }
   if (rev.kind === 'setInsOn') return idValido(rev.insId) && typeof rev.val === 'boolean' ? { kind: 'setInsOn', insId: rev.insId, val: rev.val, label } : null;
   if (rev.kind === 'restaurarFixos') {
     const fixos = rev.fixos && typeof rev.fixos === 'object' ? normalizarFixos(rev.fixos) : {};

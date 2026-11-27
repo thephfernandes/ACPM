@@ -3,11 +3,12 @@
 // muda o endereço (a tela e a data só não vão para ele)
 import { enderecoDoDestino } from './telas.js';
 
-// Uma tela nova no histórico: antes, a rolagem da tela atual fica guardada na entrada dela (Voltar a devolve)
-export function empilharTela(destino) {
+// Uma tela nova no histórico: antes, a rolagem da tela atual fica guardada na entrada dela (Voltar a devolve). marca: o que
+// a entrada nova guarda além da rolagem (o detalhe aberto numa vista só: { detalhe: 'alu' }, que "‹ Alunos" desfaz com Voltar)
+export function empilharTela(destino, marca = {}) {
   try {
     window.history.replaceState({ ...(window.history.state || {}), rolagem: window.scrollY }, '');
-    window.history.pushState({ rolagem: 0 }, '', enderecoDoDestino(destino));
+    window.history.pushState({ rolagem: 0, ...marca }, '', enderecoDoDestino(destino));
   } catch {
     // Sem mudar o endereço, a tela abre do mesmo jeito
   }

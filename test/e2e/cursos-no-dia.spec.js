@@ -4,7 +4,7 @@
 // programa ainda não libera, a já aprovada, a dispensada) pede confirmação num botão que aparece armado, e o histórico
 // diz por quê. O pedido guarda o curso da missão (cursoDaEtapa): o resultado vai para ele, mesmo que o aluno troque de
 // curso no mesmo dia.
-import { test, expect, irPara, abrirEscala, confirmar, AMANHA, appPronto, caixaVoa } from './fixtures.js';
+import { test, expect, irPara, abrirEscala, confirmar, AMANHA, appPronto, caixaVoa, campoDoAluno } from './fixtures.js';
 import { documentosAtuais } from './supabase-falso.js';
 import { aluno, cenario, instrutor } from '../helpers/montar.js';
 import { cursosIniciais, percursoDoCurso, novoCurso } from '../../js/programa.js';
@@ -224,7 +224,7 @@ test.describe('Cursos no dia: o curso da missão no pedido', () => {
 
     // A Maria passa para o PC no mesmo dia: o pedido continua com a missão do PP
     await irPara(page, 'alu');
-    await page.locator('#alu tr[data-id="1000"] [data-f="curso"]').selectOption('PC');
+    await (await campoDoAluno(page, 1000, 'curso')).selectOption('PC');
     await expect(page.locator('#audit-log-list')).toContainText('Curso de Maria: PC');
     await naDemanda(page);
     await expect(linha.locator('.etapa')).toHaveAttribute('title', 'Missão do curso PP');

@@ -1,6 +1,6 @@
 // Escala por data no modo local: cada data guarda a sua escala, a nova data começa com a demanda vazia,
 // histórico e BI por data, e os dados antigos deste navegador são convertidos na primeira abertura.
-import { test, expect, abrir, abrirSintetico, abrirComExemplo, irPara, abrirEscala, lerEscala, AMANHA, abrirHistorico, alternarDisponivel, caixaDisponivel, caixaVoa, dataAberta, exportar, mudarData } from './fixtures.js';
+import { test, expect, abrir, abrirSintetico, abrirComExemplo, irPara, abrirEscala, lerEscala, AMANHA, abrirHistorico, alternarDisponivel, caixaDisponivel, caixaVoa, dataAberta, exportar, mudarData, linhasDosAlunos } from './fixtures.js';
 import { estadoSintetico } from '../helpers/estado.js';
 import { aluno } from '../helpers/montar.js';
 import { runAllocationEngine } from '../../js/engine.js';
@@ -146,7 +146,7 @@ test.describe('Escala por data', () => {
     await abrir(page);
 
     await irPara(page, 'alu');
-    await expect(page.locator('#alu .cd')).toHaveCount(2);
+    await expect(linhasDosAlunos(page)).toHaveCount(2);
     await irPara(page, 'esc');
     await expect(page.locator('#out table tbody tr')).not.toHaveCount(0);
     await expect(page.locator('#audit-log-list')).toContainText('Aluno cadastrado: Aluno 1000');

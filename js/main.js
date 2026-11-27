@@ -31,6 +31,10 @@ import './eventos/conta.js';
 import './eventos/agenda.js';
 import './eventos/rodizio.js';
 import './eventos/cursos.js';
+// Os dados pessoais no detalhe de uma pessoa (Alunos; INVAs depois) e o "Ativo" dos três cadastros: um módulo só cada um,
+// para as telas de lista e detalhe
+import './eventos/editor-de-dados-pessoais.js';
+import './eventos/inativos.js';
 // O diálogo "Agendar voo" (js/eventos/agendamento.js) vem com a Escala, que o importa; Instrutores traz os limites da lei e
 // o painel dos dados pessoais, e a Demanda, o "Importar da agenda" (test/unit/eventos-ligados.test.js)
 import { setRole, abrirData, lerData, dadosPreparados, carregarBI } from './actions.js';
@@ -51,16 +55,18 @@ import { avisoDeDomingo } from './eventos/trilho.js';
 import { programaSendoGravado } from './eventos/cursos.js';
 import { podeEditarAgenda } from './views/agenda.js';
 import { carregarDadosPessoais } from './views/dados-pessoais.js';
+import { dadosPessoaisPendentes } from './views/editor-de-dados-pessoais.js';
 import { rOut } from './views/escala.js';
 import { lerPedidosDaData } from './views/selos.js';
 import { diaAbrindo } from './views/trilho.js';
 import { ligarEndereco, mostrarTela, telaAberta, telaFoiEscolhida, destinoDoHash } from './views/telas.js';
 import { telaDeAbertura, dataDeAbertura } from './telas.js';
 
-// Fechar ou recarregar a página com alterações esperando a conexão, ou com o programa de um curso ainda sendo gravado, pede
-// confirmação (elas se perderiam)
+// Fechar ou recarregar a página com alterações esperando a conexão, com o programa de um curso ainda sendo gravado, ou com
+// dados pessoais digitados e não salvos (um rascunho, uma gravação em andamento, uma recusa), pede confirmação (eles se
+// perderiam)
 window.addEventListener('beforeunload', e => {
-  if (!ApiClient.temGravacoesPendentes() && !programaSendoGravado()) return;
+  if (!ApiClient.temGravacoesPendentes() && !programaSendoGravado() && !dadosPessoaisPendentes()) return;
   e.preventDefault();
   e.returnValue = '';
 });

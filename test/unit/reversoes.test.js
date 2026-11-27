@@ -24,6 +24,10 @@ const VALIDAS = [
   { kind: 'setAv', reg: 'PR-VOB', val: true, label: '↶ Reverter' },
   { kind: 'setAtributo', reg: 'PR-CPL', atributo: 'soVfr', val: false, label: '↶ Reverter' },
   { kind: 'setInsOn', insId: 3, val: true, label: '↶ Reverter' },
+  // O "Ativo" do cadastro (F2): o aluno, o instrutor e o recurso, e o inativo a restaurar
+  { kind: 'setInativo', de: 'aluno', id: 1000, inativo: false, label: '↶ Reverter' },
+  { kind: 'setInativo', de: 'instrutor', id: 2, inativo: true, label: '↶ Reverter' },
+  { kind: 'setInativo', de: 'recurso', id: 'PR-VOB', inativo: true, label: '↶ Reverter' },
   { kind: 'restaurarFixos', fixos: { '1000_0_1': { a: 390, b: 450, r: 'PR-VOB', insId: 1, classKey: 'g', escolhido: true } }, pedidos: [{ stuId: 1000, mid: 0, insId: 2 }], label: '↶ Reverter' },
   { kind: 'restaurarEscolha', pedidos: [{ stuId: 1000, mid: 0, insId: 0 }], fixos: { '1000_0_1': { a: 390, b: 450, r: 'PR-VOB', insId: 1 } }, soltar: ['1001_2_1'], label: '↶ Reverter' },
   { kind: 'restaurarHorarios', cat: 'PA-34', lista: [390, 450], pedidos: [{ stuId: 1000, mid: 2, p1: 450, p2: -1, jan: 'h450' }], label: '↶ Reverter' },
@@ -99,6 +103,17 @@ describe('Reversões do histórico', () => {
     for (const atributo of [['soVfr'], JSON.parse('{"toString":null}'), 'toString', 'hasOwnProperty']) {
       assert.equal(validarReversao({ ...rev, atributo }, FROTA_INICIAL), null, JSON.stringify(atributo));
     }
+  });
+
+  // setInativo: de é um dos três cadastros; o id do aluno e do instrutor é um número, o do recurso, uma matrícula; o
+  // inativo, sim ou não
+  it('setInativo: o cadastro, o id do tipo dele e o inativo; fora disso, não vale', () => {
+    const base = { kind: 'setInativo', de: 'aluno', id: 1000, inativo: true, label: '↶ Reverter' };
+    for (const ruim of [
+      { de: 'cadastro' }, { de: 'constructor' }, { de: ['aluno'] }, { id: '1000' }, { id: 0 }, { id: 1.5 }, { de: 'recurso', id: 1000 },
+      { de: 'recurso', id: 'pr vob' }, { de: 'instrutor', id: 'PR-VOB' }, { inativo: 'true' }, { inativo: null }, { id: ATAQUE }
+    ]) assert.equal(validarReversao({ ...base, ...ruim }, FROTA_INICIAL), null, JSON.stringify(ruim));
+    assert.deepEqual(validarReversao({ ...base, extra: 1 }, FROTA_INICIAL), base);
   });
 
   it('o rótulo é um texto curto; fora disso, "↶ Reverter"', () => {

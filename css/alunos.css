@@ -1,15 +1,8 @@
-/* Alunos: o link para a Demanda, "Não escalar com" e "Priorizar com", e o progresso no curso */
-td.c-curso .progresso { display: block; margin-top: 2px; color: var(--mu); font-variant-numeric: tabular-nums; }
-/* Alunos: embaixo da barra, o link para a Demanda (os pedidos de cada data) */
+/* Alunos: o link para a Demanda e as etiquetas de "Não escalar com" e "Priorizar com" (o resto é do componente: css/lista.css) */
+/* Embaixo da barra, o link para a Demanda (os pedidos de cada data) */
 /* (O parágrafo é também p.h, cuja margem vinha depois em css/app.css e ganhava: o "margin: -4px 0 8px" daqui nunca valeu e saiu
    na divisão, para a tela continuar igual) */
 p.ir-para-demanda { display: flex; flex-wrap: wrap; align-items: center; gap: 0 4px; }
-table.alunos select[data-f="bl"], table.alunos select[data-f="voaCom"] { border-color: transparent; background: transparent; color: var(--mu); }
-table.alunos tr:hover select[data-f="bl"], table.alunos select[data-f="bl"]:focus,
-table.alunos tr:hover select[data-f="voaCom"], table.alunos select[data-f="voaCom"]:focus { border-color: var(--ln2); background: var(--pn); color: var(--ink); }
-@media (max-width: 640px) {
-  [data-flt="alu"], #flt-alu-cur { flex: 1 1 140px; min-width: 0; }
-}
 .bl { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
 .tg {
   display: inline-flex;

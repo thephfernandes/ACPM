@@ -286,7 +286,8 @@ test.describe('A moldura', () => {
   });
 
   // A moldura das telas de lista e detalhe (F2): a página tem a altura da janela; a lista, o detalhe e o trilho rolam cada
-  // um por conta própria. Com a janela baixa, a página rola. A tela é de mentira: duas regiões altas no lugar de Alunos
+  // um por conta própria. Com a janela baixa, a página rola. A tela é de mentira: duas regiões altas no lugar de Alunos,
+  // dentro da borda de 1 px da tela de lista e detalhe (o fundo da região fica 1 px acima do da moldura, 704)
   test('na tela de lista e detalhe, os painéis rolam e a página não; com a janela baixa, a página rola', async ({ page }) => {
     await abrirComExemplo(page);
     await page.locator('#s-alu').evaluate(secao => {
@@ -306,14 +307,14 @@ test.describe('A moldura', () => {
         trilho: { posicao: getComputedStyle(t).position, rola: getComputedStyle(t).overflowY, fundo: Math.round(t.getBoundingClientRect().bottom) }
       };
     });
-    expect(await medidas()).toEqual({ pagina: false, lista: true, detalhe: true, noFundo: 704, trilho: { posicao: 'static', rola: 'auto', fundo: expect.any(Number) } });
+    expect(await medidas()).toEqual({ pagina: false, lista: true, detalhe: true, noFundo: 703, trilho: { posicao: 'static', rola: 'auto', fundo: expect.any(Number) } });
     expect((await medidas()).trilho.fundo).toBeLessThanOrEqual(704);
     // Solto, o painel do trilho entra entre a linha e a tela, com rolagem própria, e a página continua sem rolar
     await page.locator('#btn-fixar-trilho').click();
     await botaoDaData(page).click();
     await expect(trilho(page)).toBeVisible();
     const aberto = await medidas();
-    expect([aberto.pagina, aberto.lista, aberto.noFundo]).toEqual([false, true, 704]);
+    expect([aberto.pagina, aberto.lista, aberto.noFundo]).toEqual([false, true, 703]);
     await page.setViewportSize({ width: 1280, height: 560 });
     expect((await medidas()).pagina).toBe(true);
     // Fora dela, a página rola como sempre

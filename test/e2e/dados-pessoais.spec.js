@@ -1,49 +1,59 @@
-// Dados pessoais de alunos e instrutores: CPF, CANAC, nascimento, celular e e-mail, num painel ao lado da tabela.
-// Ficam fora do cadastro; o histórico registra só os campos que mudaram. No modo compartilhado, operadores,
-// administradores e a secretaria veem e editam; o gestor não vê.
-import { test, expect, abrir, irPara, irParaVista, prepararContexto, vigiarErros, filtrarHabilitacoes, filtrarCursos, AMANHA, entrar as entrarNoApp, abrirHistorico, rotulosDasAbas, gradeDoDia, linhaDoInstrutor } from './fixtures.js';
+// Dados pessoais de alunos e instrutores: CPF, CANAC, nascimento, celular e e-mail. Em Alunos, uma seção do detalhe com
+// "Salvar" e "Desfazer" (F2); em Instrutores, o painel ao lado da tabela (até C). Ficam fora do cadastro; o histórico
+// registra só os campos que mudaram. No modo compartilhado, operadores, administradores e a secretaria veem e editam; o
+// gestor não vê.
+import { test, expect, abrir, irPara, irParaVista, prepararContexto, vigiarErros, filtrarHabilitacoes, filtrarCursos, AMANHA, entrar as entrarNoApp, abrirHistorico, rotulosDasAbas, gradeDoDia, linhaDoInstrutor, abrirAluno, campoDoAberto, linhaDoAluno, linhasDosAlunos, nenhumNaLista } from './fixtures.js';
 import { criarSupabaseFalso, instalarSupabaseFalso, documentosAtuais, CONTAS } from './supabase-falso.js';
 import { aluno, cenario, instrutor } from '../helpers/montar.js';
 
 const estado = () => cenario({ ins: [instrutor(1, 9), instrutor(2, 9)], stu: [aluno(1000), aluno(1001)] });
+// O painel dos instrutores (até C)
 const painel = page => page.locator('#painel-dados');
-const campo = (page, rotulo) => painel(page).getByLabel(rotulo, { exact: true });
-const salvar = page => painel(page).getByRole('button', { name: 'Salvar' }).click();
+const campoDoPainel = (page, rotulo) => painel(page).getByLabel(rotulo, { exact: true });
+const salvarNoPainel = page => painel(page).getByRole('button', { name: 'Salvar' }).click();
+// A seção do aluno aberto
+const secao = page => page.locator('#det-alu [data-pessoa]');
+const campo = (page, rotulo) => secao(page).getByLabel(rotulo, { exact: true });
+const salvar = page => page.locator('#det-alu-dados-salvar').click();
+const rodape = page => secao(page).locator('.det-dados-rodape');
+const erroDe = (page, c) => page.locator(`#det-alu-${c}-erro`);
 
+// Abre o aluno e espera a leitura dele (os campos ligados)
 async function abrirDadosDoAluno(page, id) {
   await irPara(page, 'alu');
-  await page.locator(`#alu tr[data-id="${id}"] [data-dados]`).click();
-  await expect(painel(page)).toBeVisible();
+  await abrirAluno(page, id);
+  await expect(secao(page)).toHaveAttribute('data-pessoa', `aluno:${id}`);
+  await expect(campo(page, 'CPF')).toBeEnabled();
 }
 
 test.describe('Dados pessoais (neste navegador)', () => {
-  test('Alunos: o painel valida e salva; a tabela mostra o CANAC; o histórico registra só os campos', async ({ page }) => {
+  test('Alunos: a seção do detalhe valida e salva; a linha mostra o CANAC; o histórico registra só os campos', async ({ page }) => {
     await abrir(page, { estado: estado() });
-    await irPara(page, 'alu');
-    await expect(page.locator('#s-alu thead th')).toHaveText(['Nome', 'CANAC', 'Peso (kg)', 'Curso', 'Priorizar com', 'Não escalar com', '']);
     await abrirDadosDoAluno(page, 1000);
-    await expect(painel(page).locator('h2')).toHaveText('Dados pessoais Aluno 1000');
+    await expect(page.locator('#sec-alu-dados')).toHaveText(/Dados pessoais/);
     await campo(page, 'CPF').fill('529.982.247-24');
     await campo(page, 'CANAC').fill('12345');
     await salvar(page);
-    await expect(painel(page).locator('[data-erro="cpf"]')).toHaveText('CPF inválido.');
-    await expect(painel(page).locator('[data-erro="canac"]')).toHaveText('O CANAC tem 6 dígitos.');
-    await expect(painel(page)).toBeVisible();
+    await expect(erroDe(page, 'cpf')).toHaveText('CPF inválido.');
+    await expect(erroDe(page, 'canac')).toHaveText('O CANAC tem 6 dígitos.');
+    await expect(campo(page, 'CPF')).toBeFocused();
+    await expect(campo(page, 'CPF')).toHaveAttribute('aria-invalid', 'true');
 
     await campo(page, 'CPF').fill('529.982.247-25');
     await campo(page, 'CANAC').fill('123456');
     await campo(page, 'Celular').fill('37991234567');
     await salvar(page);
-    await expect(painel(page)).toBeHidden();
     await expect(page.locator('#toast-box .toast.ok')).toHaveText('Dados pessoais de Aluno 1000 salvos.');
-    await expect(page.locator('#alu tr[data-id="1000"] .c-canac')).toHaveText('123456');
-
-    // De novo: os dados vêm formatados
-    await page.locator('#alu tr[data-id="1000"] [data-dados]').click();
+    await expect(rodape(page)).toHaveText(/^Atualizado em \d{2}\/\d{2}\/\d{4}/);
+    await expect(linhaDoAluno(page, 1000).locator('.lista-l2')).toContainText('CANAC 123456');
+    await expect(page.locator('#det-alu .det-sub')).toContainText('CANAC 123456');
+    // Os valores, formatados
     await expect(campo(page, 'CPF')).toHaveValue('529.982.247-25');
     await expect(campo(page, 'Celular')).toHaveValue('(37) 99123-4567');
-    await page.keyboard.press('Escape');
-    await expect(painel(page)).toBeHidden();
+    // A busca acha o CANAC, para quem vê os dados pessoais
+    await page.locator('[data-flt="alu"]').fill('123456');
+    await expect(linhasDosAlunos(page)).toHaveCount(1);
+    await page.locator('[data-flt="alu"]').fill('');
     await abrirHistorico(page);
     await expect(page.locator('#historico')).toContainText('Dados pessoais de Aluno 1000 atualizados: CPF, CANAC, Celular');
     await expect(page.locator('#historico')).not.toContainText('529');
@@ -54,29 +64,32 @@ test.describe('Dados pessoais (neste navegador)', () => {
     await abrirDadosDoAluno(page, 1000);
     await campo(page, 'CANAC').fill('123456');
     await salvar(page);
-    await expect(painel(page)).toBeHidden();
+    await expect(rodape(page)).toHaveText(/^Atualizado em/);
     await abrirDadosDoAluno(page, 1001);
     await campo(page, 'CANAC').fill('123456');
     await salvar(page);
-    await expect(painel(page).locator('[data-erro="canac"]')).toHaveText('CANAC já cadastrado para outro aluno.');
-    await painel(page).getByRole('button', { name: 'Cancelar' }).click();
+    await expect(erroDe(page, 'canac')).toHaveText('CANAC já cadastrado para outro aluno.');
+    // "Desfazer" joga o rascunho fora: o campo volta ao que está guardado
+    await page.locator('#det-alu-dados-desfazer').click();
+    await expect(campo(page, 'CANAC')).toHaveValue('');
+    await expect(campo(page, 'CPF')).toBeFocused();
 
     await abrirDadosDoAluno(page, 1000);
     await campo(page, 'CANAC').fill('');
     await salvar(page);
-    await expect(page.locator('#alu tr[data-id="1000"] .c-canac')).toHaveText('');
+    await expect(linhaDoAluno(page, 1000).locator('.lista-l2')).not.toContainText('CANAC');
   });
 
-  test('Instrutores: os mesmos dados pessoais, no cadastro dos instrutores', async ({ page }) => {
+  test('Instrutores: os mesmos dados pessoais, no cadastro dos instrutores (o painel, até virar lista e detalhe)', async ({ page }) => {
     await abrir(page, { estado: estado() });
     await irPara(page, 'ins');
     await page.locator('#s-ins [data-vista-ins="cadastro"]').click();
     await expect(page.locator('#s-ins table:has(#inst) thead th')).toHaveText(['Nome', 'CANAC', 'Peso (kg)', 'Habilitações', '']);
     await page.locator('#inst tr[data-id="2"] [data-dados]').click();
     await expect(painel(page).locator('h2')).toHaveText('Dados pessoais Instrutor 02');
-    await campo(page, 'CANAC').fill('654321');
-    await campo(page, 'E-mail').fill('instrutor@exemplo.com');
-    await salvar(page);
+    await campoDoPainel(page, 'CANAC').fill('654321');
+    await campoDoPainel(page, 'E-mail').fill('instrutor@exemplo.com');
+    await salvarNoPainel(page);
     await expect(page.locator('#inst tr[data-id="2"] .c-canac')).toHaveText('654321');
   });
 
@@ -86,15 +99,58 @@ test.describe('Dados pessoais (neste navegador)', () => {
     await campo(page, 'CPF').fill('52998224725');
     await campo(page, 'CANAC').fill('123456');
     await salvar(page);
-    await expect(painel(page)).toBeHidden();
+    await expect(rodape(page)).toHaveText(/^Atualizado em/);
     const guardado = await page.evaluate(() => Object.keys(localStorage).filter(k => k !== 'acpm4_dados_pessoais').map(k => localStorage.getItem(k)).join('|'));
     expect(guardado).not.toContain('52998224725');
     expect(guardado).not.toContain('123456');
 
     await page.locator('#role-sel').selectOption('gestor');
     await irPara(page, 'alu');
-    await expect(page.locator('#alu [data-dados]').first()).toBeHidden();
-    await expect(page.locator('#s-alu thead th', { hasText: 'CANAC' })).toBeHidden();
+    await abrirAluno(page, 1000);
+    await expect(secao(page)).toHaveCount(0);
+    await expect(page.locator('#sec-alu-dados')).toHaveCount(0);
+    await expect(linhaDoAluno(page, 1000).locator('.lista-l2')).not.toContainText('CANAC');
+    await expect(page.locator('#det-alu .det-sub')).not.toContainText('123456');
+    // A busca do Gestor não acha o CANAC
+    await page.locator('[data-flt="alu"]').fill('123456');
+    await nenhumNaLista(page, 'alu');
+  });
+
+  // O rascunho é da pessoa: fica na memória quando outra é escolhida, a linha dela ganha o ponto, e ele volta ao abri-la;
+  // sair da página com ele pergunta antes
+  test('o rascunho fica com a pessoa ao escolher outra, marcado na linha; sair da página com ele pergunta', async ({ page }) => {
+    await abrir(page, { estado: estado() });
+    await abrirDadosDoAluno(page, 1000);
+    await campo(page, 'E-mail').fill('ana@exemplo.com');
+    await expect(page.locator('#det-alu-dados-desfazer')).toBeVisible();
+    await abrirDadosDoAluno(page, 1001);
+    await expect(campo(page, 'E-mail')).toHaveValue('');
+    await expect(linhaDoAluno(page, 1000).locator('.lista-ponto')).toHaveClass(/\baviso\b/);
+    await expect(linhaDoAluno(page, 1000).locator('.lista-ponto')).toHaveAttribute('title', 'dados pessoais não salvos');
+    await abrirDadosDoAluno(page, 1000);
+    await expect(campo(page, 'E-mail')).toHaveValue('ana@exemplo.com');
+    // Sair da página com o rascunho pede confirmação
+    let perguntou = false;
+    page.on('dialog', d => { perguntou = d.type() === 'beforeunload'; d.dismiss(); });
+    await page.close({ runBeforeUnload: true });
+    await expect.poll(() => perguntou).toBe(true);
+  });
+
+  // O Esc num campo digitado devolve o valor gravado também ao rascunho: o que a tela mostra é o que "Salvar" grava
+  test('o Esc num campo digitado devolve o valor gravado, e o rascunho acompanha: nada de "Desfazer", nada gravado', async ({ page }) => {
+    await abrir(page, { estado: estado() });
+    await abrirDadosDoAluno(page, 1000);
+    await campo(page, 'E-mail').fill('ana@exemplo.com');
+    await campo(page, 'E-mail').press('Escape');
+    await expect(campo(page, 'E-mail')).toHaveValue('');
+    await expect(campo(page, 'E-mail')).toBeFocused();
+    await campo(page, 'Celular').click();
+    await expect(campo(page, 'E-mail')).toHaveValue('');
+    await expect(page.locator('#det-alu-dados-desfazer')).toBeHidden();
+    await expect(linhaDoAluno(page, 1000).locator('.lista-ponto')).not.toHaveClass(/\baviso\b/);
+    await salvar(page);
+    await expect(page.locator('#toast-box .toast.ok')).toHaveText('Dados pessoais de Aluno 1000 salvos.');
+    expect(await page.evaluate(() => localStorage.getItem('acpm4_dados_pessoais') || '')).not.toContain('ana@exemplo.com');
   });
 });
 
@@ -120,47 +176,47 @@ test.describe('Dados pessoais (modo compartilhado)', () => {
     await page.locator('#flt-alu-cur').click();
     await expect(page.locator('#flt-alu-cur-painel input[data-filtro]:disabled')).toHaveCount(0);
     await filtrarCursos(page, 'alu', ['PP']);
-    await expect(page.locator('#alu tr.sem-resultado')).toBeVisible();
+    await nenhumNaLista(page, 'alu');
     await filtrarCursos(page, 'alu', ['sem-curso']);
-    await expect(page.locator('#alu tr.cd:visible')).toHaveCount(2);
+    await expect(linhasDosAlunos(page)).toHaveCount(2);
     await filtrarCursos(page, 'alu', []);
-    await expect(page.locator('#alu tr[data-id="1000"] [data-f="kg"]')).toBeDisabled();
-    await page.locator('#alu tr[data-id="1000"] [data-dados]').click();
+    // O cadastro ela lê (o texto, sem campo); os dados pessoais, ela altera
+    await abrirDadosDoAluno(page, 1000);
+    await expect(campoDoAberto(page, 'kg')).toHaveCount(0);
+    await expect(page.locator('#det-alu [data-campo="kg"] .det-valor')).toHaveText(/kg$/);
     await campo(page, 'CANAC').fill('123456');
     await salvar(page);
-    await expect(painel(page)).toBeHidden();
-    await expect(page.locator('#alu tr[data-id="1000"] .c-canac')).toHaveText('123456');
+    await expect(rodape(page)).toHaveText(/por Secretaria de Teste\.$/);
+    await expect(linhaDoAluno(page, 1000).locator('.lista-l2')).toContainText('CANAC 123456');
     expect(servidor.dadosPessoais.get('aluno:1000')).toMatchObject({ canac: '123456', atualizado_por: 'Secretaria de Teste' });
     expect(erros).toEqual([]);
     await context.close();
   });
 
-  // No celular (390 px), o trabalho da Secretaria em Instrutores e Alunos fica no cartão de cada pessoa: a parte dos
-  // botões aparece para ela (só com o "Dados pessoais", dentro do cartão e com 44 px para o dedo; para o Gestor, ela some),
-  // e "Priorizar com" e "Não escalar com" sem ninguém não aparecem. O toque abre o painel, e o Esc devolve o foco ao botão
-  test('no celular, o cartão de cada pessoa tem o "Dados pessoais" da Secretaria, em Instrutores e em Alunos', async ({ browser }) => {
+  // No celular (390 px), o trabalho da Secretaria: em Instrutores, o "Dados pessoais" no cartão (o painel, até C); em
+  // Alunos, a seção do detalhe, com "Salvar" de 44 px e tudo dentro da tela
+  test('no celular, a Secretaria chega aos dados pessoais: o cartão em Instrutores, o detalhe em Alunos', async ({ browser }) => {
     const { context, page, erros } = await entrar(browser, CONTAS.secretaria, null, { viewport: { width: 390, height: 844 } });
     await irPara(page, 'ins');
     await expect(page.locator('#s-ins')).toHaveAttribute('data-vista', 'cadastro');
-    for (const [aba, corpo, id, nome] of [['ins', 'inst', 1, 'Instrutor 01'], ['alu', 'alu', 1000, 'Aluno 1000']]) {
-      await irPara(page, aba);
-      const linha = page.locator(`#${corpo} tr.cd[data-id="${id}"]`);
-      await expect(linha.locator('td.acoes')).toBeVisible();
-      const botoes = linha.locator('td.acoes button:visible');
-      await expect(botoes).toHaveText(['Dados pessoais']);
-      const [cartao, botao] = await Promise.all([linha.boundingBox(), botoes.first().boundingBox()]);
-      expect(botao.height, nome).toBeGreaterThanOrEqual(44);
-      expect(botao.x >= cartao.x && botao.x + botao.width <= cartao.x + cartao.width, `${nome}: o botão dentro do cartão`).toBe(true);
-      if (corpo === 'alu') {
-        await expect(linha.locator('td.c-voa-com, td.c-nao-escalar')).toHaveCount(2);
-        await expect(linha.locator('td.c-voa-com:visible, td.c-nao-escalar:visible')).toHaveCount(0);
-      }
-      await botoes.first().click();
-      await expect(painel(page).locator('h2')).toHaveText(`Dados pessoais ${nome}`);
-      await page.keyboard.press('Escape');
-      await expect(painel(page)).toBeHidden();
-      await expect(botoes.first()).toBeFocused();
-    }
+    const linha = page.locator('#inst tr.cd[data-id="1"]');
+    const botoes = linha.locator('td.acoes button:visible');
+    await expect(botoes).toHaveText(['Dados pessoais']);
+    const [cartao, botao] = await Promise.all([linha.boundingBox(), botoes.first().boundingBox()]);
+    expect(botao.height).toBeGreaterThanOrEqual(44);
+    expect(botao.x >= cartao.x && botao.x + botao.width <= cartao.x + cartao.width, 'o botão dentro do cartão').toBe(true);
+    await botoes.first().click();
+    await expect(painel(page).locator('h2')).toHaveText('Dados pessoais Instrutor 01');
+    await page.keyboard.press('Escape');
+    await expect(painel(page)).toBeHidden();
+    await expect(botoes.first()).toBeFocused();
+
+    await abrirDadosDoAluno(page, 1000);
+    const salvarBotao = await page.locator('#det-alu-dados-salvar').boundingBox();
+    expect(salvarBotao.height).toBeGreaterThanOrEqual(44);
+    expect(salvarBotao.x + salvarBotao.width).toBeLessThanOrEqual(390);
+    // Sem ninguém, "Priorizar com" e "Não escalar com" dizem "—"
+    await expect(page.locator('#det-alu [data-campo="voaCom"] .det-valor')).toHaveText('—');
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
     expect(erros).toEqual([]);
     await context.close();
@@ -216,24 +272,39 @@ test.describe('Dados pessoais (modo compartilhado)', () => {
     await operador.context.close();
   });
 
+  // O mesmo servidor para os dois: o gestor entra com o CANAC e o e-mail gravados pelo operador, e não os vê
   test('o operador grava pelo servidor; o gestor não vê os dados pessoais', async ({ browser }) => {
-    const operador = await entrar(browser, CONTAS.operador);
+    const servidor = criarSupabaseFalso(documentosAtuais(estado(), AMANHA));
+    const operador = await entrar(browser, CONTAS.operador, servidor);
     await abrirDadosDoAluno(operador.page, 1001);
+    await campo(operador.page, 'CANAC').fill('654321');
     await campo(operador.page, 'E-mail').fill('bia@exemplo.com');
     await salvar(operador.page);
-    await expect(painel(operador.page)).toBeHidden();
-    expect(operador.servidor.dadosPessoais.get('aluno:1001')).toMatchObject({ email: 'bia@exemplo.com' });
+    await expect(rodape(operador.page)).toHaveText(/^Atualizado em/);
+    await expect(linhaDoAluno(operador.page, 1001).locator('.lista-l2')).toContainText('CANAC 654321');
+    expect(servidor.dadosPessoais.get('aluno:1001')).toMatchObject({ canac: '654321', email: 'bia@exemplo.com' });
     await operador.context.close();
 
-    const gestor = await entrar(browser, CONTAS.gestor);
+    const gestor = await entrar(browser, CONTAS.gestor, servidor);
+    // O cliente nem pede os dados da pessoa escolhida (o servidor também os recusaria)
+    const pedidos = [];
+    gestor.page.on('request', r => { if (r.url().includes('/rest/v1/dados_pessoais')) pedidos.push(r.url()); });
     await irPara(gestor.page, 'alu');
-    await expect(gestor.page.locator('#alu [data-dados]').first()).toBeHidden();
-    await expect(gestor.page.locator('#s-alu thead th', { hasText: 'CANAC' })).toBeHidden();
+    await abrirAluno(gestor.page, 1001);
+    await gestor.page.waitForTimeout(600);
+    expect(pedidos).toEqual([]);
+    await expect(secao(gestor.page)).toHaveCount(0);
+    await expect(linhaDoAluno(gestor.page, 1001).locator('.lista-l2')).not.toContainText('CANAC');
+    await expect(gestor.page.locator('#s-alu')).not.toContainText('654321');
+    await expect(gestor.page.locator('#s-alu')).not.toContainText('bia@exemplo.com');
+    // A busca não acha o CANAC
+    await gestor.page.locator('[data-flt="alu"]').fill('654321');
+    await nenhumNaLista(gestor.page, 'alu');
     expect(gestor.erros).toEqual([]);
     await gestor.context.close();
   });
 
-  test('duas pessoas editam a mesma pessoa: a segunda é avisada e não apaga o que a primeira gravou', async ({ browser }) => {
+  test('duas pessoas editam a mesma pessoa: a segunda é avisada, vê a versão atual e não apaga o que a primeira gravou', async ({ browser }) => {
     const servidor = criarSupabaseFalso(documentosAtuais(estado(), AMANHA));
     const a = await entrar(browser, CONTAS.operador, servidor);
     const b = await entrar(browser, CONTAS.administrador, servidor);
@@ -241,34 +312,43 @@ test.describe('Dados pessoais (modo compartilhado)', () => {
     await abrirDadosDoAluno(b.page, 1000);
     await campo(a.page, 'CANAC').fill('123456');
     await salvar(a.page);
-    await expect(painel(a.page)).toBeHidden();
+    await expect(rodape(a.page)).toHaveText(/^Atualizado em/);
 
     await campo(b.page, 'Celular').fill('37991234567');
     await salvar(b.page);
-    await expect(painel(b.page).locator('#dados-erro')).toHaveText('Outra pessoa alterou estes dados enquanto você editava. Feche e abra de novo para ver a versão atual.');
+    await expect(b.page.locator('#det-alu-dados-aviso')).toHaveText('Outra pessoa alterou os dados de Aluno 1000 enquanto você editava: a tela mostra a versão atual. Refaça a alteração.');
     expect(servidor.dadosPessoais.get('aluno:1000')).toMatchObject({ canac: '123456' });
     expect(servidor.dadosPessoais.get('aluno:1000').celular).toBeUndefined();
-    // Abrindo de novo, vem o que a outra pessoa gravou
-    await painel(b.page).getByRole('button', { name: 'Cancelar' }).click();
-    await abrirDadosDoAluno(b.page, 1000);
+    // A seção já mostra o que a outra pessoa gravou, sem o rascunho
     await expect(campo(b.page, 'CANAC')).toHaveValue('123456');
+    await expect(campo(b.page, 'Celular')).toHaveValue('');
     for (const x of [a, b]) { expect(x.erros.filter(e => !e.includes('409'))).toEqual([]); await x.context.close(); }
   });
 
-  test('o painel lê a pessoa ao abrir; sem resposta, não deixa salvar', async ({ browser }) => {
+  test('a seção lê a pessoa escolhida; sem resposta, não deixa salvar, e "Tentar de novo" lê outra vez', async ({ browser }) => {
+    // (o supabase-js tenta cada leitura algumas vezes, esperando entre elas)
+    test.slow();
     const { context, servidor, page, erros } = await entrar(browser, CONTAS.operador);
-    // Outra pessoa grava depois do login: o painel mostra o que está no servidor
+    // Outra pessoa grava depois do login: a seção mostra o que está no servidor
     servidor.dadosPessoais.set('aluno:1001', { canac: '777777', atualizado_em: '2026-11-10T13:00:00.000Z', atualizado_por: 'Operador 01' });
     await abrirDadosDoAluno(page, 1001);
     await expect(campo(page, 'CANAC')).toHaveValue('777777');
-    await painel(page).getByRole('button', { name: 'Cancelar' }).click();
 
     servidor.falhar('/rest/v1/dados_pessoais', 20);
-    await abrirDadosDoAluno(page, 1000);
+    await irPara(page, 'alu');
+    await abrirAluno(page, 1000);
     // (o supabase-js tenta a leitura de novo algumas vezes antes de desistir)
-    await expect(painel(page).locator('#dados-erro')).toHaveText('Não foi possível ler os dados pessoais. Feche e tente de novo.', { timeout: 20000 });
+    await expect(page.locator('#det-alu-dados-aviso')).toHaveText('Não foi possível ler os dados pessoais. Tentar de novo', { timeout: 20000 });
     await expect(campo(page, 'CPF')).toBeDisabled();
-    await expect(painel(page).getByRole('button', { name: 'Salvar' })).toBeDisabled();
+    await expect(page.locator('#det-alu-dados-salvar')).toBeDisabled();
+    // A leitura que falhou não se repete sozinha (cada desenho não pede outra): só "Tentar de novo" lê
+    const leituras = [];
+    page.on('request', r => { if (r.url().includes('/rest/v1/dados_pessoais')) leituras.push(r.url()); });
+    await page.waitForTimeout(2000);
+    expect(leituras).toEqual([]);
+    servidor.falhar('/rest/v1/dados_pessoais', 0);
+    await page.locator('#det-alu-dados-tentar').click();
+    await expect(campo(page, 'CPF')).toBeEnabled({ timeout: 20000 });
     expect(erros.filter(e => !e.includes('503'))).toEqual([]);
     await context.close();
   });
@@ -278,7 +358,7 @@ test.describe('Dados pessoais (modo compartilhado)', () => {
     await abrirDadosDoAluno(page, 1000);
     await campo(page, 'CANAC').fill('123456');
     await salvar(page);
-    await expect(painel(page)).toBeHidden();
+    await expect(rodape(page)).toHaveText(/^Atualizado em/);
     expect(servidor.historico.map(h => [h.data, h.descricao, h.autor])).toContainEqual([AMANHA, 'Dados pessoais de Aluno 1000 atualizados: CANAC', 'Secretaria de Teste']);
     expect(erros).toEqual([]);
     await context.close();
@@ -289,12 +369,57 @@ test.describe('Dados pessoais (modo compartilhado)', () => {
     await abrirDadosDoAluno(page, 1001);
     await campo(page, 'CANAC').fill('123456');
     await salvar(page);
-    await expect(painel(page)).toBeHidden();
+    await expect(rodape(page)).toHaveText(/^Atualizado em/);
     expect(servidor.dadosPessoais.has('aluno:1001')).toBe(true);
-    const excluir = page.locator('#alu tr[data-id="1001"] [data-act="dels"]');
+    const excluir = page.locator('#det-alu-excluir');
     await excluir.click();
     await excluir.click();
     await expect.poll(() => servidor.dadosPessoais.has('aluno:1001')).toBe(false);
+    expect(erros).toEqual([]);
+    await context.close();
+  });
+
+  // A recusa que chega depois de ela ter ido para outra pessoa fica com a primeira: o ponto da linha, o aviso da lista
+  // com "Abrir", e a mensagem no campo quando ela é aberta de novo
+  test('a recusa que chega com outra pessoa aberta: o ponto da linha, o aviso com "Abrir", a mensagem no campo', async ({ browser }) => {
+    const { context, servidor, page, erros } = await entrar(browser, CONTAS.operador);
+    servidor.dadosPessoais.set('aluno:1001', { canac: '123456', atualizado_em: '2026-11-10T13:00:00.000Z', atualizado_por: 'Operador 01' });
+    await abrirDadosDoAluno(page, 1000);
+    // A resposta da gravação espera até a pessoa ir para outro aluno
+    let soltar;
+    const segura = new Promise(r => { soltar = r; });
+    await page.route('**/rest/v1/rpc/salvar_dados_pessoais', async rota => { await segura; await rota.fallback(); });
+    await campo(page, 'CANAC').fill('123456');
+    await salvar(page);
+    await abrirDadosDoAluno(page, 1001);
+    soltar();
+    await expect(linhaDoAluno(page, 1000).locator('.lista-ponto')).toHaveClass(/\berro\b/);
+    await expect(page.locator('#alu-aviso')).toHaveText('Os dados pessoais de Aluno 1000 não foram salvos: CANAC já cadastrado para outro aluno. Abrir');
+    await page.locator('#alu-aviso-abrir').click();
+    await expect(page.locator('#det-alu-titulo')).toHaveText('Aluno 1000');
+    await expect(erroDe(page, 'canac')).toHaveText('CANAC já cadastrado para outro aluno.');
+    await expect(campo(page, 'CANAC')).toHaveValue('123456');
+    expect(erros.filter(e => !e.includes('400') && !e.includes('409'))).toEqual([]);
+    await context.close();
+  });
+
+  // O aluno novo: os dados pessoais dele esperam a gravação que o incluiu no cadastro
+  test('os dados pessoais do aluno novo esperam a gravação que o incluiu', async ({ browser }) => {
+    const { context, servidor, page, erros } = await entrar(browser, CONTAS.operador);
+    await irPara(page, 'alu');
+    const liberar = servidor.segurarGravacoes();
+    await page.locator('[data-act="adds"]').click();
+    await expect(page).toHaveURL(/#\/alu\/novo$/);
+    await expect(campo(page, 'CPF')).toBeEnabled();
+    await campo(page, 'CANAC').fill('246810');
+    await salvar(page);
+    await page.waitForTimeout(300);
+    expect([...servidor.dadosPessoais.values()].some(d => d.canac === '246810'), 'nada enviado antes do aluno ser gravado').toBe(false);
+    liberar();
+    await expect(rodape(page)).toHaveText(/^Atualizado em/);
+    const id = await page.locator('#det-alu .det').getAttribute('data-id');
+    expect(servidor.dadosPessoais.get(`aluno:${id}`)).toMatchObject({ canac: '246810' });
+    await expect(page).toHaveURL(new RegExp(`#/alu/${id}$`));
     expect(erros).toEqual([]);
     await context.close();
   });
