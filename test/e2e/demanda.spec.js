@@ -37,7 +37,7 @@ test.describe('Demanda', () => {
   });
 
   // A Prioridade só com ela ligada (js/funcionalidades.js; prioridade.spec.js)
-  test('9 colunas que cabem na tela (sem Sessões nem Prioridade); "Limpar demanda" fica no menu Mais', async ({ page }) => {
+  test('8 colunas que cabem na tela (sem Sessões, Prioridade nem Disponibilidade); "Limpar demanda" fica no menu Mais', async ({ page }) => {
     await abrirComExemplo(page);
     await irPara(page, 'dem');
     await expect(page.locator('#s-dem thead th')).toHaveText(['Aluno', 'Voa', 'Missão', 'Recurso', 'Instrutor', '1ª preferência', '2ª preferência', 'Duração']);
