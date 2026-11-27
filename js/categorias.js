@@ -12,6 +12,12 @@ export const CATEGORIAS = [
   { id: 'ground', nome: 'Sala Ground', tipos: [GROUND_EQ_TYPE] }
 ];
 
+// O nome da categoria com a preposição certa: "do C152", "do Simulador", "da Sala Ground" (os horários de quem)
+export const doNomeDaCategoria = id => {
+  const c = CATEGORIAS.find(x => x.id === id);
+  return c ? `${id === 'ground' ? 'da' : 'do'} ${c.nome}` : `do ${id}`;
+};
+
 export const nomeDoRecurso = r => (r === GROUND_REG ? 'Sala Ground' : r);
 
 // A categoria de um tipo (C152, Sim. Mono, Sala Ground…): vale também para um recurso que já saiu da frota

@@ -3,7 +3,7 @@
 // (dias antes do 28 e os estados dos goldens) e fecha exatamente os minutos que elas fechavam.
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { normalizarFechamentos, fechamentosDoWin, horarioAberto, rotuloDosFechamentos, MAXIMO_DE_FECHAMENTOS } from '../../js/fechamentos.js';
+import { normalizarFechamentos, fechamentosDoWin, horarioAberto, rotuloDosFechamentos, horariosQueOIntervaloFecha, cabeOFechamento, MAXIMO_DE_FECHAMENTOS } from '../../js/fechamentos.js';
 import { INICIOS_DOS_TEMPOS as T, periodoDoMinuto } from '../../js/horarios.js';
 
 const TODAS = ['C152', 'C172', 'sim', 'PA-34', 'ground'];
@@ -130,6 +130,51 @@ describe('horarioAberto', () => {
   test('sem fechamentos, tudo aberto', () => {
     assert.equal(horarioAberto([], 0, 'C152'), true);
     assert.equal(horarioAberto(undefined, 800, 'C152'), true);
+  });
+});
+
+// A linha do formulário "+ Fechar horários" (js/views/fechamentos.js): o que o intervalo fecha, por categoria, como o motor
+// fecha. Os horários da lista e os fixos das missões: o Noturno às 17:30 (C172) e o Voo Solo às 06:30 (revisão do J)
+describe('horariosQueOIntervaloFecha', () => {
+  const resumo = r => r.map(({ categoria, minutos }) => `${categoria.id} ${minutos.map(m => m).join(',')}`);
+  test('17:30–24:00 fecha o Noturno do C172, que nenhuma lista tem (o motor o tira da escala)', () => {
+    assert.deepEqual(resumo(horariosQueOIntervaloFecha([], undefined, { de: 1050, ate: 1440, categorias: [] })), ['C172 1050']);
+    assert.deepEqual(resumo(horariosQueOIntervaloFecha([], undefined, { de: 1050, ate: 1440, categorias: ['C152'] })), []);
+  });
+  test('12:40–17:30: os quatro horários de cada lista; a Sala Ground, os dela; o Noturno não (17:30 já está aberto)', () => {
+    assert.deepEqual(resumo(horariosQueOIntervaloFecha([], undefined, { de: 760, ate: 1050, categorias: ['C152', 'C172', 'ground'] })),
+      ['C152 760,820,870,980', 'C172 760,820,870,980', 'ground 760,820,870,980']);
+  });
+  test('o Voo Solo das 06:30 conta mesmo fora da lista da categoria', () => {
+    const horarios = { C152: [500, 610], C172: [500], sim: [500], 'PA-34': [500], ground: [500] };
+    assert.deepEqual(resumo(horariosQueOIntervaloFecha([], horarios, { de: 360, ate: 400, categorias: [] })), ['C152 390', 'C172 390', 'PA-34 390']);
+  });
+  test('o que já está fechado não conta de novo', () => {
+    assert.deepEqual(resumo(horariosQueOIntervaloFecha([{ de: 1050, ate: 1440, categorias: ['C172'] }], undefined, { de: 1000, ate: 1440, categorias: ['C172'] })), []);
+  });
+  test('o motor fecha os mesmos: o Noturno não sai num intervalo que a linha diz fechar', async () => {
+    const { runAllocationEngine } = await import('../../js/engine.js');
+    const { cenario, aluno, instrutor } = await import('../helpers/montar.js');
+    const estado = cenario({ ins: [instrutor(1, 9)], stu: [aluno(1000, { mis: 'Noturno', eq: 'C172', p1: 1050, p2: -1 })] });
+    assert.equal(runAllocationEngine(estado).out.length, 1);
+    const fecha = horariosQueOIntervaloFecha([], undefined, { de: 1050, ate: 1440, categorias: [] });
+    assert.equal(fecha.length, 1);
+    assert.equal(runAllocationEngine({ ...estado, fechamentos: [{ de: 1050, ate: 1440 }] }).out.length, 0);
+  });
+});
+
+describe(`cabeOFechamento: no máximo ${MAXIMO_DE_FECHAMENTOS} por data (revisão do J)`, () => {
+  const doze = Array.from({ length: MAXIMO_DE_FECHAMENTOS }, (_, i) => ({ de: 420 + 60 * i, ate: 430 + 60 * i }));
+  test('o 13º separado não cabe (normalizarFechamentos tiraria o último da lista)', () => {
+    assert.equal(cabeOFechamento(doze, { de: 360, ate: 370 }), false);
+    assert.equal(cabeOFechamento(doze.slice(1), { de: 360, ate: 370 }), true);
+  });
+  test('o que junta com um deles cabe', () => {
+    assert.equal(cabeOFechamento(doze, { de: 425, ate: 440 }), true);
+    assert.equal(cabeOFechamento(doze, { de: 430, ate: 480 }), true);
+  });
+  test('com outras categorias, não junta: não cabe', () => {
+    assert.equal(cabeOFechamento(doze, { de: 425, ate: 440, categorias: ['C152'] }), false);
   });
 });
 

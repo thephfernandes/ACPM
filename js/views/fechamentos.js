@@ -5,10 +5,9 @@
 import { S, isGestor } from '../state.js';
 import { $, trocarConteudo } from '../dom.js';
 import { esc, hm } from '../format.js';
-import { CATEGORIAS, categoriaDoTipo } from '../categorias.js';
-import { fechamentosDoEstado, rotuloDosFechamentos, horarioAberto, normalizarFechamentos, MAXIMO_DE_FECHAMENTOS } from '../fechamentos.js';
-import { horariosDaMissao, horariosDoTipo } from '../horarios.js';
-import { GROUND_EQ_TYPE } from '../config.js';
+import { CATEGORIAS, doNomeDaCategoria } from '../categorias.js';
+import { fechamentosDoEstado, rotuloDosFechamentos, horariosQueOIntervaloFecha, cabeOFechamento, MAXIMO_DE_FECHAMENTOS } from '../fechamentos.js';
+import { HORARIO_DO_NOTURNO } from '../horarios.js';
 
 const INICIO = 6 * 60, FIM = 24 * 60, PASSO = 10;
 const MINUTOS = Array.from({ length: (FIM - INICIO) / PASSO + 1 }, (_, i) => INICIO + PASSO * i);
@@ -22,24 +21,22 @@ export function abrirFormulario() { form = { de: 12 * 60 + 40, ate: 17 * 60 + 30
 export function fecharFormulario() { form = null; }
 export function mudarFormulario(mudanca) { if (form) form = { ...form, ...mudanca }; }
 
-// Os horários de decolagem de cada categoria que o intervalo fecharia e que ainda estão abertos (a linha do formulário)
-function oQueFecha({ de, ate, categorias }) {
-  const atuais = fechamentosDoEstado(S);
-  const cats = categorias.length ? CATEGORIAS.filter(c => categorias.includes(c.id)) : CATEGORIAS;
-  return cats.map(c => {
-    const lista = c.id === 'ground' ? horariosDoTipo(S.horarios, GROUND_EQ_TYPE) : horariosDaMissao(S.horarios, 'Voo Local', c.tipos[0]);
-    return { c, n: lista.filter(m => m >= de && m < ate && horarioAberto(atuais, m, categoriaDoTipo(c.tipos[0]))).length };
-  }).filter(x => x.n > 0);
-}
-
-const nomeNaFrase = c => (c.id === 'ground' ? `da ${c.nome}` : `do ${c.nome}`);
+// A linha do formulário: quantos horários de decolagem de cada categoria o intervalo fecha, dos que ainda estão abertos
+// (os da lista e os fixos das missões, como o motor: o Noturno das 17:30 no C172; js/fechamentos.js)
 function fraseDoFormulario(f) {
   if (f.ate <= f.de) return 'O Até vem depois do De.';
-  const partes = oQueFecha(f).map(({ c, n }, i) => (i === 0 ? `${n} ${n === 1 ? 'horário' : 'horários'} ${nomeNaFrase(c)}` : `${n} ${nomeNaFrase(c)}`));
+  const partes = horariosQueOIntervaloFecha(fechamentosDoEstado(S), S.horarios, f).map(({ categoria, minutos }, i) => {
+    const n = minutos.length;
+    // (nenhuma lista tem as 17:30: normalizarHorarios vai até as 17:00)
+    const noturno = minutos.includes(HORARIO_DO_NOTURNO)
+      ? (n === 1 ? ` (o Noturno, às ${hm(HORARIO_DO_NOTURNO)})` : ` (com o Noturno, às ${hm(HORARIO_DO_NOTURNO)})`) : '';
+    return `${n} ${i === 0 ? (n === 1 ? 'horário ' : 'horários ') : ''}${doNomeDaCategoria(categoria.id)}${noturno}`;
+  });
   return partes.length ? `Fecha ${partes.join(', ')}.` : 'Nenhum horário de decolagem cai nesse intervalo.';
 }
-// O intervalo pode ser fechado: o Até depois do De, e a lista não passa do máximo
-export const podeFechar = f => f.ate > f.de && normalizarFechamentos([...fechamentosDoEstado(S), { de: f.de, ate: f.ate, categorias: f.categorias }]).length <= MAXIMO_DE_FECHAMENTOS;
+// O intervalo pode ser fechado: o Até depois do De, e a lista, com ele junto aos outros, não passa do máximo
+export const podeFechar = f => f.ate > f.de && cabeOFechamento(fechamentosDoEstado(S), { de: f.de, ate: f.ate, categorias: f.categorias });
+const efeitoDoFormulario = f => (f.ate > f.de && !podeFechar(f) ? `No máximo ${MAXIMO_DE_FECHAMENTOS} intervalos fechados por data: abra um deles (✕) ou junte este a um que já está fechado.` : fraseDoFormulario(f));
 
 const opcoes = (lista, escolhido) => lista.map(m => `<option value="${m}"${m === escolhido ? ' selected' : ''}>${hm(m)}</option>`).join('');
 
@@ -54,12 +51,26 @@ function formulario() {
     <fieldset class="fch-categorias"><legend>Recursos <small>(nenhum marcado: todos)</small></legend>
       ${CATEGORIAS.map(c => `<label class="chk"><input type="checkbox" data-a="fch-cat" data-cat="${c.id}"${f.categorias.includes(c.id) ? ' checked' : ''}> ${esc(c.nome)}</label>`).join('')}
     </fieldset>
-    <p class="fch-efeito" role="status">${esc(f.ate > f.de && !podeFechar(f) ? `No máximo ${MAXIMO_DE_FECHAMENTOS} intervalos fechados por data.` : fraseDoFormulario(f))}</p>
+    <p class="fch-efeito" role="status">${esc(efeitoDoFormulario(f))}</p>
     <div class="fch-acoes">
       <button type="button" class="btn" data-act="fch-fechar"${podeFechar(f) ? '' : ' disabled'}>Fechar</button>
       <button type="button" class="btn quiet" data-act="fch-cancelar">Cancelar</button>
     </div>
   </form>`;
+}
+
+// Um campo do formulário mudou: só a linha do efeito, o "Fechar" e os campos mudam, nos mesmos elementos (a linha é uma
+// região viva: um elemento novo não seria anunciado, e o foco fica no campo). Sem o formulário na tela, desenha tudo
+export function atualizarFormularioDosFechamentos() {
+  const caixa = $('#fechamentos .fechar-horarios');
+  if (!form || !caixa) { rFechamentos(); return; }
+  const efeito = caixa.querySelector('.fch-efeito');
+  const texto = efeitoDoFormulario(form);
+  if (efeito.textContent !== texto) efeito.textContent = texto;
+  caixa.querySelector('[data-act="fch-fechar"]').disabled = !podeFechar(form);
+  caixa.querySelector('#fch-de').value = String(form.de);
+  caixa.querySelector('#fch-ate').value = String(form.ate);
+  caixa.querySelectorAll('input[data-cat]').forEach(c => { c.checked = form.categorias.includes(c.dataset.cat); });
 }
 
 export function rFechamentos() {

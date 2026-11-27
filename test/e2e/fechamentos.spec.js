@@ -80,6 +80,76 @@ test.describe('Horários fechados nesta data', () => {
     await expect(page.locator('#log-cnt')).toHaveText('0');
   });
 
+  // Revisão do J: o Noturno sai às 17:30, que nenhuma lista tem; 17:30–24:00 o fecha, e a linha diz isso
+  test('17:30–24:00 fecha o Noturno: a linha diz "o Noturno, às 17:30", e a Escala fica sem ele', async ({ page }) => {
+    await abrir(page, { estado: cenario({ ins: [instrutor(1, 9)], stu: [aluno(1000, { mis: 'Noturno', eq: 'C172', p1: 1050, p2: -1 })] }) });
+    await abrirEscala(page);
+    expect(await inicioDe(page, 'Aluno 1000')).toBe('17:30');
+    await irPara(page, 'rec');
+    const secao = horariosFechados(page);
+    await secao.locator('[data-act="fechar-horarios"]').click();
+    const form = secao.locator('.fechar-horarios');
+    await form.locator('#fch-de').selectOption({ label: '17:30' });
+    await form.locator('#fch-ate').selectOption({ label: '24:00' });
+    await expect(form.locator('[role="status"]')).toHaveText('Fecha 1 horário do C172 (o Noturno, às 17:30).');
+    await form.locator('#fch-de').selectOption({ label: '16:00' });
+    await expect(form.locator('[role="status"]')).toHaveText('Fecha 1 horário do C152, 2 do C172 (com o Noturno, às 17:30), 1 do Simulador, 2 do PA-34, 1 da Sala Ground.');
+    await form.locator('#fch-de').selectOption({ label: '17:30' });
+    await form.locator('[data-act="fch-fechar"]').click();
+    await expect(secao.locator('li > span')).toHaveText(['17:30–24:00 · todos os recursos']);
+    await abrirEscala(page);
+    expect(await inicioDe(page, 'Aluno 1000')).toBe('');
+  });
+
+  // A linha do efeito é uma região viva: o mesmo elemento recebe o texto novo (um elemento novo não seria anunciado), e o
+  // foco fica no campo
+  test('a linha do efeito muda no mesmo elemento, e o foco fica no campo', async ({ page }) => {
+    await abrir(page, { estado: estado() });
+    await irPara(page, 'rec');
+    const secao = horariosFechados(page);
+    await secao.locator('[data-act="fechar-horarios"]').click();
+    const form = secao.locator('.fechar-horarios');
+    await form.locator('[role="status"]').evaluate(el => { el.dataset.marca = '1'; });
+    await form.locator('#fch-de').selectOption({ label: '14:00' });
+    await expect(form.locator('[role="status"][data-marca="1"]')).toHaveText(/^Fecha 2 horários do C152/);
+    await expect(form.locator('#fch-de')).toBeFocused();
+    await form.locator('input[data-cat="ground"]').check();
+    await expect(form.locator('[role="status"][data-marca="1"]')).toHaveText('Fecha 2 horários da Sala Ground.');
+    await expect(form.locator('input[data-cat="ground"]')).toBeFocused();
+    await form.locator('#fch-ate').selectOption({ label: '10:00' });
+    await expect(form.locator('[role="status"][data-marca="1"]')).toHaveText('O Até vem depois do De.');
+    await expect(form.locator('[data-act="fch-fechar"]')).toBeDisabled();
+    await form.locator('[data-act="fch-dia-todo"]').click();
+    await expect(form.locator('#fch-de')).toHaveValue('360');
+    await expect(form.locator('#fch-ate')).toHaveValue('1440');
+    await expect(form.locator('[role="status"][data-marca="1"]')).toHaveText('Fecha 8 horários da Sala Ground.');
+    await expect(form.locator('[data-act="fch-fechar"]')).toBeEnabled();
+    await expect(form.locator('[data-act="fch-dia-todo"]')).toBeFocused();
+  });
+
+  // No máximo 12 intervalos por data (revisão do J): o 13º não fecha (antes, "Fechar" o gravava e um dos outros saía sem
+  // aviso); o que junta com um deles fecha
+  test('com 12 intervalos fechados, o 13º separado não fecha; o que junta com um deles fecha', async ({ page }) => {
+    const doze = Array.from({ length: 12 }, (_, i) => ({ de: 420 + 60 * i, ate: 430 + 60 * i }));
+    await abrir(page, { estado: { ...estado(), fechamentos: doze } });
+    await irPara(page, 'rec');
+    const secao = horariosFechados(page);
+    await expect(secao.locator('li > span')).toHaveCount(12);
+    await secao.locator('[data-act="fechar-horarios"]').click();
+    const form = secao.locator('.fechar-horarios');
+    await form.locator('#fch-de').selectOption({ label: '06:00' });
+    await form.locator('#fch-ate').selectOption({ label: '06:10' });
+    await expect(form.locator('[role="status"]')).toHaveText('No máximo 12 intervalos fechados por data: abra um deles (✕) ou junte este a um que já está fechado.');
+    await expect(form.locator('[data-act="fch-fechar"]')).toBeDisabled();
+    await form.locator('#fch-de').selectOption({ label: '07:00' });
+    await form.locator('#fch-ate').selectOption({ label: '07:30' });
+    await expect(form.locator('[data-act="fch-fechar"]')).toBeEnabled();
+    await form.locator('[data-act="fch-fechar"]').click();
+    await expect(secao.locator('li > span')).toHaveCount(12);
+    await expect(secao.locator('li > span').first()).toHaveText('07:00–07:30 · todos os recursos');
+    await expect(secao.locator('li > span').last()).toHaveText('18:00–18:10 · todos os recursos');
+  });
+
   test('no celular (320 px): o formulário cabe sem rolar de lado, e os controles têm 44 px', async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 700 });
     await abrir(page, { estado: estado() });

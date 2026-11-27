@@ -7,8 +7,8 @@
 // 28 (js/migracoes.js) lê antes o win gravado como a data aberta o lia (só false fecha; sem as nove posições, nada).
 import { CATEGORIAS } from './categorias.js';
 import { hm } from './format.js';
-import { MINUTOS_DO_DIA } from './config.js';
-import { INICIOS_DOS_TEMPOS } from './horarios.js';
+import { MINUTOS_DO_DIA, MIS } from './config.js';
+import { INICIOS_DOS_TEMPOS, horariosDaMissao } from './horarios.js';
 
 export const MAXIMO_DE_FECHAMENTOS = 12;
 const IDS = CATEGORIAS.map(c => c.id);
@@ -28,7 +28,8 @@ function categoriasDe(lista) {
 
 const mesmasCategorias = (a, b) => (a || []).join('|') === (b || []).join('|');
 
-export function normalizarFechamentos(fechamentos) {
+// Os fechamentos válidos, em ordem e juntos, sem o corte no máximo (cabeOFechamento conta por eles)
+function juntarFechamentos(fechamentos) {
   if (!Array.isArray(fechamentos)) return [];
   const itens = [];
   for (const f of fechamentos) {
@@ -48,8 +49,14 @@ export function normalizarFechamentos(fechamentos) {
     } else juntos.push({ ...f, ...(f.categorias ? { categorias: [...f.categorias] } : {}) });
   }
   juntos.sort((a, b) => a.de - b.de || a.ate - b.ate);
-  return juntos.slice(0, MAXIMO_DE_FECHAMENTOS);
+  return juntos;
 }
+
+export const normalizarFechamentos = fechamentos => juntarFechamentos(fechamentos).slice(0, MAXIMO_DE_FECHAMENTOS);
+
+// O fechamento novo cabe na data: juntos (o que se cruza com outro das mesmas categorias vira um só), não passam do
+// máximo. Sem esta conta, "Fechar" gravaria o 13º e normalizarFechamentos tiraria o último da lista, sem avisar
+export const cabeOFechamento = (fechamentos, novo) => juntarFechamentos([...(fechamentos || []), novo]).length <= MAXIMO_DE_FECHAMENTOS;
 
 // As nove janelas de antes em fechamentos: cada sequência i..j de janelas fechadas vira um intervalo; a janela 0 também
 // fechava o que sai antes das 06:30 (periodoDoMinuto põe na 0 todo minuto antes dela) e a 8 vai até a meia-noite
@@ -72,6 +79,18 @@ export function fechamentosDoWin(win) {
 // os recursos fecha)
 export function horarioAberto(fechamentos, minuto, categoria) {
   return !(fechamentos || []).some(f => minuto >= f.de && minuto < f.ate && (!f.categorias || f.categorias.includes(categoria)));
+}
+
+// Os horários de decolagem de cada categoria que o intervalo { de, ate, categorias } fecharia e que os fechamentos ainda
+// deixam abertos, como o motor fecha: os da lista da categoria e os fixos das missões dela (o Noturno, às 17:30, no C172;
+// o Voo Solo, às 06:30). [{ categoria (de CATEGORIAS), minutos }], só as categorias com algum. A linha de "+ Fechar horários"
+export function horariosQueOIntervaloFecha(fechamentos, horarios, { de, ate, categorias = [] }) {
+  const cats = categorias.length ? CATEGORIAS.filter(c => categorias.includes(c.id)) : CATEGORIAS;
+  return cats.map(categoria => {
+    const daCategoria = categoria.tipos.flatMap(tipo => Object.keys(MIS).filter(mis => MIS[mis].eq.includes(tipo)).flatMap(mis => horariosDaMissao(horarios, mis, tipo)));
+    const minutos = [...new Set(daCategoria)].filter(m => m >= de && m < ate && horarioAberto(fechamentos, m, categoria.id)).sort((a, b) => a - b);
+    return { categoria, minutos };
+  }).filter(x => x.minutos.length);
 }
 
 const nomeDaCategoria = id => (CATEGORIAS.find(c => c.id === id) || { nome: id }).nome;

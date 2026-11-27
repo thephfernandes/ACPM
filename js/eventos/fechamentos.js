@@ -7,7 +7,7 @@ import { S } from '../state.js';
 import { $, fecharNoEsc } from '../dom.js';
 import { fechamentosDoEstado, normalizarFechamentos, rotuloDosFechamentos } from '../fechamentos.js';
 import { aoAcionar, aoMudarCampo, aoReverter } from './registro.js';
-import { rFechamentos, abrirFormulario, fecharFormulario, mudarFormulario, formularioAberto, formularioDosFechamentos, podeFechar } from '../views/fechamentos.js';
+import { rFechamentos, atualizarFormularioDosFechamentos, abrirFormulario, fecharFormulario, mudarFormulario, formularioAberto, formularioDosFechamentos, podeFechar } from '../views/fechamentos.js';
 import { redesenharPorNome } from '../redesenho.js';
 
 // O texto do Histórico: "Horários fechados nesta data: 12:40–17:30 (todos os recursos)"
@@ -41,9 +41,7 @@ aoAcionar('fechar-horarios', () => {
 aoAcionar('fch-cancelar', () => fechar());
 aoAcionar('fch-dia-todo', () => {
   mudarFormulario({ de: 6 * 60, ate: 24 * 60 });
-  rFechamentos();
-  const botao = $('#fechamentos [data-act="fch-dia-todo"]');
-  if (botao) botao.focus();
+  atualizarFormularioDosFechamentos();
 });
 aoAcionar('fch-fechar', () => {
   const f = formularioDosFechamentos();
@@ -60,22 +58,16 @@ aoAcionar('tirar-fechamento', b => {
   focarNoBotao();
 });
 
-// Os campos do formulário mudam só o rascunho (nada é gravado antes de "Fechar"); o campo mudado continua com o foco
-const redesenharNoCampo = id => {
-  rFechamentos();
-  const campo = id && document.getElementById(id);
-  if (campo) campo.focus();
-};
-aoMudarCampo('fch-de', t => { mudarFormulario({ de: +t.value }); redesenharNoCampo('fch-de'); });
-aoMudarCampo('fch-ate', t => { mudarFormulario({ ate: +t.value }); redesenharNoCampo('fch-ate'); });
+// Os campos do formulário mudam só o rascunho (nada é gravado antes de "Fechar"); a linha do efeito e o "Fechar" mudam
+// nos mesmos elementos, e o foco fica onde está
+aoMudarCampo('fch-de', t => { mudarFormulario({ de: +t.value }); atualizarFormularioDosFechamentos(); });
+aoMudarCampo('fch-ate', t => { mudarFormulario({ ate: +t.value }); atualizarFormularioDosFechamentos(); });
 aoMudarCampo('fch-cat', t => {
   const f = formularioDosFechamentos();
   if (!f) return;
   const categorias = t.checked ? [...new Set([...f.categorias, t.dataset.cat])] : f.categorias.filter(c => c !== t.dataset.cat);
   mudarFormulario({ categorias });
-  rFechamentos();
-  const caixa = document.querySelector(`#fechamentos input[data-cat="${t.dataset.cat}"]`);
-  if (caixa) caixa.focus();
+  atualizarFormularioDosFechamentos();
 });
 
 // Esc no formulário: como "Cancelar"
