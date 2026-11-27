@@ -28,6 +28,7 @@ import { pinoDoVoo, pinosQueVoltam } from './fixos.js';
 import { runAllocationEngine } from './engine.js';
 import { instrutoresDoPedido } from './instrutor-escolhido.js';
 import { ocupacaoDaEscala, problemaDoAluno, avioesQueServem, instrutoresQueServem } from './candidatos.js';
+import { salaDisponivel } from './frota.js';
 import { inativoNoEstado } from './inativos.js';
 import { rejeicoesDosPedidos } from './rejeicoes.js';
 
@@ -248,6 +249,9 @@ export function cancelamentoAproveitavel(estado, voo, { data, hoje }) {
   return !((estado.resultados || {}).doDia || []).some(r => r && r.voo === voo.fKey);
 }
 
+// O motivo com a Sala Ground desligada, o mesmo do motor e do agendamento
+const SALA_INDISPONIVEL = 'a Sala Ground está indisponível nesta data';
+
 // A busca de um lugar para o voo (o cancelado, ou o do conflito, nos dois últimos grupos): os aviões e os instrutores que
 // servem em cada horário e tipo, contra os outros voos do dia (o atrasado na nova decolagem); sem o que saiu pelo motivo
 // (o instrutor, o avião, o horário); nunca passa por cima das habilitações, do peso, da lei, do "Não escalar com" nem dos
@@ -263,6 +267,8 @@ function buscaDoVoo(estado, resultado, voo, grupo, { depoisDe = null, semInstrut
   const duracao = voo.b - voo.a;
   const tipoDoVoo = voo.isGround ? GROUND_EQ_TYPE : voo.eqType;
   const passou = m => depoisDe !== null && m <= depoisDe;
+  // A Sala Ground desligada nesta data (S4): nenhum horário de Ground, e o porquê diz isso (não "a sala não está livre")
+  const salaIndisponivel = voo.isGround && !salaDisponivel(estado.av);
   const avioes = (tipo, a, b, instrutor = null) => avioesQueServem(estado, ocupacao, { tipo, mis: voo.mis, curso, a, b, ground: voo.isGround, instrutor })
     .filter(c => !c.problema && c.r !== semAviao).map(c => c.r);
   const instrutores = (tipo, a, b, r) => instrutoresQueServem(estado, ocupacao,
@@ -321,6 +327,7 @@ function buscaDoVoo(estado, resultado, voo, grupo, { depoisDe = null, semInstrut
   return {
     tipoDoVoo,
     naDisponibilidade,
+    salaIndisponivel,
     // O mesmo horário, com as regras dos outros (aberto nesta data também)
     mesmoHorarioDisponivel: !semHorario && horarioAberto(voo.a),
     fechamentoDoInicio: fechamentoDoMinuto(fechamentos, voo.a, categoriaDe(tipoDoVoo)),
@@ -364,6 +371,7 @@ function buscaDoVoo(estado, resultado, voo, grupo, { depoisDe = null, semInstrut
       for (const m of inicios(tipo).filter(x => x !== voo.a || (tipo !== tipoDoVoo && !semHorario))) {
         const b = m + duracao;
         const motivo = passou(m) ? 'já passou'
+          : salaIndisponivel ? SALA_INDISPONIVEL
           : !abertoNaData(fechamentos, m, categoriaDe(tipo)) ? 'o horário está fechado nesta data'
             : b > limite ? (b > fimDoDia ? 'passa do fim do dia do aluno' : 'passa do voo que depende do Ground')
               : m < inicioMinimo(tipo) ? 'antes do fim do Ground do aluno'
@@ -428,7 +436,8 @@ export function sugerirParaCancelado(estado, resultado, fKey, { depoisDe = null,
     impossivel: [
       motivo === 'Meteorologia' || motivo === 'Operacional' ? `No mesmo horário: o voo foi cancelado por ${motivo.toLowerCase()} nele.`
         : !busca.mesmoHorarioDisponivel ? `No mesmo horário: ${depoisDe !== null && voo.a <= depoisDe ? 'ele já passou' : busca.fechamentoDoInicio ? `o horário está fechado nesta data (${hm(busca.fechamentoDoInicio.de)}–${hm(busca.fechamentoDoInicio.ate)})` : 'o aluno não está livre nele'}.`
-          : 'No mesmo horário: nenhum avião com um instrutor que sirva.',
+          : busca.salaIndisponivel ? `No mesmo horário: ${SALA_INDISPONIVEL}.`
+            : 'No mesmo horário: nenhum avião com um instrutor que sirva.',
       `Em outro horário: ${busca.porQueNao() || 'a missão não tem outro horário'}.`,
       tipos.length ? `Em outro tipo de recurso: ${tipos.map(t => `no ${t}, ${busca.porQueNao(t) || 'nenhum horário'}`).join('; ')}.`
         : `Em outro tipo de recurso: a missão só voa no ${busca.tipoDoVoo}.`

@@ -507,6 +507,18 @@ describe('O que a sugestão muda nos outros voos', () => {
     assert.deepEqual(comHorario(aprovado({ ...base.av, 'SALA-GROUND': false })).map(o => o.texto), []);
   });
 
+  it('com a Sala Ground indisponível, o porquê das Sugestões diz isso, no mesmo horário e nos outros (revisão do J)', () => {
+    const g = { ...GROUND_C152, p1: 500, p2: -1 };
+    const base = cenario({ ins: [instrutor(1, 9), instrutor(2, 9)], stu: [aluno(1000, g)] });
+    const v = runAllocationEngine(base).out, v1 = v[0];
+    const estado = { ...base, av: { ...base.av, 'SALA-GROUND': false }, fixos: fixosAoAprovar({}, v), aprovacao: { em: '2026-11-10T21:05:00.000Z', por: 'Operador 01' }, fStatus: { [v1.fKey]: 'Cancelado' }, fObs: { [v1.fKey]: { motivo: 'Instrutor indisponível' } } };
+    const { opcoes, impossivel } = sugerirParaCancelado(estado, runAllocationEngine(estado), v1.fKey);
+    assert.deepEqual(opcoes, []);
+    assert.equal(impossivel[0], 'No mesmo horário: a Sala Ground está indisponível nesta data.');
+    assert.match(impossivel[1], /^Em outro horário: a Sala Ground está indisponível nesta data \(06:30, 10:10, 11:30, 12:40, 13:40, 14:30, 16:20\)\.$/);
+    assert.doesNotMatch(impossivel.join(' '), /a sala não está livre|nenhum avião/);
+  });
+
   it('na escala aprovada, os mesmos casos não mudam nenhum outro voo', () => {
     const g = { ...GROUND_C152, p1: 390, p2: -1 };
     const base = cenario({ ins: [instrutor(1, 9), instrutor(2, 9)], stu: [aluno(1000, g), aluno(1001, g), aluno(1002, g)] });
