@@ -49,7 +49,15 @@ describe('O reinício do ensaio na prévia (scripts/reiniciar-ensaio-previa.mjs)
     assert.ok(script.indexOf('refDaPrevia(PROJETOS)') < script.indexOf('function sql('));
   });
 
-  it('na prévia: lê quanto há, apaga as datas de 2098 e volta o formato ao 29, nessa ordem, cada escrita com --yes', () => {
+  it('outro projeto que não o da prévia é recusado antes de qualquer consulta (o --ref só aceita a prévia)', () => {
+    const r = rodar(['--ref', 'abcdefghijklmnopqrst']);
+    assert.equal(r.status, 2, r.stdout);
+    assert.match(r.stderr, /só na prévia/);
+    assert.deepEqual(r.chamadas, [], 'nenhuma chamada ao CLI');
+    assert.equal(rodar(['--ref', PREVIA]).status, 0);
+  });
+
+  it('na prévia: lê quanto há e apaga só as datas de 2098; o formato guardado do cadastro e das outras datas não muda', () => {
     const r = rodar();
     assert.equal(r.status, 0, r.stderr);
     assert.ok(r.chamadas.every(a => a.slice(0, 4).join(' ') === `db query --remote=${PREVIA} -o`), 'sempre o projeto da prévia');
@@ -57,12 +65,10 @@ describe('O reinício do ensaio na prévia (scripts/reiniciar-ensaio-previa.mjs)
     assert.match(consultas[0][1], /^select \(select count\(\*\) from public\.dias where data between '2098-01-01' and '2098-12-31'\)/);
     assert.equal(consultas[0][0], '--read-only');
     assert.deepEqual(consultas.slice(1).map(([modo, q]) => [modo, q.split(' ').slice(0, 3).join(' ')]), [
-      ['--yes', 'delete from public.historico'], ['--yes', 'delete from public.solicitacoes'], ['--yes', 'delete from public.dias'],
-      ['--yes', 'update public.documentos set'], ['--yes', 'update public.dias set']
+      ['--yes', 'delete from public.historico'], ['--yes', 'delete from public.solicitacoes'], ['--yes', 'delete from public.dias']
     ]);
-    assert.ok(consultas.slice(1, 4).every(([, q]) => q.endsWith("where data between '2098-01-01' and '2098-12-31'")), 'só as datas do ensaio');
-    assert.match(consultas[4][1], /jsonb_set\(conteudo, '\{esquema\}', '29'::jsonb\) where chave = 'cadastro' and public\.esquema_do_conteudo\(conteudo\) > 29$/);
-    assert.match(consultas[5][1], /jsonb_set\(conteudo, '\{esquema\}', '29'::jsonb\) where public\.esquema_do_conteudo\(conteudo\) > 29$/);
+    assert.ok(consultas.slice(1).every(([, q]) => q.endsWith("where data between '2098-01-01' and '2098-12-31'")), 'só as datas do ensaio');
+    assert.ok(consultas.every(([, q]) => !/update|esquema/.test(q.replace(/esquema_do_conteudo\(conteudo\) from public\.documentos/, ''))), 'nenhuma escrita no formato');
     assert.match(r.stdout, /12 dias e 40 pedidos do ensaio; o cadastro no formato 31/);
   });
 
