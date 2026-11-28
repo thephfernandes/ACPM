@@ -1,7 +1,8 @@
 // Reinicia o ensaio da Onda 3 na PRÉVIA (o item 9 da lista da Onda 3 em docs/PLAN.md): as datas do ensaio (2098) saem
-// inteiras (os dias, os pedidos e o Histórico delas), e o formato guardado volta ao 29, o do D3, quando um build do E ou
-// do L (os formatos 30 e 31) abriu a prévia e o subiu (o cadastro e cada dia acima de 29). Depois dele, o build do D3
-// semeia as datas de novo e exporta os CSVs; a migração do G2 (20261129100100_importados_ja_aprovados) roda uma vez por
+// inteiras (os dias, os pedidos e o Histórico delas), e nada mais. O formato guardado do cadastro e das outras datas não
+// muda: descer o número sem converter o conteúdo de volta só o rotularia errado (os passos 30 e 31 não convertem nada,
+// e a prévia já grava no 31; a revisão do Gabriel no #114). Depois dele, as datas do ensaio são semeadas de novo e os
+// CSVs exportados; a migração do G2 (20261129100100_importados_ja_aprovados) roda uma vez por
 // banco, e numa repetição do ensaio a regra (a) dela é chamada por este script (--converter), depois da semeadura e dos
 // CSVs. Recusa a produção antes de qualquer consulta: o projeto é o da prévia de js/config-supabase.js, ou o dado em
 // --ref, e nunca o de produção.
@@ -13,27 +14,26 @@ import { execFileSync } from 'node:child_process';
 import { PROJETOS } from '../js/config-supabase.js';
 import { refDaPrevia, REF_DA_PRODUCAO } from './pedidos-da-previa.mjs';
 
-// O projeto: o da prévia (refDaPrevia recusa a prévia que aponta para a produção) ou o dado em --ref, que também não pode
-// ser o de produção. Antes de qualquer consulta
+// O projeto: o da prévia (refDaPrevia recusa a prévia que aponta para a produção); o --ref, se dado, tem de ser ele mesmo
+// (nenhum outro projeto, nem o de produção). Antes de qualquer consulta
 const argumentos = process.argv.slice(2);
 const indiceDoRef = argumentos.indexOf('--ref');
 const pedido = indiceDoRef >= 0 ? argumentos[indiceDoRef + 1] : null;
 const refDaProducao = new URL(PROJETOS.producao.url).hostname.split('.')[0];
-if (pedido !== null && (!pedido || pedido === REF_DA_PRODUCAO || pedido === refDaProducao)) {
-  console.error('O ensaio é só na prévia: o projeto pedido é o de produção (ou nenhum). Nada foi feito.');
-  process.exit(2);
-}
 let PREVIA;
 try {
-  PREVIA = pedido || refDaPrevia(PROJETOS);
+  PREVIA = refDaPrevia(PROJETOS);
 } catch (e) {
   console.error(`${e.message} Nada foi feito.`);
   process.exit(2);
 }
+if (pedido !== null && (!pedido || pedido === REF_DA_PRODUCAO || pedido === refDaProducao || pedido !== PREVIA)) {
+  console.error('O ensaio é só na prévia: o projeto pedido não é o da prévia (ou é o de produção, ou nenhum). Nada foi feito.');
+  process.exit(2);
+}
 
-// As datas do ensaio e o formato do D3, de onde o ensaio parte
+// As datas do ensaio
 const DE = '2098-01-01', ATE = '2098-12-31';
-const FORMATO_DO_D3 = 29;
 const converter = argumentos.includes('--converter');
 const seco = Boolean(process.env.SECO);
 
@@ -53,10 +53,7 @@ const CONSULTAS = [
   // As datas do ensaio: o Histórico, os pedidos e os dias delas
   `delete from public.historico where data between '${DE}' and '${ATE}'`,
   `delete from public.solicitacoes where data between '${DE}' and '${ATE}'`,
-  `delete from public.dias where data between '${DE}' and '${ATE}'`,
-  // O formato guardado de volta ao do D3 (um build do E ou do L subiu o cadastro e os dias que abriu)
-  `update public.documentos set conteudo = jsonb_set(conteudo, '{esquema}', '${FORMATO_DO_D3}'::jsonb) where chave = 'cadastro' and public.esquema_do_conteudo(conteudo) > ${FORMATO_DO_D3}`,
-  `update public.dias set conteudo = jsonb_set(conteudo, '{esquema}', '${FORMATO_DO_D3}'::jsonb) where public.esquema_do_conteudo(conteudo) > ${FORMATO_DO_D3}`
+  `delete from public.dias where data between '${DE}' and '${ATE}'`
 ];
 // A regra (a) de novo (a migração do G2), numa repetição do ensaio
 const CONVERSAO = 'select public.aprovar_solicitacoes_de_antes_da_aprovacao(false) as aprovados';
@@ -69,5 +66,5 @@ if (converter) {
   if (r) console.log(`A regra (a) de novo: ${r.aprovados} pedidos aprovados por "importação anterior".`);
 } else {
   for (const consulta of CONSULTAS) sql(consulta, { escrita: true });
-  console.log(seco ? 'SECO: nada foi feito.' : `O ensaio recomeça: as datas de ${DE.slice(0, 4)} saíram, e o formato guardado é no máximo o ${FORMATO_DO_D3}.`);
+  console.log(seco ? 'SECO: nada foi feito.' : `O ensaio recomeça: as datas de ${DE.slice(0, 4)} saíram; o resto da prévia ficou como estava.`);
 }

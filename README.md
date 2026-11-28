@@ -110,8 +110,8 @@ npm run test:e2e       # aplicação no navegador (Playwright)
   e a `importadas`, dois que aguardam a aprovação e um cancelado, gravados com a data numa consulta só (a data que falhou
   fica sem eles, e rodar de novo grava só as que faltam). O script recusa a produção antes de qualquer consulta.
 - O ensaio da Onda 3 (o item 9 da lista dela, no plano): `node scripts/reiniciar-ensaio-previa.mjs` apaga as datas do
-  ensaio (2098: os dias, os pedidos e o Histórico delas) e volta o formato guardado ao 29 (o do D3), quando um build do E
-  ou do L abriu a prévia; numa repetição, depois da semeadura e dos CSVs, `--converter` chama a regra (a) da migração do
+  ensaio (2098: os dias, os pedidos e o Histórico delas) e nada mais (o formato do cadastro e das outras datas fica como
+  está; o `--ref`, se dado, só aceita o da prévia); numa repetição, depois da semeadura e dos CSVs, `--converter` chama a regra (a) da migração do
   G2. `SECO=1` só mostra; `--ref` escolhe outro projeto de prévia. Recusa a produção antes de qualquer consulta.
 - Os testes do banco que tocam a agenda (`agenda*.test.sql`, `contas.test.sql`, `painel.test.sql`) contam os dias pelo
   horário de São Paulo: o `current_date` do servidor é o de UTC, e um pedido num domingo ou numa data que já passou é
